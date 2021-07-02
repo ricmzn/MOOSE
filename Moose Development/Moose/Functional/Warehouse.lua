@@ -4648,6 +4648,9 @@ function WAREHOUSE:onafterRequestSpawned(From, Event, To, Request, CargoGroupSet
 
     -- Set home zone.
     CargoTransport:SetHomeZone(self.spawnzone)
+    
+    CargoTransport=OPSTRANSPORT:New(TransportGroupSet, self.spawnzone, Request.warehouse.spawnzone)
+    
 
   elseif Request.transporttype==WAREHOUSE.TransportType.SHIP or Request.transporttype==WAREHOUSE.TransportType.AIRCRAFTCARRIER 
       or Request.transporttype==WAREHOUSE.TransportType.ARMEDSHIP or Request.transporttype==WAREHOUSE.TransportType.WARSHIP then
