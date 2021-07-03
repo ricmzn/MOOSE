@@ -5830,7 +5830,7 @@ function OPSGROUP:onafterLoad(From, Event, To, CargoGroup, Carrier)
     
     -- Trigger "Loaded" event for current cargo transport.
     if self.cargoTransport then
-      self.cargoTransport:Loaded(CargoGroup, carrier)
+      self.cargoTransport:Loaded(CargoGroup, self, carrier)
     else
       self:E(self.lid..string.format("WARNING: Loaded cargo but no current OPSTRANSPORT assignment!"))
     end
@@ -6131,7 +6131,7 @@ function OPSGROUP:onafterUnloading(From, Event, To)
           end
 
           -- Trigger "Unloaded" event for current cargo transport
-          self.cargoTransport:Unloaded(cargo.opsgroup)
+          self.cargoTransport:Unloaded(cargo.opsgroup, self)
 
         end
 
