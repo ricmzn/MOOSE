@@ -2042,6 +2042,7 @@ do -- AI_A2A_DISPATCHER
   -- @param DCS#Altitude EngageFloorAltitude The lowest altitude in meters where to execute the engagement.
   -- @param DCS#Altitude EngageCeilingAltitude The highest altitude in meters where to execute the engagement.
   -- @param DCS#AltitudeType EngageAltType The altitude type ("RADIO"=="AGL", "BARO"=="ASL"). Defaults to "RADIO".
+  -- @param #number Limit (Optional) Maximum number of defenders that can be doing GCI at once
   -- @return #AI_A2A_DISPATCHER
   -- @usage
   --
@@ -2050,7 +2051,7 @@ do -- AI_A2A_DISPATCHER
   --   A2ADispatcher:SetSquadronGci2( "Novo", 900, 2100, 30, 30, "RADIO" )
   --   A2ADispatcher:SetSquadronGci2( "Maykop", 900, 1200, 100, 300, "RADIO" )
   --
-  function AI_A2A_DISPATCHER:SetSquadronGci2( SquadronName, EngageMinSpeed, EngageMaxSpeed, EngageFloorAltitude, EngageCeilingAltitude, EngageAltType )
+  function AI_A2A_DISPATCHER:SetSquadronGci2( SquadronName, EngageMinSpeed, EngageMaxSpeed, EngageFloorAltitude, EngageCeilingAltitude, EngageAltType, Limit )
 
     self.DefenderSquadrons[SquadronName] = self.DefenderSquadrons[SquadronName] or {}
     self.DefenderSquadrons[SquadronName].Gci = self.DefenderSquadrons[SquadronName].Gci or {}
@@ -2062,8 +2063,23 @@ do -- AI_A2A_DISPATCHER
     Intercept.EngageFloorAltitude = EngageFloorAltitude
     Intercept.EngageCeilingAltitude = EngageCeilingAltitude
     Intercept.EngageAltType = EngageAltType
+    Intercept.Limit = Limit
+    Intercept.Dispatched = 0
 
-    self:I( { GCI = { SquadronName, EngageMinSpeed, EngageMaxSpeed, EngageFloorAltitude, EngageCeilingAltitude, EngageAltType } } )
+    if Limit then
+      if Intercept.Timer then
+        Intercept.Timer:Stop()
+      end
+      Intercept.Timer = TIMER:New( self.UpdateGciAirborne, self, SquadronName )
+      Intercept.Timer:Start( nil, 30 )
+    else
+      if Intercept.Timer then
+        Intercept.Timer:Stop()
+        Intercept.Timer = nil
+      end
+    end
+
+    self:I( { GCI = { SquadronName, EngageMinSpeed, EngageMaxSpeed, EngageFloorAltitude, EngageCeilingAltitude, EngageAltType, Limit } } )
   end
 
   --- Set squadron GCI.
@@ -2071,6 +2087,7 @@ do -- AI_A2A_DISPATCHER
   -- @param #string SquadronName The squadron name.
   -- @param #number EngageMinSpeed The minimum speed [km/h] at which the GCI can be executed.
   -- @param #number EngageMaxSpeed The maximum speed [km/h] at which the GCI can be executed.
+  -- @param #number Limit (Optional) Maximum number of defenders that can be doing GCI at once
   -- @return #AI_A2A_DISPATCHER
   -- @usage
   --
@@ -2079,17 +2096,8 @@ do -- AI_A2A_DISPATCHER
   --   A2ADispatcher:SetSquadronGci( "Novo", 900, 2100 )
   --   A2ADispatcher:SetSquadronGci( "Maykop", 900, 1200 )
   --
-  function AI_A2A_DISPATCHER:SetSquadronGci( SquadronName, EngageMinSpeed, EngageMaxSpeed )
-
-    self.DefenderSquadrons[SquadronName] = self.DefenderSquadrons[SquadronName] or {}
-    self.DefenderSquadrons[SquadronName].Gci = self.DefenderSquadrons[SquadronName].Gci or {}
-
-    local Intercept = self.DefenderSquadrons[SquadronName].Gci
-    Intercept.Name = SquadronName
-    Intercept.EngageMinSpeed = EngageMinSpeed
-    Intercept.EngageMaxSpeed = EngageMaxSpeed
-
-    self:F( { GCI = { SquadronName, EngageMinSpeed, EngageMaxSpeed } } )
+  function AI_A2A_DISPATCHER:SetSquadronGci( SquadronName, EngageMinSpeed, EngageMaxSpeed, Limit )
+    self:SetSquadronGci2( SquadronName, EngageMinSpeed, EngageMaxSpeed, nil, nil, nil, Limit )
   end
 
   --- Defines the default amount of extra planes that will take-off as part of the defense system.
@@ -2192,6 +2200,7 @@ do -- AI_A2A_DISPATCHER
   -- @param #AI_A2A_DISPATCHER self
   -- @param #string SquadronName The name of the squadron.
   -- @param #number Grouping The level of grouping that will be applied of the CAP or GCI defenders.
+  -- @param #boolean Enforce Always spawn full groups, even if not needed.
   -- @return #AI_A2A_DISPATCHER self
   -- @usage:
   --
@@ -2200,10 +2209,11 @@ do -- AI_A2A_DISPATCHER
   --   -- Set a grouping per 2 airplanes.
   --   A2ADispatcher:SetSquadronGrouping( "SquadronName", 2 )
   --
-  function AI_A2A_DISPATCHER:SetSquadronGrouping( SquadronName, Grouping )
+  function AI_A2A_DISPATCHER:SetSquadronGrouping( SquadronName, Grouping, Enforce )
 
     local DefenderSquadron = self:GetSquadron( SquadronName )
     DefenderSquadron.Grouping = Grouping
+    DefenderSquadron.EnforceGrouping = Enforce
 
     return self
   end
@@ -2831,6 +2841,9 @@ do -- AI_A2A_DISPATCHER
     if Squadron.ResourceCount then
       Squadron.ResourceCount = Squadron.ResourceCount - Size
     end
+    if Squadron.Gci then
+      Squadron.Gci.Dispatched = Squadron.Gci.Dispatched + Size
+    end
     self:F( { DefenderName = DefenderName, SquadronResourceCount = Squadron.ResourceCount } )
   end
 
@@ -2914,6 +2927,32 @@ do -- AI_A2A_DISPATCHER
     end
 
     return CapCount
+  end
+
+  --- Update the number of actively dispatched GCI aircraft.
+  -- @param #AI_A2A_DISPATCHER self
+  -- @param #string SquadronName Name of the squadron
+  function AI_A2A_DISPATCHER:UpdateGciAirborne( SquadronName )
+
+    local DefenderSquadron = self.DefenderSquadrons[SquadronName]
+
+    if DefenderSquadron and DefenderSquadron.Gci then
+      local Count = 0
+      for AIGroup, DefenderTask in pairs( self:GetDefenderTasks() ) do
+        if DefenderTask.SquadronName == SquadronName then
+          if DefenderTask.Type == "GCI" then
+            if AIGroup and AIGroup:IsAlive() then
+              if DefenderTask.Fsm:Is( "Started" ) or DefenderTask.Fsm:Is( "Patrolling" ) or DefenderTask.Fsm:Is( "Engaging" ) then
+                Count = Count + AIGroup:GetSize()
+              end
+            end
+          end
+        end
+      end
+      env.info( tostring(SquadronName).." DISPATCHED = "..tostring(Count) )
+      DefenderSquadron.Gci.Dispatched = Count
+      self:F( { SquadronDispatched = Count } )
+    end
   end
 
   --- Count number of engaging defender groups.
@@ -3348,20 +3387,34 @@ do -- AI_A2A_DISPATCHER
 
               local DefenderOverhead = DefenderSquadron.Overhead or self.DefenderDefault.Overhead
               local DefenderGrouping = DefenderSquadron.Grouping or self.DefenderDefault.Grouping
+              local EnforceGrouping = DefenderSquadron.EnforceGrouping
               local DefendersNeeded = math.ceil( DefenderCount * DefenderOverhead )
 
+              self:F( { SquadronGciLimit = Gci.Limit, SquadronGciDispatched = Gci.Dispatched } )
               self:F( { Overhead = DefenderOverhead, SquadronOverhead = DefenderSquadron.Overhead, DefaultOverhead = self.DefenderDefault.Overhead } )
               self:F( { Grouping = DefenderGrouping, SquadronGrouping = DefenderSquadron.Grouping, DefaultGrouping = self.DefenderDefault.Grouping } )
+              self:F( { EnforceGrouping = EnforceGrouping } )
               self:F( { DefendersCount = DefenderCount, DefendersNeeded = DefendersNeeded } )
+
+              -- Limit total number of defenders according to user setting
+              if Gci.Limit and DefendersNeeded > Gci.Limit - Gci.Dispatched then
+                DefendersNeeded = Gci.Limit - Gci.Dispatched
+                BreakLoop = true
+              end
 
               -- DefenderSquadron.ResourceCount can have the value nil, which expresses unlimited resources.
               -- DefendersNeeded cannot exceed DefenderSquadron.ResourceCount!
               if DefenderSquadron.ResourceCount and DefendersNeeded > DefenderSquadron.ResourceCount then
                 DefendersNeeded = DefenderSquadron.ResourceCount
+                EnforceGrouping = false
                 BreakLoop = true
               end
 
               while (DefendersNeeded > 0) do
+
+                if EnforceGrouping and DefendersNeeded < DefenderGrouping then
+                  DefendersNeeded = DefenderGrouping
+                end
 
                 local DefenderGCI, DefenderGrouping = self:ResourceActivate( DefenderSquadron, DefendersNeeded )
 
