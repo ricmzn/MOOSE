@@ -2954,7 +2954,11 @@ do -- AI_A2A_DISPATCHER
         if DefenderTask.SquadronName == SquadronName then
           if DefenderTask.Type == "GCI" then
             if AIGroup and AIGroup:IsAlive() then
-              if DefenderTask.Fsm:Is( "Started" ) or DefenderTask.Fsm:Is( "Patrolling" ) or DefenderTask.Fsm:Is( "Engaging" ) then
+              if DefenderTask.Fsm:Is( "Started" ) or
+                 DefenderTask.Fsm:Is( "Patrolling" ) or
+                 DefenderTask.Fsm:Is( "Engaging" ) or
+                 DefenderTask.Fsm:Is( "Fuel" ) or
+                 DefenderTask.Fsm:Is( "Home" ) then
                 Count = Count + AIGroup:GetSize()
               end
             end
