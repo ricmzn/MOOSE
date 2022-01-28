@@ -1510,7 +1510,7 @@ do -- AI_A2A_DISPATCHER
       local Message = "Clearing (" .. DefenderTask.Type .. ") "
       Message = Message .. Defender:GetName()
       if Target then
-        Message = Message .. ( Target and ( " from " .. Target.Index .. " [" .. Target.Set:Count() .. "]" ) ) or ""
+        Message = Message .. ((Target and (" from " .. Target.Index .. " [" .. Target.Set:Count() .. "]")) or "")
       end
       self:F( { Target = Message } )
     end
@@ -1559,7 +1559,7 @@ do -- AI_A2A_DISPATCHER
 
     local Message = "(" .. self.DefenderTasks[Defender].Type .. ") "
     Message = Message .. Defender:GetName()
-    Message = Message .. ( AttackerDetection and ( " target " .. AttackerDetection.Index .. " [" .. AttackerDetection.Set:Count() .. "]" ) ) or ""
+    Message = Message .. ((AttackerDetection and (" target " .. AttackerDetection.Index .. " [" .. AttackerDetection.Set:Count() .. "]")) or "")
     self:F( { AttackerDetection = Message } )
     if AttackerDetection then
       self.DefenderTasks[Defender].Target = AttackerDetection
@@ -2675,7 +2675,7 @@ do -- AI_A2A_DISPATCHER
   --   -- Let flights by default land and despawn at engine shutdown.
   --   A2ADispatcher:SetDefaultLandingAtEngineShutdown()
   --
-    function AI_A2A_DISPATCHER:SetDefaultLandingAtEngineShutdown()
+  function AI_A2A_DISPATCHER:SetDefaultLandingAtEngineShutdown()
 
     self:SetDefaultLanding( AI_A2A_DISPATCHER.Landing.AtEngineShutdown )
 
@@ -3946,7 +3946,31 @@ do
   function AI_A2A_DISPATCHER:SchedulerCAP( SquadronName )
     self:CAP( SquadronName )
   end
-
+  
+   --- Add resources to a Squadron
+  -- @param #AI_A2A_DISPATCHER self
+  -- @param #string Squadron The squadron name.
+  -- @param #number Amount Number of resources to add.
+  function AI_A2A_DISPATCHER:AddToSquadron(Squadron,Amount)
+    local Squadron = self:GetSquadron(Squadron)
+    if Squadron.ResourceCount then
+      Squadron.ResourceCount = Squadron.ResourceCount + Amount
+    end
+    self:T({Squadron = Squadron.Name,SquadronResourceCount = Squadron.ResourceCount})
+  end
+  
+  --- Remove resources from a Squadron
+  -- @param #AI_A2A_DISPATCHER self
+  -- @param #string Squadron The squadron name.
+  -- @param #number Amount Number of resources to remove.
+  function AI_A2A_DISPATCHER:RemoveFromSquadron(Squadron,Amount)
+    local Squadron = self:GetSquadron(Squadron)
+    if Squadron.ResourceCount then
+      Squadron.ResourceCount = Squadron.ResourceCount - Amount
+    end
+    self:T({Squadron = Squadron.Name,SquadronResourceCount = Squadron.ResourceCount})
+  end
+  
 end
 
 do
