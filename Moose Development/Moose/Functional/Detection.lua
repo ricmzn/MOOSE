@@ -621,20 +621,22 @@ do -- DETECTION_BASE
 
         self:F( { DetectedTargets = DetectedTargets } )
 
-        for DetectionObjectID, Detection in pairs( DetectedTargets ) do
-          local DetectedObject = Detection.object -- DCS#Object
+        local DetectedObjects = {}
+
+        for _, Detected in pairs( DetectedTargets ) do
+          local DetectedObject = Detected.object -- DCS#Object
 
           if DetectedObject and DetectedObject:isExist() and DetectedObject.id_ < 50000000 then -- and ( DetectedObject:getCategory() == Object.Category.UNIT or DetectedObject:getCategory() == Object.Category.STATIC ) then
             local DetectedObjectName = DetectedObject:getName()
             if not self.DetectedObjects[DetectedObjectName] then
-              self.DetectedObjects[DetectedObjectName] = self.DetectedObjects[DetectedObjectName] or {}
-              self.DetectedObjects[DetectedObjectName].Name = DetectedObjectName
-              self.DetectedObjects[DetectedObjectName].Object = DetectedObject
+              DetectedObjects[DetectedObjectName] = self.DetectedObjects[DetectedObjectName] or {}
+              DetectedObjects[DetectedObjectName].Name = DetectedObjectName
+              DetectedObjects[DetectedObjectName].Object = DetectedObject
             end
           end
         end
 
-        for DetectionObjectName, DetectedObjectData in pairs( self.DetectedObjects ) do
+        for DetectedObjectName, DetectedObjectData in pairs( DetectedObjects ) do
 
           local DetectedObject = DetectedObjectData.Object
 
@@ -656,9 +658,6 @@ do -- DETECTION_BASE
             -- if Detection.visible == true then
 
             local DetectionAccepted = true
-
-            local DetectedObjectName = DetectedObject:getName()
-            local DetectedObjectType = DetectedObject:getTypeName()
 
             local DetectedObjectVec3 = DetectedObject:getPoint()
             local DetectedObjectVec2 = { x = DetectedObjectVec3.x, y = DetectedObjectVec3.z }
