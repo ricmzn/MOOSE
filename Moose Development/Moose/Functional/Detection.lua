@@ -732,6 +732,10 @@ do -- DETECTION_BASE
 
               local AlphaAngle = math.atan2( AltitudeDifference, GroundDistance )
               local Sinus = math.sin( AlphaAngle )
+              -- Only use exponent in look-up, not look-down
+              if Sinus > 0 then
+                Sinus = Sinus ^ self.AlphaAngleExponent
+              end
               local AlphaAngleProbabilityReversed = (1 - self.AlphaAngleProbability) * (1 - Sinus)
               local AlphaAngleProbability = 1 - AlphaAngleProbabilityReversed
 
@@ -1140,20 +1144,37 @@ do -- DETECTION_BASE
       return self
     end
 
-    --- Upon a **visual** detection, the higher the unit is during the detecting process, the more likely the detected unit is to be detected properly.
+    --- Upon a detection, the higher the unit is during the detecting process, the more likely the detected unit is to be detected properly.
     -- A detection at a 90% alpha angle is the most optimal, a detection at 10% is less and a detection at 0% is less likely to be correct.
-    -- 
+    --
     -- A probability factor between 0 and 1 can be given, that will model a progressive extrapolated probability if the target would be detected at a 0° angle.
     -- 
-    -- For example, if a alpha angle probability factor of 0.7 is given, the extrapolated probabilities of the different angles would look like:
-    -- 0°: 70%, 10°: 75,21%, 20°: 80,26%, 30°: 85%, 40°: 89,28%, 50°: 92,98%, 60°: 95,98%, 70°: 98,19%, 80°: 99,54%, 90°: 100%
+    -- For example, if a alpha angle probability factor of 0.7 is given with no exponent, the extrapolated probabilities of the different angles would look like:
+    -- 0°: 70%, 10°: 73.33%, 20°: 76.66%, 30°: 80%, 40°: 83.33%, 50°: 86.66%, 60°: 90%, 70°: 93.33%, 80°: 96.66%, 90°: 100%
+    --
+    -- The exponent argument modifies the curve so that the probabilities are polynomial (quadratic, cubic, etc) rather than linear.
+    -- An exponent value of 1 has no effect, values lower than 1 make the chance increase faster near the horizon and slower the higher it goes,
+    -- and values higher than 1 have the opposite effect, but the final chance will never go above 100%.
+    --
+    -- As a real-world example, setting the exponent to a value between 1/2 and 1/3 has the effect of simulating ground clutter for SAMs and EWRs,
+    -- as anything at an extreme grazing angle will have the lowest detection chance, but even slight increases in the detection angle will
+    -- greatly increase the chance of detection, because a target going from 1000m to 5000m at 50km only goes up from 1.1 to 5.7 degrees.
+    --
+    -- Repeating the above example, but with an exponent of 1/2, the probablities of the same angles would look like:
+    -- 0°: 70%, 10°: 82.50%, 20°: 87.54%, 30°: 91.21%, 40°: 94.05%, 50°: 96.25%, 60°: 97.91%, 70°: 99.08%, 80°: 99.77%, 90°: 100%
+    --
+    -- And with an exponent of 1/3:
+    -- 0°: 70%, 10°: 86.73%, 20°: 90.97%, 30°: 93.81%, 40°: 95.89%, 50°: 97.44%, 60°: 98.59%, 70°: 99.38%, 80°: 99.84%, 90°: 100%
+    --
     -- @param #DETECTION_BASE self
     -- @param AlphaAngleProbability The probability factor.
+    -- @param AlphaAngleExponent (optional) Probability curve exponent
     -- @return #DETECTION_BASE self
-    function DETECTION_BASE:SetAlphaAngleProbability( AlphaAngleProbability )
+    function DETECTION_BASE:SetAlphaAngleProbability( AlphaAngleProbability, AlphaAngleExponent )
       self:F2()
 
       self.AlphaAngleProbability = AlphaAngleProbability
+      self.AlphaAngleExponent = AlphaAngleExponent or 1
 
       return self
     end
