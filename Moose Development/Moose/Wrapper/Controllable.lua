@@ -2647,7 +2647,7 @@ function CONTROLLABLE:GetDetectedTargets( DetectVisual, DetectOptical, DetectRad
   if DCSControllable then
 
     local DetectionVisual = (DetectVisual and DetectVisual == true) and Controller.Detection.VISUAL or nil
-    local DetectionOptical = (DetectOptical and DetectOptical == true) and Controller.Detection.OPTICAL or nil
+    local DetectionOptical = (DetectOptical and DetectOptical == true) and Controller.Detection.OPTIC or nil
     local DetectionRadar = (DetectRadar and DetectRadar == true) and Controller.Detection.RADAR or nil
     local DetectionIRST = (DetectIRST and DetectIRST == true) and Controller.Detection.IRST or nil
     local DetectionRWR = (DetectRWR and DetectRWR == true) and Controller.Detection.RWR or nil
@@ -2709,7 +2709,7 @@ function CONTROLLABLE:IsTargetDetected( DCSObject, DetectVisual, DetectOptical, 
   if DCSControllable then
 
     local DetectionVisual = (DetectVisual and DetectVisual == true) and Controller.Detection.VISUAL or nil
-    local DetectionOptical = (DetectOptical and DetectOptical == true) and Controller.Detection.OPTICAL or nil
+    local DetectionOptical = (DetectOptical and DetectOptical == true) and Controller.Detection.OPTIC or nil
     local DetectionRadar = (DetectRadar and DetectRadar == true) and Controller.Detection.RADAR or nil
     local DetectionIRST = (DetectIRST and DetectIRST == true) and Controller.Detection.IRST or nil
     local DetectionRWR = (DetectRWR and DetectRWR == true) and Controller.Detection.RWR or nil
