@@ -1808,12 +1808,6 @@ do -- AI_A2A_DISPATCHER
 
     self:I( { CAP = { SquadronName, EngageMinSpeed, EngageMaxSpeed, EngageFloorAltitude, EngageCeilingAltitude, Zone, PatrolMinSpeed, PatrolMaxSpeed, PatrolFloorAltitude, PatrolCeilingAltitude, PatrolAltType, EngageAltType } } )
 
-    -- Add the CAP to the EWR network.
-
-    local RecceSet = self.Detection:GetDetectionSet()
-    RecceSet:FilterPrefixes( DefenderSquadron.TemplatePrefixes )
-    RecceSet:FilterStart()
-
     self.Detection:SetFriendlyPrefixes( DefenderSquadron.TemplatePrefixes )
 
     return self
@@ -3060,9 +3054,10 @@ do -- AI_A2A_DISPATCHER
   -- @param #AI_A2A_DISPATCHER self
   -- @param #AI_A2A_DISPATCHER.Squadron DefenderSquadron The defender squadron.
   -- @param #number DefendersNeeded Number of defenders needed. Default 4.
+  -- @param #boolean IsGCI Whether the activated resource will be doing GCI.
   -- @return Wrapper.Group#GROUP The defender group.
   -- @return #boolean Grouping.
-  function AI_A2A_DISPATCHER:ResourceActivate( DefenderSquadron, DefendersNeeded )
+  function AI_A2A_DISPATCHER:ResourceActivate( DefenderSquadron, DefendersNeeded, IsGCI )
 
     local SquadronName = DefenderSquadron.Name
 
@@ -3087,6 +3082,12 @@ do -- AI_A2A_DISPATCHER
 
         -- Start uncontrolled group.
         Defender:StartUncontrolled()
+
+        if not IsGCI then
+          -- Add the chosen group to the EWR network.
+          local EWRSet = self.Detection:GetDetectionSet()
+          EWRSet:AddGroup( Defender )
+        end
 
         -- Get grouping.
         DefenderGrouping = self.uncontrolled[SquadronName][id].grouping
@@ -3170,6 +3171,12 @@ do -- AI_A2A_DISPATCHER
       local Defender = Spawn:SpawnAtAirbase( DefenderSquadron.Airbase, TakeoffMethod, DefenderSquadron.TakeoffAltitude or self.DefenderDefault.TakeoffAltitude ) -- Wrapper.Group#GROUP
 
       self:AddDefenderToSquadron( DefenderSquadron, Defender, DefenderGrouping )
+
+      if not IsGCI then
+        -- Add the new group to the EWR network.
+        local EWRSet = self.Detection:GetDetectionSet()
+        EWRSet:AddGroup( Defender )
+      end
 
       return Defender, DefenderGrouping
     end
@@ -3444,7 +3451,7 @@ do -- AI_A2A_DISPATCHER
                 DefendersNeeded = DefenderGrouping
               end
 
-              local DefenderGCI, DefenderGrouping = self:ResourceActivate( DefenderSquadron, DefendersNeeded )
+              local DefenderGCI, DefenderGrouping = self:ResourceActivate( DefenderSquadron, DefendersNeeded, true )
 
               DefendersNeeded = DefendersNeeded - DefenderGrouping
 
