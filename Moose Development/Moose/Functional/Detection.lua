@@ -642,15 +642,8 @@ do -- DETECTION_BASE
 
           if DetectedObject:isExist() then
 
-            local TargetIsDetected, TargetIsVisible, TargetLastTime, TargetKnowType, TargetKnowDistance, TargetLastPos, TargetLastVelocity = DetectionUnit:IsTargetDetected(
-              DetectedObject,
-              self.DetectVisual,
-              self.DetectOptical,
-              self.DetectRadar,
-              self.DetectIRST,
-              self.DetectRWR,
-              self.DetectDLINK
-            )
+            local TargetIsDetected, TargetIsVisible, TargetLastTime, TargetKnowType, TargetKnowDistance, TargetLastPos, TargetLastVelocity =
+              DetectionUnit:IsTargetDetected( DetectedObject )
 
             -- self:T2( { TargetIsDetected = TargetIsDetected, TargetIsVisible = TargetIsVisible, TargetLastTime = TargetLastTime, TargetKnowType = TargetKnowType, TargetKnowDistance = TargetKnowDistance, TargetLastPos = TargetLastPos, TargetLastVelocity = TargetLastVelocity } )
 
