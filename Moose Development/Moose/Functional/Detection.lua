@@ -725,13 +725,15 @@ do -- DETECTION_BASE
             end
 
             if not self.DetectedObjects[DetectedObjectName] and TargetIsVisible and self.AlphaAngleProbability then
-              local NormalVec2 = { x = DetectedObjectVec2.x - DetectionGroupVec2.x, y = DetectedObjectVec2.y - DetectionGroupVec2.y }
-              local AlphaAngle = math.atan2( NormalVec2.y, NormalVec2.x )
+
+              local AltitudeDifference = DetectedObjectVec3.y - DetectionGroupVec3.y
+              local GroundDistance = ((DetectedObjectVec2.x - DetectionGroupVec2.x) ^ 2 +
+                                      (DetectedObjectVec2.y - DetectionGroupVec3.y) ^ 2) ^ 0.5
+
+              local AlphaAngle = math.atan2( AltitudeDifference, GroundDistance )
               local Sinus = math.sin( AlphaAngle )
               local AlphaAngleProbabilityReversed = (1 - self.AlphaAngleProbability) * (1 - Sinus)
               local AlphaAngleProbability = 1 - AlphaAngleProbabilityReversed
-
-              AlphaAngleProbability = AlphaAngleProbability * 30 / 300
 
               local Probability = math.random() -- Selects a number between 0 and 1
               -- self:T( { Probability, AlphaAngleProbability } )
