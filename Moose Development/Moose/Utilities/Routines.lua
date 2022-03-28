@@ -1,7 +1,6 @@
 --- Various routines
 -- @module routines
 -- @image MOOSE.JPG
-env.setErrorMessageBoxEnabled( false )
 
 --- Extract of MIST functions.
 -- @author Grimes
