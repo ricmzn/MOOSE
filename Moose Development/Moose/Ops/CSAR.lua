@@ -1805,13 +1805,18 @@ function CSAR:_CheckOnboard(_unitName)
     end
     --list onboard pilots
     local _inTransit = self.inTransitGroups[_unitName]
+    local _maxUnits = self.AircraftType[_unit:GetTypeName()] or self.max_units
     if _inTransit == nil then
-        self:_DisplayMessageToSAR(_unit, "No Rescued Pilots onboard", self.messageTime, false, false, true)
+        local _text = string.format("No Rescued Pilots onboard (Max: %d)", _maxUnits)
+        self:_DisplayMessageToSAR(_unit, _text, self.messageTime, false, false, true)
     else
+        local _count = 0
         local _text = "Onboard - RTB to FARP/Airfield or MASH: "
         for _, _onboard in pairs(self.inTransitGroups[_unitName]) do
             _text = _text .. "\n" .. _onboard.desc
+            _count = _count + 1
         end
+        _text = _text .. "\n" .. string.format("Capacity: %d/%d", _count, _maxUnits)
         self:_DisplayMessageToSAR(_unit, _text, self.messageTime*2, false, false, true)
     end
     return self
