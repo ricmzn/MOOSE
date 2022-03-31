@@ -1843,16 +1843,19 @@ function CSAR:_AddMedevacMenuItem()
   for _, _unitName in pairs(self.csarUnits) do
     local _unit = self:_GetSARHeli(_unitName) -- Wrapper.Unit#UNIT
     if _unit then
-      local _group = _unit:GetGroup() -- Wrapper.Group#GROUP
-      if _group then
-        local groupname = _group:GetName()
-        if self.addedTo[groupname] == nil then
-          self.addedTo[groupname] = true
-          local _rootPath = MENU_GROUP:New(_group,"CSAR")
-          local _rootMenu1 = MENU_GROUP_COMMAND:New(_group,"List Active CSAR",_rootPath, self._DisplayActiveSAR,self,_unitName)
-          local _rootMenu2 = MENU_GROUP_COMMAND:New(_group,"Check Onboard",_rootPath, self._CheckOnboard,self,_unitName)
-          local _rootMenu3 = MENU_GROUP_COMMAND:New(_group,"Request Signal Flare",_rootPath, self._SignalFlare,self,_unitName)
-          local _rootMenu4 = MENU_GROUP_COMMAND:New(_group,"Request Smoke",_rootPath, self._Reqsmoke,self,_unitName):Refresh()
+      local _maxUnits = self.AircraftType[_unit:GetTypeName()] or self.max_units
+      if _maxUnits > 0 then
+        local _group = _unit:GetGroup() -- Wrapper.Group#GROUP
+        if _group then
+          local groupname = _group:GetName()
+          if self.addedTo[groupname] == nil then
+            self.addedTo[groupname] = true
+            local _rootPath = MENU_GROUP:New(_group,"CSAR")
+            local _rootMenu1 = MENU_GROUP_COMMAND:New(_group,"List Active CSAR",_rootPath, self._DisplayActiveSAR,self,_unitName)
+            local _rootMenu2 = MENU_GROUP_COMMAND:New(_group,"Check Onboard",_rootPath, self._CheckOnboard,self,_unitName)
+            local _rootMenu3 = MENU_GROUP_COMMAND:New(_group,"Request Signal Flare",_rootPath, self._SignalFlare,self,_unitName)
+            local _rootMenu4 = MENU_GROUP_COMMAND:New(_group,"Request Smoke",_rootPath, self._Reqsmoke,self,_unitName):Refresh()
+          end
         end
       end
     end
