@@ -527,8 +527,13 @@ function UNIT:GetGroup()
   local DCSUnit = self:GetDCSObject()
   
   if DCSUnit then
-    local UnitGroup = GROUP:FindByName( DCSUnit:getGroup():getName() )
-    return UnitGroup
+    local DCSGroup = DCSUnit:getGroup()
+    if DCSGroup then
+      local GroupName = DCSGroup:getName()
+      if GroupName then
+        return GROUP:FindByName( DCSUnit:getGroup():getName() )
+      end
+    end
   end
 
   return nil
