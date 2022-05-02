@@ -346,11 +346,12 @@ function GROUP:IsAlive()
 
   if DCSGroup then
     if DCSGroup:isExist() then
-      local DCSUnit = DCSGroup:getUnit(1) -- DCS#Unit
-      if DCSUnit then
-        local GroupIsAlive = DCSUnit:isActive()
-        self:T3( GroupIsAlive )
-        return GroupIsAlive
+      for _, DCSUnit in pairs(DCSGroup:getUnits()) do
+        if DCSUnit and DCSUnit:isExist() then
+          local GroupIsAlive = DCSUnit:isActive()
+          self:T3( GroupIsAlive )
+          return GroupIsAlive
+        end
       end
     end
   end
