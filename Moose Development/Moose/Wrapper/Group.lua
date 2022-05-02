@@ -384,7 +384,7 @@ end
 -- So all event listeners will catch the destroy event of this group for each unit in the group.
 -- To raise these events, provide the `GenerateEvent` parameter.
 -- @param #GROUP self
--- @param #boolean GenerateEvent If true, a crash or dead event for each unit is generated. If false, if no event is triggered. If nil, a RemoveUnit event is triggered.
+-- @param #boolean GenerateEvent If true, a crash [AIR] or dead [GROUND] event for each unit is generated. If false, if no event is triggered. If nil, a RemoveUnit event is triggered.
 -- @param #number delay Delay in seconds before despawning the group.
 -- @usage
 -- -- Air unit example: destroy the Helicopter and generate a S_EVENT_CRASH for each unit in the Helicopter group.
@@ -765,8 +765,7 @@ end
 
 --- Returns the average velocity Vec3 vector.
 -- @param Wrapper.Group#GROUP self
--- @return DCS#Vec3 The velocity Vec3 vector
--- @return #nil The GROUP is not existing or alive.  
+-- @return DCS#Vec3 The velocity Vec3 vector or `#nil` if the GROUP is not existing or alive.  
 function GROUP:GetVelocityVec3()
   self:F2( self.GroupName )
 
@@ -797,11 +796,19 @@ function GROUP:GetVelocityVec3()
   return nil
 end
 
+--- Returns the average group altitude in meters.
+-- @param Wrapper.Group#GROUP self
+-- @param #boolean FromGround Measure from the ground or from sea level (ASL). Provide **true** for measuring from the ground (AGL). **false** or **nil** if you measure from sea level. 
+-- @return #number The altitude of the group or nil if is not existing or alive.  
+function GROUP:GetAltitude(FromGround)
+  self:F2( self.GroupName )
+  return self:GetHeight(FromGround)
+end
 
 --- Returns the average group height in meters.
 -- @param Wrapper.Group#GROUP self
--- @param #boolean FromGround Measure from the ground or from sea level. Provide **true** for measuring from the ground. **false** or **nil** if you measure from sea level. 
--- @return DCS#Vec3 The height of the group or nil if is not existing or alive.  
+-- @param #boolean FromGround Measure from the ground or from sea level (ASL). Provide **true** for measuring from the ground (AGL). **false** or **nil** if you measure from sea level. 
+-- @return #number The height of the group or nil if is not existing or alive.  
 function GROUP:GetHeight( FromGround )
   self:F2( self.GroupName )
 
@@ -901,6 +908,24 @@ function GROUP:GetTypeName()
   return nil
 end
 
+--- [AIRPLANE] Get the NATO reporting name (platform, e.g. "Flanker") of a GROUP (note - first unit the group). "Bogey" if not found. Currently airplanes only!
+--@param #GROUP self
+--@return #string NatoReportingName or "Bogey" if unknown.
+function GROUP:GetNatoReportingName()
+  self:F2( self.GroupName )
+  
+  local DCSGroup = self:GetDCSObject()
+  
+  if DCSGroup then
+    local GroupTypeName = DCSGroup:getUnit(1):getTypeName()
+    self:T3( GroupTypeName )
+    return UTILS.GetReportingName(GroupTypeName)
+  end
+  
+  return "Bogey"
+  
+end
+
 --- Gets the player name of the group.
 -- @param #GROUP self
 -- @return #string The player name of the group.
@@ -994,24 +1019,32 @@ end
 -- @return Core.Point#COORDINATE The COORDINATE of the GROUP.
 function GROUP:GetCoordinate()
 
-  local FirstUnit = self:GetUnit(1)
+  local Units = self:GetUnits()  
   
-  if FirstUnit then
-    local FirstUnitCoordinate = FirstUnit:GetCoordinate()
-    return FirstUnitCoordinate
+  for _,_unit in pairs(Units) do
+    local FirstUnit = _unit -- Wrapper.Unit#UNIT
+    
+    if FirstUnit then
+    
+      local FirstUnitCoordinate = FirstUnit:GetCoordinate()
+      
+      if FirstUnitCoordinate then
+        local Heading = self:GetHeading()
+        FirstUnitCoordinate.Heading = Heading
+        return FirstUnitCoordinate
+      end
+      
+    end
   end
-  
   BASE:E( { "Cannot GetCoordinate", Group = self, Alive = self:IsAlive() } )
-
-  return nil
+  
 end
 
 
 --- Returns a random @{DCS#Vec3} vector (point in 3D of the UNIT within the mission) within a range around the first UNIT of the GROUP.
 -- @param #GROUP self
--- @param #number Radius
--- @return DCS#Vec3 The random 3D point vector around the first UNIT of the GROUP.
--- @return #nil The GROUP is invalid or empty
+-- @param #number Radius Radius in meters.
+-- @return DCS#Vec3 The random 3D point vector around the first UNIT of the GROUP or #nil The GROUP is invalid or empty. 
 -- @usage 
 -- -- If Radius is ignored, returns the DCS#Vec3 of first UNIT of the GROUP
 function GROUP:GetRandomVec3(Radius)
@@ -1032,8 +1065,7 @@ end
 
 --- Returns the mean heading of every UNIT in the GROUP in degrees
 -- @param #GROUP self
--- @return #number mean heading of the GROUP
--- @return #nil The first UNIT is not existing or alive.
+-- @return #number Mean heading of the GROUP in degrees or #nil The first UNIT is not existing or alive.
 function GROUP:GetHeading()
   self:F2(self.GroupName)
 
@@ -1061,8 +1093,8 @@ end
 --- Return the fuel state and unit reference for the unit with the least
 -- amount of fuel in the group.
 -- @param #GROUP self
--- @return #number The fuel state of the unit with the least amount of fuel
--- @return #Unit reference to #Unit object for further processing
+-- @return #number The fuel state of the unit with the least amount of fuel.
+-- @return Wrapper.Unit#UNIT reference to #Unit object for further processing.
 function GROUP:GetFuelMin()
   self:F3(self.ControllableName)
 
@@ -2608,6 +2640,7 @@ function GROUP:GetSkill()
   local skill = _DATABASE.Templates.Units[name].Template.skill or "Random"
   return skill
 end
+
 
 --- Get the unit in the group with the highest threat level, which is still alive.
 -- @param #GROUP self

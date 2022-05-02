@@ -28,7 +28,7 @@ do
 
 ------------------------------------------------------
 --- **CTLD_ENGINEERING** class, extends Core.Base#BASE
---- @type CTLD_ENGINEERING
+-- @type CTLD_ENGINEERING
 -- @field #string ClassName
 -- @field #string lid
 -- @field #string Name
@@ -870,8 +870,12 @@ do
 -- 
 -- ## 5. Support for Hercules mod by Anubis
 -- 
--- Basic support for the Hercules mod By Anubis has been build into CTLD. Currently this does **not** cover objects and troops which can
--- be loaded from the Rearm/Refuel menu, i.e. you can drop them into the field, but you cannot use them in functions scripted with this class.
+-- Basic support for the Hercules mod By Anubis has been build into CTLD - that is you can load/drop/build the same objects as the helicopters. 
+-- To also cover objects and troops which can be loaded from the groud crew Rearm/Refuel menu, you need to use @{#CTLD_HERCULES.New}() and link
+-- this object to your CTLD setup. In this case, do **not** use the `Hercules_Cargo.lua` or `Hercules_Cargo_CTLD.lua` which are part of the mod 
+-- in your mission!
+-- 
+-- ### 5.1 Create an own CTLD instance and allow the usage of the Hercules mod:
 --
 --              local my_ctld = CTLD:New(coalition.side.BLUE,{"Helicargo", "Hercules"},"Lufttransportbrigade I")
 -- 
@@ -882,9 +886,32 @@ do
 --              my_ctld.HercMaxAngels = 2000 -- for troop/cargo drop via chute in meters, ca 6000 ft
 --              my_ctld.HercMaxSpeed = 77 -- 77mps or 270kph or 150kn
 -- 
+-- Hint: you can **only** airdrop from the Hercules if you are "in parameters", i.e. at or below `HercMaxSpeed` and in the AGL bracket between
+-- `HercMinAngels` and `HercMaxAngels`!
+-- 
 -- Also, the following options need to be set to `true`:
 -- 
 --              my_ctld.useprefix = true -- this is true by default and MUST BE ON. 
+-- 
+-- ### 5.2 Integrate Hercules ground crew loadable objects 
+-- 
+-- Add ground crew loadable objects to your CTLD instance like so, where `my_ctld` is the previously created CTLD instance:
+-- 
+--            local herccargo = CTLD_HERCULES:New("blue", "Hercules Test", my_ctld)
+--            
+-- You also need:
+--  
+-- * A template called "Infantry" for 10 Paratroopers (as set via herccargo.infantrytemplate). 
+-- * Depending on what you are loading with the help of the ground crew, there are 42 more templates for the various vehicles that are loadable. 
+-- 
+-- There's a **quick check output in the `dcs.log`** which tells you what's there and what not.
+-- E.g.:
+--            ...Checking template for APC BTR-82A Air [24998lb] (BTR-82A) ... MISSING)
+--            ...Checking template for ART 2S9 NONA Skid [19030lb] (SAU 2-C9) ... MISSING)
+--            ...Checking template for EWR SBORKA Air [21624lb] (Dog Ear radar) ... MISSING)
+--            ...Checking template for Transport Tigr Air [15900lb] (Tigr_233036) ... OK)
+--            
+-- Expected template names are the ones in the rounded brackets.
 -- 
 -- Standard transport capabilities as per the real Hercules are:
 -- 
@@ -924,7 +951,6 @@ CTLD = {
   FreeUHFFrequencies = {}, -- Table of UHF
   FreeFMFrequencies = {}, -- Table of FM
   CargoCounter = 0,
-  wpZones = {},
   Cargo_Troops = {}, -- generic troops objects
   Cargo_Crates = {}, -- generic crate objects
   Loaded_Cargo = {}, -- cargo aboard units
@@ -1823,6 +1849,8 @@ function CTLD:_GetCrates(Group, Unit, Cargo, number, drop)
   local drop = drop or false
   local ship = nil
   local width = 20
+  local distance = nil
+  local zone = nil
   if not drop then 
     inzone = self:IsUnitInZone(Unit,CTLD.CargoZoneType.LOAD)
     if not inzone then
@@ -2687,6 +2715,8 @@ function CTLD:_BuildCrates(Group, Unit,Engineering)
         local required = Crate:GetCratesNeeded()
         local template = Crate:GetTemplates()
         local ctype = Crate:GetType()
+        local ccoord = Crate:GetPositionable():GetCoordinate() -- Core.Point#COORDINATE
+        --local testmarker = ccoord:MarkToAll("Crate found",true,"Build Position")
         if not buildables[name] then
           local object = {} -- #CTLD.Buildable
           object.Name = name
@@ -2695,6 +2725,7 @@ function CTLD:_BuildCrates(Group, Unit,Engineering)
           object.Template = template
           object.CanBuild = false
           object.Type = ctype -- #CTLD_CARGO.Enum
+          object.Coord = ccoord:GetVec2()
           buildables[name] = object
           foundbuilds = true
         else
@@ -2856,7 +2887,8 @@ function CTLD:_BuildObjectFromCrates(Group,Unit,Build,Repair,RepairLocation)
       temptable = {temptable}
     end
     local zone = ZONE_GROUP:New(string.format("Unload zone-%s",unitname),Group,100)
-    local randomcoord = zone:GetRandomCoordinate(35):GetVec2()
+    --local randomcoord = zone:GetRandomCoordinate(35):GetVec2()
+    local randomcoord = Build.Coord or zone:GetRandomCoordinate(35):GetVec2()
     if Repair then
       randomcoord = RepairLocation:GetVec2()
     end
@@ -2865,7 +2897,7 @@ function CTLD:_BuildObjectFromCrates(Group,Unit,Build,Repair,RepairLocation)
       local alias = string.format("%s-%d", _template, math.random(1,100000))
       if canmove then
         self.DroppedTroops[self.TroopCounter] = SPAWN:NewWithAlias(_template,alias)
-          :InitRandomizeUnits(true,20,2)
+          --:InitRandomizeUnits(true,20,2)
           :InitDelayOff()
           :SpawnFromVec2(randomcoord)
       else -- don't random position of e.g. SAM units build as FOB
@@ -3787,8 +3819,8 @@ end
       local ucoord = Unit:GetCoordinate()
       local gheight = ucoord:GetLandHeight()
       local aheight = uheight - gheight -- height above ground
-      local maxh = self.HercMinAngels-- 1500m
-      local minh =  self.HercMaxAngels -- 5000m
+      local minh = self.HercMinAngels-- 1500m
+      local maxh =  self.HercMaxAngels -- 5000m
       local maxspeed =  self.HercMaxSpeed -- 77 mps
       -- DONE: TEST - Speed test for Herc, should not be above 280kph/150kn
       local kmspeed = uspeed * 3.6
@@ -3816,7 +3848,7 @@ end
     else
       local minheight = UTILS.MetersToFeet(self.minimumHoverHeight)
       local maxheight = UTILS.MetersToFeet(self.maximumHoverHeight)
-      text = string.format("Hover parameters (autoload/drop):\n - Min height %dm \n - Max height %dm \n - Max speed 6fts \n - In parameter: %s", minheight, maxheight, htxt)
+      text = string.format("Hover parameters (autoload/drop):\n - Min height %dft \n - Max height %dft \n - Max speed 6ftps \n - In parameter: %s", minheight, maxheight, htxt)
     end
     self:_SendMessage(text, 10, false, Group)
     return self
@@ -5097,7 +5129,7 @@ function CTLD_HERCULES:Cargo_SpawnObjects(Cargo_Drop_initiator,Cargo_Drop_Direct
       self:Soldier_SpawnGroup(Cargo_Drop_initiator,Cargo_Content_position, Cargo_Type_name, CargoHeading, Cargo_Country, 5)
       self:Soldier_SpawnGroup(Cargo_Drop_initiator,Cargo_Content_position, Cargo_Type_name, CargoHeading, Cargo_Country, 10)
     else
-      self:Cargo_SpawnGroup(Cargo_Drop_initiator,Cargo_Content_position, Cargo_Type_name, CargoHeading, Cargo_Country, 0)
+      self:Cargo_SpawnGroup(Cargo_Drop_initiator,Cargo_Content_position, Cargo_Type_name, CargoHeading, Cargo_Country)
     end
   else
     if all_cargo_gets_destroyed == true or Cargo_over_water == true then

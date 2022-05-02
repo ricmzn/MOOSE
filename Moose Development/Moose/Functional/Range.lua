@@ -2755,7 +2755,7 @@ function RANGE:_DisplayRangeWeather( _unitname )
       local tW = string.format( "%.1f m/s", Ws )
       local tP = string.format( "%.1f mmHg", P * hPa2mmHg )
       if settings:IsImperial() then
-        -- tT=string.format("%d°F", UTILS.CelciusToFarenheit(T))
+        -- tT=string.format("%d°F", UTILS.CelsiusToFahrenheit(T))
         tW = string.format( "%.1f knots", UTILS.MpsToKnots( Ws ) )
         tP = string.format( "%.2f inHg", P * hPa2inHg )
       end
@@ -3004,7 +3004,7 @@ function RANGE:_CheckInZone( _unitName )
           Straferesult.rangename = self.rangename
 
           -- Save trap sheet.
-          if playerData.targeton and self.targetsheet then
+          if playerData and playerData.targeton and self.targetsheet then
             self:_SaveTargetSheet( _playername, result )
           end
           -- RangeBoss edit for strafe data saved to file
@@ -3524,7 +3524,7 @@ function RANGE:_TargetsheetOnOff( _unitname )
         playerData.targeton = not playerData.targeton
 
         -- Inform player.
-        if playerData.targeton == true then
+        if playerData and playerData.targeton == true then
           text = string.format( "roger, your targetsheets are now SAVED." )
         else
           text = string.format( "affirm, your targetsheets are NOT SAVED." )

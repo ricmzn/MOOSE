@@ -201,7 +201,7 @@ do -- SET_BASE
     self:F2( { ObjectName = ObjectName } )
 
     local TriggerEvent = true
-    if NoTriggerEvent == false then
+    if NoTriggerEvent then
       TriggerEvent = false
     end
 
@@ -1004,7 +1004,7 @@ do -- SET_GROUP
 
   --- Gets the Set.
   -- @param #SET_GROUP self
-  -- @return #SET_GROUP self
+  -- @return #table Table of objects
   function SET_GROUP:GetAliveSet()
     self:F2()
 
