@@ -451,8 +451,6 @@ function AI_AIR:onafterStatus()
   
     local RTB = false
     
-    local DistanceFromHomeBase = self.HomeAirbase:GetCoordinate():Get2DDistance( self.Controllable:GetCoordinate() )
-    
     if not self:Is( "Holding" ) and not self:Is( "Returning" ) then
       local DistanceFromHomeBase = self.HomeAirbase:GetCoordinate():Get2DDistance( self.Controllable:GetCoordinate() )
       
