@@ -1327,7 +1327,7 @@ do -- SET_GROUP
     if Event.IniDCSUnit then
       local ObjectName, Object = self:FindInDatabase( Event )
       if ObjectName then
-        if Event.IniDCSGroup:getSize() == 1 then -- Only remove if the last unit of the group was destroyed.
+        if Event.IniDCSGroup == nil or Event.IniDCSGroup:getSize() <= 1 then -- Only remove if the last unit of the group was destroyed.
           self:Remove( ObjectName )
         end
       end
@@ -6484,7 +6484,7 @@ do -- SET_OPSGROUP
     if Event.IniDCSUnit then
       local ObjectName, Object = self:FindInDatabase( Event )
       if ObjectName then
-        if Event.IniDCSGroup:getSize() == 1 then -- Only remove if the last unit of the group was destroyed.
+        if Event.IniDCSGroup == nil or Event.IniDCSGroup:getSize() <= 1 then -- Only remove if the last unit of the group was destroyed.
           self:Remove( ObjectName )
         end
       end
