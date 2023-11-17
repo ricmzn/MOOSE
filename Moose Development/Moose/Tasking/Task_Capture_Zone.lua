@@ -8,14 +8,14 @@
 -- 
 -- ===
 --   
--- @module Tasking.TaskZoneCapture
+-- @module Tasking.Task_Capture_Zone
 -- @image MOOSE.JPG
 
 do -- TASK_ZONE_GOAL
 
   --- The TASK_ZONE_GOAL class
   -- @type TASK_ZONE_GOAL
-  -- @field Core.ZoneGoal#ZONE_GOAL ZoneGoal
+  -- @field Functional.ZoneGoal#ZONE_GOAL ZoneGoal
   -- @extends Tasking.Task#TASK
 
   --- # TASK_ZONE_GOAL class, extends @{Tasking.Task#TASK}
@@ -36,7 +36,12 @@ do -- TASK_ZONE_GOAL
   --   * @{#TASK_ZONE_GOAL.SetScoreOnDestroy}(): Set a score when a target in scope of the A2G attack, has been destroyed.
   --   * @{#TASK_ZONE_GOAL.SetScoreOnSuccess}(): Set a score when all the targets in scope of the A2G attack, have been destroyed.
   --   * @{#TASK_ZONE_GOAL.SetPenaltyOnFailed}(): Set a penalty when the A2G attack has failed.
+  --
+  -- # Developer Note
   -- 
+  -- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+  -- Therefore, this class is considered to be deprecated
+  --
   -- @field #TASK_ZONE_GOAL
   TASK_ZONE_GOAL = {
     ClassName = "TASK_ZONE_GOAL",
@@ -47,7 +52,7 @@ do -- TASK_ZONE_GOAL
   -- @param Tasking.Mission#MISSION Mission
   -- @param Core.Set#SET_GROUP SetGroup The set of groups for which the Task can be assigned.
   -- @param #string TaskName The name of the Task.
-  -- @param Core.ZoneGoalCoalition#ZONE_GOAL_COALITION ZoneGoal
+  -- @param Functional.ZoneGoalCoalition#ZONE_GOAL_COALITION ZoneGoal
   -- @return #TASK_ZONE_GOAL self
   function TASK_ZONE_GOAL:New( Mission, SetGroup, TaskName, ZoneGoal, TaskType, TaskBriefing )
     local self = BASE:Inherit( self, TASK:New( Mission, SetGroup, TaskName, TaskType, TaskBriefing ) ) -- #TASK_ZONE_GOAL
@@ -115,10 +120,10 @@ do -- TASK_ZONE_GOAL
   end
 
   --- @param #TASK_ZONE_GOAL self
-  -- @param Core.ZoneGoal#ZONE_GOAL ZoneGoal The ZoneGoal Engine.
+  -- @param Functional.ZoneGoal#ZONE_GOAL ZoneGoal The ZoneGoal Engine.
   function TASK_ZONE_GOAL:SetProtect( ZoneGoal )
   
-    self.ZoneGoal = ZoneGoal -- Core.ZoneGoal#ZONE_GOAL
+    self.ZoneGoal = ZoneGoal -- Functional.ZoneGoal#ZONE_GOAL
   end
    
 
@@ -169,10 +174,10 @@ do -- TASK_CAPTURE_ZONE
 
   --- The TASK_CAPTURE_ZONE class
   -- @type TASK_CAPTURE_ZONE
-  -- @field Core.ZoneGoalCoalition#ZONE_GOAL_COALITION ZoneGoal
+  -- @field Functional.ZoneGoalCoalition#ZONE_GOAL_COALITION ZoneGoal
   -- @extends #TASK_ZONE_GOAL
 
-  --- # TASK_CAPTURE_ZONE class, extends @{Tasking.TaskZoneGoal#TASK_ZONE_GOAL}
+  --- # TASK_CAPTURE_ZONE class, extends @{Tasking.Task_Capture_Zone#TASK_ZONE_GOAL}
   -- 
   -- The TASK_CAPTURE_ZONE class defines an Suppression or Extermination of Air Defenses task for a human player to be executed.
   -- These tasks are important to be executed as they will help to achieve air superiority at the vicinity.
@@ -191,7 +196,7 @@ do -- TASK_CAPTURE_ZONE
   -- @param Tasking.Mission#MISSION Mission
   -- @param Core.Set#SET_GROUP SetGroup The set of groups for which the Task can be assigned.
   -- @param #string TaskName The name of the Task.
-  -- @param Core.ZoneGoalCoalition#ZONE_GOAL_COALITION ZoneGoalCoalition
+  -- @param Functional.ZoneGoalCoalition#ZONE_GOAL_COALITION ZoneGoalCoalition
   -- @param #string TaskBriefing The briefing of the task.
   -- @return #TASK_CAPTURE_ZONE self
   function TASK_CAPTURE_ZONE:New( Mission, SetGroup, TaskName, ZoneGoalCoalition, TaskBriefing)

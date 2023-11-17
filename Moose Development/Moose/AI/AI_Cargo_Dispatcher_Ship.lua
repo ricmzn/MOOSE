@@ -1,4 +1,4 @@
---- **AI** -- (2.5.1) - Models the intelligent transportation of infantry and other cargo using Ships
+--- **AI** - Models the intelligent transportation of infantry and other cargo using Ships.
 --
 -- ## Features:
 -- 
@@ -21,7 +21,7 @@
 -- ===
 --
 -- @module AI.AI_Cargo_Dispatcher_Ship
--- @image AI_Cargo_Dispatching_For_Ship.JPG
+-- @image AI_Cargo_Dispatcher.JPG
 
 --- @type AI_CARGO_DISPATCHER_SHIP
 -- @extends AI.AI_Cargo_Dispatcher#AI_CARGO_DISPATCHER
@@ -37,14 +37,14 @@
 --
 -- This will be particularly helpful in order to determine how to **Tailor the different cargo handling events**.
 --
--- The AI_CARGO_DISPATCHER_SHIP class uses the @{Cargo.Cargo} capabilities within the MOOSE framwork.
+-- The AI_CARGO_DISPATCHER_SHIP class uses the @{Cargo.Cargo} capabilities within the MOOSE framework.
 -- Also ensure that you fully understand how to declare and setup Cargo objects within the MOOSE framework before using this class.
 -- CARGO derived objects must generally be declared within the mission to make the AI_CARGO_DISPATCHER_SHIP object recognize the cargo.
 --
 --
 -- # 1) AI_CARGO_DISPATCHER_SHIP constructor.
 -- 
---   * @{AI_CARGO_DISPATCHER_SHIP.New}(): Creates a new AI_CARGO_DISPATCHER_SHIP object.
+--   * @{#AI_CARGO_DISPATCHER_SHIP.New}(): Creates a new AI_CARGO_DISPATCHER_SHIP object.
 --
 -- ---
 --
@@ -130,7 +130,12 @@
 -- Use @{#AI_CARGO_DISPATCHER_SHIP.SetHomeZone}() to specify the home zone.
 -- 
 -- If no home zone is specified, the Ship will wait near the deploy zone for a new pickup command.   
+--
+-- # Developer Note
 -- 
+-- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+-- Therefore, this class is considered to be deprecated
+--
 -- ===
 -- 
 -- @field #AI_CARGO_DISPATCHER_SHIP

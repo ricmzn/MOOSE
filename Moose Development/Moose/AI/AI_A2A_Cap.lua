@@ -1,4 +1,6 @@
---- **AI** -- (R2.2) - Models the process of Combat Air Patrol (CAP) for airplanes.
+--- **AI** - Models the process of Combat Air Patrol (CAP) for airplanes.
+--
+-- This is a class used in the @{AI.AI_A2A_Dispatcher}.
 --
 -- ===
 --
@@ -13,8 +15,7 @@
 -- @extends AI.AI_Air_Patrol#AI_AIR_PATROL
 -- @extends AI.AI_Air_Engage#AI_AIR_ENGAGE
 
-
---- The AI_A2A_CAP class implements the core functions to patrol a @{Zone} by an AI @{Wrapper.Group} or @{Wrapper.Group}
+--- The AI_A2A_CAP class implements the core functions to patrol a @{Core.Zone} by an AI @{Wrapper.Group} or @{Wrapper.Group}
 -- and automatically engage any airborne enemies that are within a certain range or within a certain zone.
 --
 -- ![Process](..\Presentations\AI_CAP\Dia3.JPG)
@@ -81,15 +82,20 @@
 -- that will define when the AI will engage with the detected airborne enemy targets.
 -- The range can be beyond or smaller than the range of the Patrol Zone.
 -- The range is applied at the position of the AI.
--- Use the method @{AI.AI_CAP#AI_A2A_CAP.SetEngageRange}() to define that range.
+-- Use the method @{#AI_A2A_CAP.SetEngageRange}() to define that range.
 --
 -- ## 4. Set the Zone of Engagement
 --
 -- ![Zone](..\Presentations\AI_CAP\Dia12.JPG)
 --
--- An optional @{Zone} can be set,
+-- An optional @{Core.Zone} can be set,
 -- that will define when the AI will engage with the detected airborne enemy targets.
--- Use the method @{AI.AI_Cap#AI_A2A_CAP.SetEngageZone}() to define that Zone.
+-- Use the method @{#AI_A2A_CAP.SetEngageZone}() to define that Zone.
+--
+-- # Developer Note
+-- 
+-- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+-- Therefore, this class is considered to be deprecated
 --
 -- ===
 --
@@ -106,7 +112,7 @@ AI_A2A_CAP = {
 -- @param DCS#Altitude EngageFloorAltitude The lowest altitude in meters where to execute the engagement.
 -- @param DCS#Altitude EngageCeilingAltitude The highest altitude in meters where to execute the engagement.
 -- @param DCS#AltitudeType EngageAltType The altitude type ("RADIO"=="AGL", "BARO"=="ASL"). Defaults to "RADIO".
--- @param Core.Zone#ZONE_BASE PatrolZone The @{Zone} where the patrol needs to be executed.
+-- @param Core.Zone#ZONE_BASE PatrolZone The @{Core.Zone} where the patrol needs to be executed.
 -- @param DCS#Speed  PatrolMinSpeed The minimum speed of the @{Wrapper.Group} in km/h.
 -- @param DCS#Speed  PatrolMaxSpeed The maximum speed of the @{Wrapper.Group} in km/h.
 -- @param DCS#Altitude PatrolFloorAltitude The lowest altitude in meters where to execute the patrol.
@@ -117,7 +123,7 @@ function AI_A2A_CAP:New2( AICap, EngageMinSpeed, EngageMaxSpeed, EngageFloorAlti
 
   -- Multiple inheritance ... :-)
   local AI_Air = AI_AIR:New( AICap )
-  local AI_Air_Patrol = AI_AIR_PATROL:New( AI_Air, AICap, PatrolZone, PatrolFloorAltitude, PatrolCeilingAltitude, PatrolMinSpeed, PatrolMaxSpeed, PatrolAltType ) -- #AI_AIR_PATROL
+  local AI_Air_Patrol = AI_AIR_PATROL:New( AI_Air, AICap, PatrolZone, PatrolFloorAltitude, PatrolCeilingAltitude, PatrolMinSpeed, PatrolMaxSpeed, PatrolAltType )
   local AI_Air_Engage = AI_AIR_ENGAGE:New( AI_Air_Patrol, AICap, EngageMinSpeed, EngageMaxSpeed, EngageFloorAltitude, EngageCeilingAltitude, EngageAltType )
   local self = BASE:Inherit( self, AI_Air_Engage ) --#AI_A2A_CAP
 
@@ -132,7 +138,7 @@ end
 --- Creates a new AI_A2A_CAP object
 -- @param #AI_A2A_CAP self
 -- @param Wrapper.Group#GROUP AICap
--- @param Core.Zone#ZONE_BASE PatrolZone The @{Zone} where the patrol needs to be executed.
+-- @param Core.Zone#ZONE_BASE PatrolZone The @{Core.Zone} where the patrol needs to be executed.
 -- @param DCS#Altitude PatrolFloorAltitude The lowest altitude in meters where to execute the patrol.
 -- @param DCS#Altitude PatrolCeilingAltitude The highest altitude in meters where to execute the patrol.
 -- @param DCS#Speed  PatrolMinSpeed The minimum speed of the @{Wrapper.Group} in km/h.
@@ -191,7 +197,7 @@ end
 --- Evaluate the attack and create an AttackUnitTask list.
 -- @param #AI_A2A_CAP self
 -- @param Core.Set#SET_UNIT AttackSetUnit The set of units to attack.
--- @param Wrappper.Group#GROUP DefenderGroup The group of defenders.
+-- @param Wrapper.Group#GROUP DefenderGroup The group of defenders.
 -- @param #number EngageAltitude The altitude to engage the targets.
 -- @return #AI_A2A_CAP self
 function AI_A2A_CAP:CreateAttackUnitTasks( AttackSetUnit, DefenderGroup, EngageAltitude )

@@ -1,4 +1,4 @@
---- **AI** - Create an automated A2G defense system based on a detection network of reconnaissance vehicles and air units, coordinating SEAD, BAI and CAS operations.
+--- **AI** - Create an automated A2G defense system with reconnaissance units, coordinating SEAD, BAI and CAS operations.
 -- 
 -- ===
 -- 
@@ -175,7 +175,7 @@
 --    * polygon zones
 --    * moving zones
 -- 
--- Depending on the type of zone selected, a different @{Zone} object needs to be created from a ZONE_ class.
+-- Depending on the type of zone selected, a different @{Core.Zone} object needs to be created from a ZONE_ class.
 -- 
 -- 
 -- ## 12. Are moving defense coordinates possible?
@@ -253,7 +253,12 @@
 -- 
 -- **The default grouping is 1. That means, that each spawned defender will act individually.**
 -- But you can specify a number between 1 and 4, so that the defenders will act as a group.
+--
+-- # Developer Note
 -- 
+-- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+-- Therefore, this class is considered to be deprecated
+--
 -- ===
 -- 
 -- ### Author: **FlightControl** rework of GCICAP + introduction of new concepts (squadrons).
@@ -291,8 +296,6 @@ do -- AI_A2G_DISPATCHER
   -- 
   -- ## 1. AI\_A2G\_DISPATCHER constructor:
   -- 
-  -- ![Banner Image](..\Presentations\AI_A2G_DISPATCHER\AI_A2G_DISPATCHER-ME_1.JPG)
-  -- 
   -- 
   -- The @{#AI_A2G_DISPATCHER.New}() method creates a new AI_A2G_DISPATCHER instance.
   -- 
@@ -305,8 +308,6 @@ do -- AI_A2G_DISPATCHER
   -- 
   -- A reconnaissance network, is used to detect enemy ground targets, 
   -- potentially group them into areas, and to understand the position, level of threat of the enemy.
-  -- 
-  -- ![Banner Image](..\Presentations\AI_A2G_DISPATCHER\Dia5.JPG)
   -- 
   -- As explained in the introduction, depending on the type of mission you want to achieve, different types of units can be applied to detect ground enemy targets.
   -- Ground based units are very useful to act as a reconnaissance, but they lack sometimes the visibility to detect targets at greater range.
@@ -681,8 +682,6 @@ do -- AI_A2G_DISPATCHER
   -- 
   -- Use the method @{#AI_A2G_DISPATCHER.SetSquadronGrouping}() to set the grouping of aircraft when spawned in.
   -- 
-  -- ![Banner Image](..\Presentations\AI_A2G_DISPATCHER\Dia12.JPG)
-  -- 
   -- In the case of **on call** engagement, the @{#AI_A2G_DISPATCHER.SetSquadronGrouping}() method has additional behaviour.
   -- When there aren't enough patrol flights airborne, a on call will be initiated for the remaining
   -- targets to be engaged. Depending on the grouping parameter, the spawned flights for on call aircraft are grouped into this setting.   
@@ -695,8 +694,6 @@ do -- AI_A2G_DISPATCHER
   -- 
   -- The effectiveness can be set with the **overhead parameter**. This is a number that is used to calculate the amount of Units that dispatching command will allocate to GCI in surplus of detected amount of units.
   -- The **default value** of the overhead parameter is 1.0, which means **equal balance**.
-  -- 
-  -- ![Banner Image](..\Presentations\AI_A2G_DISPATCHER\Dia11.JPG)
   -- 
   -- However, depending on the (type of) aircraft (strength and payload) in the squadron and the amount of resources available, this parameter can be changed.
   -- 
@@ -843,8 +840,6 @@ do -- AI_A2G_DISPATCHER
   -- 
   -- For example, the following setup will set the default refuel tanker to "Tanker":
   -- 
-  -- ![Banner Image](..\Presentations\AI_A2G_DISPATCHER\AI_A2G_DISPATCHER-ME_11.JPG)
-  -- 
   --      -- Set the default tanker for refuelling to "Tanker", when the default fuel threshold has reached 90% fuel left.
   --      A2GDispatcher:SetDefaultFuelThreshold( 0.9 )
   --      A2GDispatcher:SetDefaultTanker( "Tanker" )
@@ -951,7 +946,7 @@ do -- AI_A2G_DISPATCHER
   AI_A2G_DISPATCHER.DefenseQueue = {}
   
   --- Defense approach types.
-  -- @type #AI_A2G_DISPATCHER.DefenseApproach
+  -- @type AI_A2G_DISPATCHER.DefenseApproach
   AI_A2G_DISPATCHER.DefenseApproach = {
     Random = 1,
     Distance = 2,
@@ -999,7 +994,9 @@ do -- AI_A2G_DISPATCHER
 --    self.Detection:InitDetectRadar( false )
 --    self.Detection:InitDetectVisual( true )
 --    self.Detection:SetRefreshTimeInterval( 30 )
-
+    
+    self.SetSendPlayerMessages = false --flash messages to players
+    
     self:SetDefenseRadius()
     self:SetDefenseLimit( nil )
     self:SetDefenseApproach( AI_A2G_DISPATCHER.DefenseApproach.Random )
@@ -1387,7 +1384,7 @@ do -- AI_A2G_DISPATCHER
   --- Define a border area to simulate a **cold war** scenario.
   -- A **cold war** is one where Patrol aircraft patrol their territory but will not attack enemy aircraft or launch GCI aircraft unless enemy aircraft enter their territory. In other words the EWR may detect an enemy aircraft but will only send aircraft to attack it if it crosses the border.
   -- A **hot war** is one where Patrol aircraft will intercept any detected enemy aircraft and GCI aircraft will launch against detected enemy aircraft without regard for territory. In other words if the ground radar can detect the enemy aircraft then it will send Patrol and GCI aircraft to attack it.
-  -- If it's a cold war then the **borders of red and blue territory** need to be defined using a @{zone} object derived from @{Core.Zone#ZONE_BASE}. This method needs to be used for this.
+  -- If it's a cold war then the **borders of red and blue territory** need to be defined using a @{Core.Zone} object derived from @{Core.Zone#ZONE_BASE}. This method needs to be used for this.
   -- If a hot war is chosen then **no borders** actually need to be defined using the helicopter units other than it makes it easier sometimes for the mission maker to envisage where the red and blue territories roughly are. In a hot war the borders are effectively defined by the ground based radar coverage of a coalition. Set the noborders parameter to 1
   -- @param #AI_A2G_DISPATCHER self
   -- @param Core.Zone#ZONE_BASE BorderZone An object derived from ZONE_BASE, or a list of objects derived from ZONE_BASE.
@@ -1804,6 +1801,19 @@ do -- AI_A2G_DISPATCHER
     return DefenderSquadron
   end
 
+  --- Get a resource count from a specific squadron
+  -- @param #AI_A2G_DISPATCHER self
+  -- @param #string Squadron Name of the squadron.
+  -- @return #number Number of airframes available or nil if the squadron does not exist
+  function AI_A2G_DISPATCHER:QuerySquadron(Squadron)
+    local Squadron = self:GetSquadron(Squadron)
+    if Squadron.ResourceCount then
+      self:T2(string.format("%s = %s",Squadron.Name,Squadron.ResourceCount))
+      return Squadron.ResourceCount
+    end
+    self:F({Squadron = Squadron.Name,SquadronResourceCount = Squadron.ResourceCount})
+    return nil
+  end
   
   --- Set the Squadron visible before startup of the dispatcher.
   -- All planes will be spawned as uncontrolled on the parking spot.
@@ -1837,7 +1847,7 @@ do -- AI_A2G_DISPATCHER
   --- Check if the Squadron is visible before startup of the dispatcher.
   -- @param #AI_A2G_DISPATCHER self
   -- @param #string SquadronName The squadron name.
-  -- @return #bool true if visible.
+  -- @return #boolean true if visible.
   -- @usage
   -- 
   --        -- Set the Squadron visible before startup of dispatcher.
@@ -2183,7 +2193,7 @@ do -- AI_A2G_DISPATCHER
   -- The Sead patrol will start a patrol of the aircraft at a specified zone, and will engage when commanded.
   -- @param #AI_A2G_DISPATCHER self
   -- @param #string SquadronName The squadron name.
-  -- @param Core.Zone#ZONE_BASE Zone The @{Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the Patrol will be executed.
+  -- @param Core.Zone#ZONE_BASE Zone The @{Core.Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the Patrol will be executed.
   -- @param #number PatrolMinSpeed (optional, default = 50% of max speed) The minimum speed at which the cap can be executed.
   -- @param #number PatrolMaxSpeed (optional, default = 75% of max speed) The maximum speed at which the cap can be executed.
   -- @param #number PatrolFloorAltitude (optional, default = 1000m ) The minimum altitude at which the cap can be executed.
@@ -2232,7 +2242,7 @@ do -- AI_A2G_DISPATCHER
   -- The Sead patrol will start a patrol of the aircraft at a specified zone, and will engage when commanded.
   -- @param #AI_A2G_DISPATCHER self
   -- @param #string SquadronName The squadron name.
-  -- @param Core.Zone#ZONE_BASE Zone The @{Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the Patrol will be executed.
+  -- @param Core.Zone#ZONE_BASE Zone The @{Core.Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the Patrol will be executed.
   -- @param #number FloorAltitude (optional, default = 1000m ) The minimum altitude at which the cap can be executed.
   -- @param #number CeilingAltitude (optional, default = 1500m ) The maximum altitude at which the cap can be executed.
   -- @param #number PatrolMinSpeed (optional, default = 50% of max speed) The minimum speed at which the cap can be executed.
@@ -2334,7 +2344,7 @@ do -- AI_A2G_DISPATCHER
   -- The Cas patrol will start a patrol of the aircraft at a specified zone, and will engage when commanded.
   -- @param #AI_A2G_DISPATCHER self
   -- @param #string SquadronName The squadron name.
-  -- @param Core.Zone#ZONE_BASE Zone The @{Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the Patrol will be executed.
+  -- @param Core.Zone#ZONE_BASE Zone The @{Core.Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the Patrol will be executed.
   -- @param #number PatrolMinSpeed (optional, default = 50% of max speed) The minimum speed at which the cap can be executed.
   -- @param #number PatrolMaxSpeed (optional, default = 75% of max speed) The maximum speed at which the cap can be executed.
   -- @param #number PatrolFloorAltitude (optional, default = 1000m ) The minimum altitude at which the cap can be executed.
@@ -2383,7 +2393,7 @@ do -- AI_A2G_DISPATCHER
   -- The Cas patrol will start a patrol of the aircraft at a specified zone, and will engage when commanded.
   -- @param #AI_A2G_DISPATCHER self
   -- @param #string SquadronName The squadron name.
-  -- @param Core.Zone#ZONE_BASE Zone The @{Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the Patrol will be executed.
+  -- @param Core.Zone#ZONE_BASE Zone The @{Core.Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the Patrol will be executed.
   -- @param #number FloorAltitude (optional, default = 1000m ) The minimum altitude at which the cap can be executed.
   -- @param #number CeilingAltitude (optional, default = 1500m ) The maximum altitude at which the cap can be executed.
   -- @param #number PatrolMinSpeed (optional, default = 50% of max speed) The minimum speed at which the cap can be executed.
@@ -2485,7 +2495,7 @@ do -- AI_A2G_DISPATCHER
   -- The Bai patrol will start a patrol of the aircraft at a specified zone, and will engage when commanded.
   -- @param #AI_A2G_DISPATCHER self
   -- @param #string SquadronName The squadron name.
-  -- @param Core.Zone#ZONE_BASE Zone The @{Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the Patrol will be executed.
+  -- @param Core.Zone#ZONE_BASE Zone The @{Core.Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the Patrol will be executed.
   -- @param #number PatrolMinSpeed (optional, default = 50% of max speed) The minimum speed at which the cap can be executed.
   -- @param #number PatrolMaxSpeed (optional, default = 75% of max speed) The maximum speed at which the cap can be executed.
   -- @param #number PatrolFloorAltitude (optional, default = 1000m ) The minimum altitude at which the cap can be executed.
@@ -2534,7 +2544,7 @@ do -- AI_A2G_DISPATCHER
   -- The Bai patrol will start a patrol of the aircraft at a specified zone, and will engage when commanded.
   -- @param #AI_A2G_DISPATCHER self
   -- @param #string SquadronName The squadron name.
-  -- @param Core.Zone#ZONE_BASE Zone The @{Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the Patrol will be executed.
+  -- @param Core.Zone#ZONE_BASE Zone The @{Core.Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the Patrol will be executed.
   -- @param #number FloorAltitude (optional, default = 1000m ) The minimum altitude at which the cap can be executed.
   -- @param #number CeilingAltitude (optional, default = 1500m ) The maximum altitude at which the cap can be executed.
   -- @param #number PatrolMinSpeed (optional, default = 50% of max speed) The minimum speed at which the cap can be executed.
@@ -3718,7 +3728,9 @@ do -- AI_A2G_DISPATCHER
         local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
         
         if Squadron then
-          Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", wheels up.", DefenderGroup )
+          if self.SetSendPlayerMessages then
+            Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", wheels up.", DefenderGroup )
+          end
           AI_A2G_Fsm:Patrol() -- Engage on the TargetSetUnit
         end
       end
@@ -3730,7 +3742,7 @@ do -- AI_A2G_DISPATCHER
         local DefenderName = DefenderGroup:GetCallsign()
         local Dispatcher = self:GetDispatcher() -- #AI_A2G_DISPATCHER
         local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
-        if Squadron then
+        if Squadron and self.SetSendPlayerMessages then
           Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", patrolling.", DefenderGroup )
         end
 
@@ -3749,8 +3761,9 @@ do -- AI_A2G_DISPATCHER
         if Squadron and AttackSetUnit:Count() > 0 then
           local FirstUnit = AttackSetUnit:GetFirst()
           local Coordinate = FirstUnit:GetCoordinate() -- Core.Point#COORDINATE
-  
-          Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", moving on to ground target at " .. Coordinate:ToStringA2G( DefenderGroup ), DefenderGroup )
+          if self.SetSendPlayerMessages then
+            Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", moving on to ground target at " .. Coordinate:ToStringA2G( DefenderGroup ), DefenderGroup )
+          end
         end
       end
 
@@ -3764,8 +3777,9 @@ do -- AI_A2G_DISPATCHER
         local FirstUnit = AttackSetUnit:GetFirst()
         if FirstUnit then
           local Coordinate = FirstUnit:GetCoordinate()
-  
-          Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", engaging ground target at " .. Coordinate:ToStringA2G( DefenderGroup ), DefenderGroup )
+          if self.SetSendPlayerMessages then
+            Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", engaging ground target at " .. Coordinate:ToStringA2G( DefenderGroup ), DefenderGroup )
+          end
         end
       end
 
@@ -3776,8 +3790,9 @@ do -- AI_A2G_DISPATCHER
         local DefenderName = DefenderGroup:GetCallsign()
         local Dispatcher = self:GetDispatcher() -- #AI_A2G_DISPATCHER
         local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
-        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", returning to base.", DefenderGroup )
-
+        if self.SetSendPlayerMessages then
+          Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", returning to base.", DefenderGroup )
+        end
         Dispatcher:ClearDefenderTaskTarget( DefenderGroup )
       end
 
@@ -3789,7 +3804,9 @@ do -- AI_A2G_DISPATCHER
         local DefenderName = DefenderGroup:GetCallsign()
         local Dispatcher = AI_A2G_Fsm:GetDispatcher() -- #AI_A2G_DISPATCHER
         local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
-        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", lost control." )
+        if self.SetSendPlayerMessages then
+          Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", lost control." )
+        end
         if DefenderGroup:IsAboveRunway() then
           Dispatcher:RemoveDefenderFromSquadron( Squadron, DefenderGroup )
           DefenderGroup:Destroy()
@@ -3804,8 +3821,9 @@ do -- AI_A2G_DISPATCHER
         local DefenderName = DefenderGroup:GetCallsign()
         local Dispatcher = self:GetDispatcher() -- #AI_A2G_DISPATCHER
         local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
-        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", landing at base.", DefenderGroup )
-
+        if self.SetSendPlayerMessages then
+          Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", landing at base.", DefenderGroup )
+        end
         if Action and Action == "Destroy" then
           Dispatcher:RemoveDefenderFromSquadron( Squadron, DefenderGroup )
           DefenderGroup:Destroy()
@@ -3861,7 +3879,9 @@ do -- AI_A2G_DISPATCHER
         self:F( { DefenderTarget = DefenderTarget } )
         
         if DefenderTarget then
-          Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", wheels up.", DefenderGroup )
+          if self.SetSendPlayerMessages then
+            Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", wheels up.", DefenderGroup )
+          end
           AI_A2G_Fsm:EngageRoute( DefenderTarget.Set ) -- Engage on the TargetSetUnit
         end
       end
@@ -3876,8 +3896,9 @@ do -- AI_A2G_DISPATCHER
         if Squadron then
           local FirstUnit = AttackSetUnit:GetFirst()
           local Coordinate = FirstUnit:GetCoordinate() -- Core.Point#COORDINATE
-  
-          Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", on route to ground target at " .. Coordinate:ToStringA2G( DefenderGroup ), DefenderGroup )
+           if self.SetSendPlayerMessages then
+            Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", on route to ground target at " .. Coordinate:ToStringA2G( DefenderGroup ), DefenderGroup )
+           end
         end
         self:GetParent(self).onafterEngageRoute( self, DefenderGroup, From, Event, To, AttackSetUnit )
       end
@@ -3892,8 +3913,9 @@ do -- AI_A2G_DISPATCHER
         local FirstUnit = AttackSetUnit:GetFirst()
         if FirstUnit then
           local Coordinate = FirstUnit:GetCoordinate()
-  
-          Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", engaging ground target at " .. Coordinate:ToStringA2G( DefenderGroup ), DefenderGroup )
+          if self.SetSendPlayerMessages then
+            Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", engaging ground target at " .. Coordinate:ToStringA2G( DefenderGroup ), DefenderGroup )
+          end
         end
       end
 
@@ -3903,8 +3925,9 @@ do -- AI_A2G_DISPATCHER
         local DefenderName = DefenderGroup:GetCallsign()
         local Dispatcher = self:GetDispatcher() -- #AI_A2G_DISPATCHER
         local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
-        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", returning to base.", DefenderGroup )
-
+        if self.SetSendPlayerMessages then
+          Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", returning to base.", DefenderGroup )
+        end
         self:GetParent(self).onafterRTB( self, DefenderGroup, From, Event, To )
 
         Dispatcher:ClearDefenderTaskTarget( DefenderGroup )
@@ -3918,8 +3941,9 @@ do -- AI_A2G_DISPATCHER
         local DefenderName = DefenderGroup:GetCallsign()
         local Dispatcher = AI_A2G_Fsm:GetDispatcher() -- #AI_A2G_DISPATCHER
         local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
-        --Dispatcher:MessageToPlayers( Squadron,  "Squadron " .. Squadron.Name .. ", " .. DefenderName .. " lost control." )
-
+        if self.SetSendPlayerMessages then
+          Dispatcher:MessageToPlayers( Squadron,  "Squadron " .. Squadron.Name .. ", " .. DefenderName .. " lost control." )
+        end
         if DefenderGroup:IsAboveRunway() then
           Dispatcher:RemoveDefenderFromSquadron( Squadron, DefenderGroup )
           DefenderGroup:Destroy()
@@ -3934,8 +3958,9 @@ do -- AI_A2G_DISPATCHER
         local DefenderName = DefenderGroup:GetCallsign()
         local Dispatcher = self:GetDispatcher() -- #AI_A2G_DISPATCHER
         local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
-        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", landing at base.", DefenderGroup )
-
+        if self.SetSendPlayerMessages then
+          Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", landing at base.", DefenderGroup )
+        end
         if Action and Action == "Destroy" then
           Dispatcher:RemoveDefenderFromSquadron( Squadron, DefenderGroup )
           DefenderGroup:Destroy()
@@ -3975,7 +4000,7 @@ do -- AI_A2G_DISPATCHER
     local EvaluateDistance = AttackCoordinate:Get2DDistance( DefenseCoordinate )
 
     -- Now check if this coordinate is not in a danger zone, meaning, that the attack line is not crossing other coordinates.
-    -- (y1 – y2)x + (x2 – x1)y + (x1y2 – x2y1) = 0
+    -- (y1 - y2)x + (x2 - x1)y + (x1y2 - x2y1) = 0
     
     local c1 = DefenseCoordinate
     local c2 = AttackCoordinate
@@ -4036,7 +4061,7 @@ do -- AI_A2G_DISPATCHER
       for DefenderID, DefenderGroup in pairs( DefenderFriendlies or {} ) do
 
         -- Here we check if the defenders have a defense line to the attackers.
-        -- If the attackers are behind enemy lines or too close to an other defense line; then don´t engage.
+        -- If the attackers are behind enemy lines or too close to an other defense line; then don't engage.
         local DefenseCoordinate = DefenderGroup:GetCoordinate()
         local HasDefenseLine = self:HasDefenseLine( DefenseCoordinate, DetectedItem )
   
@@ -4341,7 +4366,7 @@ do -- AI_A2G_DISPATCHER
   
         -- Show tactical situation
         local ThreatLevel = DetectedItem.Set:CalculateThreatLevelA2G()
-        Report:Add( string.format( " - %1s%s ( %04s ): ( #%02d - %-4s ) %s" , ( DetectedItem.IsDetected == true ) and "!" or " ", DetectedItem.ItemID, DetectedItem.Index, DetectedItem.Set:Count(), DetectedItem.Type or " --- ", string.rep(  "■", ThreatLevel ) ) )
+        Report:Add( string.format( " - %1s%s ( %04s ): ( #%02d - %-4s ) %s" , ( DetectedItem.IsDetected == true ) and "!" or " ", DetectedItem.ItemID, DetectedItem.Index, DetectedItem.Set:Count(), DetectedItem.Type or " --- ", string.rep(   "■",  ThreatLevel ) ) )
         for Defender, DefenderTask in pairs( self:GetDefenderTasks() ) do
           local Defender = Defender -- Wrapper.Group#GROUP
            if DefenderTask.Target and DefenderTask.Target.Index == DetectedItem.Index then
@@ -4559,7 +4584,7 @@ do -- AI_A2G_DISPATCHER
         if self.TacticalDisplay then      
           -- Show tactical situation
           local ThreatLevel = DetectedItem.Set:CalculateThreatLevelA2G()
-          Report:Add( string.format( " - %1s%s ( %4s ): ( #%d - %4s ) %s" , ( DetectedItem.IsDetected == true ) and "!" or " ", DetectedItem.ItemID, DetectedItem.Index, DetectedItem.Set:Count(), DetectedItem.Type or " --- ", string.rep(  "■", ThreatLevel ) ) )
+          Report:Add( string.format( " - %1s%s ( %4s ): ( #%d - %4s ) %s" , ( DetectedItem.IsDetected == true ) and "!" or " ", DetectedItem.ItemID, DetectedItem.Index, DetectedItem.Set:Count(), DetectedItem.Type or " --- ", string.rep(   "■", ThreatLevel ) ) )
           for Defender, DefenderTask in pairs( self:GetDefenderTasks() ) do
             local Defender = Defender -- Wrapper.Group#GROUP
              if DefenderTask.Target and DefenderTask.Target.Index == DetectedItem.Index then
@@ -4729,7 +4754,15 @@ do
     self:Patrol( SquadronName, PatrolTaskType )    
   end
   
-    --- Add resources to a Squadron
+    --- Set flashing player messages on or off
+  -- @param #AI_A2G_DISPATCHER self
+  -- @param #boolean onoff Set messages on (true) or off (false)
+  function AI_A2G_DISPATCHER:SetSendMessages( onoff )
+      self.SetSendPlayerMessages = onoff
+  end
+end
+
+  --- Add resources to a Squadron
   -- @param #AI_A2G_DISPATCHER self
   -- @param #string Squadron The squadron name.
   -- @param #number Amount Number of resources to add.
@@ -4752,6 +4785,3 @@ do
     end
     self:T({Squadron = Squadron.Name,SquadronResourceCount = Squadron.ResourceCount})
   end
-  
-end
-

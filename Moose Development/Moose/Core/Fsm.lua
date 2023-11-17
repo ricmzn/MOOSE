@@ -47,9 +47,9 @@
 -- and tailored** by mission designers through **the implementation of Transition Handlers**.
 -- Each of these FSM implementation classes start either with:
 --
---   * an acronym **AI\_**, which indicates a FSM implementation directing **AI controlled** @{GROUP} and/or @{UNIT}. These AI\_ classes derive the @{#FSM_CONTROLLABLE} class.
---   * an acronym **TASK\_**, which indicates a FSM implementation executing a @{TASK} executed by Groups of players. These TASK\_ classes derive the @{#FSM_TASK} class.
---   * an acronym **ACT\_**, which indicates an Sub-FSM implementation, directing **Humans actions** that need to be done in a @{TASK}, seated in a @{CLIENT} (slot) or a @{UNIT} (CA join). These ACT\_ classes derive the @{#FSM_PROCESS} class.
+--   * an acronym **AI\_**, which indicates a FSM implementation directing **AI controlled** @{Wrapper.Group#GROUP} and/or @{Wrapper.Unit#UNIT}. These AI\_ classes derive the @{#FSM_CONTROLLABLE} class.
+--   * an acronym **TASK\_**, which indicates a FSM implementation executing a @{Tasking.Task#TASK} executed by Groups of players. These TASK\_ classes derive the @{#FSM_TASK} class.
+--   * an acronym **ACT\_**, which indicates an Sub-FSM implementation, directing **Humans actions** that need to be done in a @{Tasking.Task#TASK}, seated in a @{Wrapper.Client#CLIENT} (slot) or a @{Wrapper.Unit#UNIT} (CA join). These ACT\_ classes derive the @{#FSM_PROCESS} class.
 --
 -- Detailed explanations and API specifics are further below clarified and FSM derived class specifics are described in those class documentation sections.
 --
@@ -61,10 +61,10 @@
 --
 -- The following derived classes are available in the MOOSE framework, that implement a specialized form of a FSM:
 --
---   * @{#FSM_TASK}: Models Finite State Machines for @{Task}s.
---   * @{#FSM_PROCESS}: Models Finite State Machines for @{Task} actions, which control @{Client}s.
---   * @{#FSM_CONTROLLABLE}: Models Finite State Machines for @{Wrapper.Controllable}s, which are @{Wrapper.Group}s, @{Wrapper.Unit}s, @{Client}s.
---   * @{#FSM_SET}: Models Finite State Machines for @{Set}s. Note that these FSMs control multiple objects!!! So State concerns here
+--   * @{#FSM_TASK}: Models Finite State Machines for @{Tasking.Task}s.
+--   * @{#FSM_PROCESS}: Models Finite State Machines for @{Tasking.Task} actions, which control @{Wrapper.Client}s.
+--   * @{#FSM_CONTROLLABLE}: Models Finite State Machines for @{Wrapper.Controllable}s, which are @{Wrapper.Group}s, @{Wrapper.Unit}s, @{Wrapper.Client}s.
+--   * @{#FSM_SET}: Models Finite State Machines for @{Core.Set}s. Note that these FSMs control multiple objects!!! So State concerns here
 --     for multiple objects or the position of the state machine in the process.
 --
 -- ===
@@ -119,9 +119,9 @@ do -- FSM
   -- and tailored** by mission designers through **the implementation of Transition Handlers**.
   -- Each of these FSM implementation classes start either with:
   --
-  --   * an acronym **AI\_**, which indicates an FSM implementation directing **AI controlled** @{GROUP} and/or @{UNIT}. These AI\_ classes derive the @{#FSM_CONTROLLABLE} class.
-  --   * an acronym **TASK\_**, which indicates an FSM implementation executing a @{TASK} executed by Groups of players. These TASK\_ classes derive the @{#FSM_TASK} class.
-  --   * an acronym **ACT\_**, which indicates an Sub-FSM implementation, directing **Humans actions** that need to be done in a @{TASK}, seated in a @{CLIENT} (slot) or a @{UNIT} (CA join). These ACT\_ classes derive the @{#FSM_PROCESS} class.
+  --   * an acronym **AI\_**, which indicates an FSM implementation directing **AI controlled** @{Wrapper.Group#GROUP} and/or @{Wrapper.Unit#UNIT}. These AI\_ classes derive the @{#FSM_CONTROLLABLE} class.
+  --   * an acronym **TASK\_**, which indicates an FSM implementation executing a @{Tasking.Task#TASK} executed by Groups of players. These TASK\_ classes derive the @{#FSM_TASK} class.
+  --   * an acronym **ACT\_**, which indicates an Sub-FSM implementation, directing **Humans actions** that need to be done in a @{Tasking.Task#TASK}, seated in a @{Wrapper.Client#CLIENT} (slot) or a @{Wrapper.Unit#UNIT} (CA join). These ACT\_ classes derive the @{#FSM_PROCESS} class.
   --
   -- ![Transition Rules and Transition Handlers and Event Triggers](..\Presentations\FSM\Dia3.JPG)
   --
@@ -249,7 +249,7 @@ do -- FSM
   --
   -- ### Linear Transition Example
   --
-  -- This example is fully implemented in the MOOSE test mission on GITHUB: [FSM-100 - Transition Explanation](https://github.com/FlightControl-Master/MOOSE/blob/master/Moose%20Test%20Missions/FSM%20-%20Finite%20State%20Machine/FSM-100%20-%20Transition%20Explanation/FSM-100%20-%20Transition%20Explanation.lua)
+  -- This example is fully implemented in the MOOSE test mission on GITHUB: [FSM-100 - Transition Explanation](https://github.com/FlightControl-Master/MOOSE_MISSIONS/blob/master/FSM%20-%20Finite%20State%20Machine/FSM-100%20-%20Transition%20Explanation/FSM-100%20-%20Transition%20Explanation.lua)
   --
   -- It models a unit standing still near Batumi, and flaring every 5 seconds while switching between a Green flare and a Red flare.
   -- The purpose of this example is not to show how exciting flaring is, but it demonstrates how a Linear Transition FSM can be build.
@@ -405,8 +405,8 @@ do -- FSM
     Transition.To = To
 
     -- Debug message.
-    self:T2( Transition )
-
+    --self:T3( Transition )
+    
     self._Transitions[Transition] = Transition
     self:_eventmap( self.Events, Transition )
   end
@@ -418,7 +418,7 @@ do -- FSM
     return self._Transitions or {}
   end
 
-  --- Set the default @{Process} template with key ProcessName providing the ProcessClass and the process object when it is assigned to a @{Wrapper.Controllable} by the task.
+  --- Set the default @{#FSM_PROCESS} template with key ProcessName providing the ProcessClass and the process object when it is assigned to a @{Wrapper.Controllable} by the task.
   -- @param #FSM self
   -- @param #table From Can contain a string indicating the From state or a table of strings containing multiple From states.
   -- @param #string Event The Event name.
@@ -426,8 +426,8 @@ do -- FSM
   -- @param #table ReturnEvents A table indicating for which returned events of the SubFSM which Event must be triggered in the FSM.
   -- @return Core.Fsm#FSM_PROCESS The SubFSM.
   function FSM:AddProcess( From, Event, Process, ReturnEvents )
-    self:T( { From, Event } )
-
+    --self:T3( { From, Event } )
+  
     local Sub = {}
     Sub.From = From
     Sub.Event = Event
@@ -524,9 +524,9 @@ do -- FSM
     Process._Scores[State] = Process._Scores[State] or {}
     Process._Scores[State].ScoreText = ScoreText
     Process._Scores[State].Score = Score
-
-    self:T( Process._Scores )
-
+    
+    --self:T3( Process._Scores )
+  
     return Process
   end
 
@@ -560,19 +560,19 @@ do -- FSM
   -- @param #table Events Events.
   -- @param #table EventStructure Event structure.
   function FSM:_eventmap( Events, EventStructure )
-
-    local Event = EventStructure.Event
-    local __Event = "__" .. EventStructure.Event
-
-    self[Event] = self[Event] or self:_create_transition( Event )
-    self[__Event] = self[__Event] or self:_delayed_transition( Event )
-
-    -- Debug message.
-    self:T2( "Added methods: " .. Event .. ", " .. __Event )
-
-    Events[Event] = self.Events[Event] or { map = {} }
-    self:_add_to_map( Events[Event].map, EventStructure )
-
+  
+      local Event = EventStructure.Event
+      local __Event = "__" .. EventStructure.Event
+      
+      self[Event] = self[Event] or self:_create_transition(Event)
+      self[__Event] = self[__Event] or self:_delayed_transition(Event)
+      
+      -- Debug message.
+      --self:T3( "Added methods: " .. Event .. ", " .. __Event )
+      
+      Events[Event] = self.Events[Event] or { map = {} }
+      self:_add_to_map( Events[Event].map, EventStructure )
+  
   end
 
   --- Sub maps.
@@ -784,8 +784,8 @@ do -- FSM
     return function( self, DelaySeconds, ... )
 
       -- Debug.
-      self:T2( "Delayed Event: " .. EventName )
-
+      self:T3( "Delayed Event: " .. EventName )
+      
       local CallID = 0
       if DelaySeconds ~= nil then
 
@@ -802,23 +802,23 @@ do -- FSM
             self._EventSchedules[EventName] = CallID
 
             -- Debug output.
-            self:T2( string.format( "NEGATIVE Event %s delayed by %.1f sec SCHEDULED with CallID=%s", EventName, DelaySeconds, tostring( CallID ) ) )
+            self:T2(string.format("NEGATIVE Event %s delayed by %.3f sec SCHEDULED with CallID=%s", EventName, DelaySeconds, tostring(CallID)))
           else
-            self:T2( string.format( "NEGATIVE Event %s delayed by %.1f sec CANCELLED as we already have such an event in the queue.", EventName, DelaySeconds ) )
+            self:T2(string.format("NEGATIVE Event %s delayed by %.3f sec CANCELLED as we already have such an event in the queue.", EventName, DelaySeconds))
             -- reschedule
           end
         else
 
           CallID = self.CallScheduler:Schedule( self, self._handler, { EventName, ... }, DelaySeconds or 1, nil, nil, nil, 4, true )
-
-          self:T2( string.format( "Event %s delayed by %.1f sec SCHEDULED with CallID=%s", EventName, DelaySeconds, tostring( CallID ) ) )
+          
+          self:T2(string.format("Event %s delayed by %.3f sec SCHEDULED with CallID=%s", EventName, DelaySeconds, tostring(CallID)))
         end
       else
         error( "FSM: An asynchronous event trigger requires a DelaySeconds parameter!!! This can be positive or negative! Sorry, but will not process this." )
       end
 
       -- Debug.
-      self:T2( { CallID = CallID } )
+      --self:T3( { CallID = CallID } )
     end
 
   end
@@ -841,7 +841,7 @@ do -- FSM
   function FSM:_gosub( ParentFrom, ParentEvent )
     local fsmtable = {}
     if self.subs[ParentFrom] and self.subs[ParentFrom][ParentEvent] then
-      self:T( { ParentFrom, ParentEvent, self.subs[ParentFrom], self.subs[ParentFrom][ParentEvent] } )
+      --self:T3( { ParentFrom, ParentEvent, self.subs[ParentFrom], self.subs[ParentFrom][ParentEvent] } )
       return self.subs[ParentFrom][ParentEvent]
     else
       return {}
@@ -887,8 +887,8 @@ do -- FSM
         Map[From] = Event.To
       end
     end
-
-    self:T3( { Map, Event } )
+    
+    --self:T3( {  Map, Event } )
   end
 
   --- Get current state.
@@ -908,7 +908,7 @@ do -- FSM
   --- Check if FSM is in state.
   -- @param #FSM self
   -- @param #string State State name.
-  -- @param #boolean If true, FSM is in this state.
+  -- @return #boolean If true, FSM is in this state.
   function FSM:Is( State )
     return self.current == State
   end
@@ -916,8 +916,8 @@ do -- FSM
   --- Check if FSM is in state.
   -- @param #FSM self
   -- @param #string State State name.
-  -- @param #boolean If true, FSM is in this state.
-  function FSM:is( state )
+  -- @return #boolean If true, FSM is in this state.  
+  function FSM:is(state)
     return self.current == state
   end
 
@@ -953,7 +953,7 @@ do -- FSM_CONTROLLABLE
   -- @field Wrapper.Controllable#CONTROLLABLE Controllable
   -- @extends Core.Fsm#FSM
 
-  --- Models Finite State Machines for @{Wrapper.Controllable}s, which are @{Wrapper.Group}s, @{Wrapper.Unit}s, @{Client}s.
+  --- Models Finite State Machines for @{Wrapper.Controllable}s, which are @{Wrapper.Group}s, @{Wrapper.Unit}s, @{Wrapper.Client}s.
   --
   -- ===
   --
@@ -1086,7 +1086,7 @@ do -- FSM_PROCESS
   -- @field Tasking.Task#TASK Task
   -- @extends Core.Fsm#FSM_CONTROLLABLE
 
-  --- FSM_PROCESS class models Finite State Machines for @{Task} actions, which control @{Client}s.
+  --- FSM_PROCESS class models Finite State Machines for @{Tasking.Task} actions, which control @{Wrapper.Client}s.
   -- 
   -- ===
   -- 
@@ -1146,7 +1146,7 @@ do -- FSM_PROCESS
   -- @param #FSM_PROCESS self
   -- @return #FSM_PROCESS
   function FSM_PROCESS:Copy( Controllable, Task )
-    self:T( { self:GetClassNameAndID() } )
+    --self:T3( { self:GetClassNameAndID() } )
 
     local NewFsm = self:New( Controllable, Task ) -- Core.Fsm#FSM_PROCESS
 
@@ -1171,13 +1171,13 @@ do -- FSM_PROCESS
 
     -- Copy End States
     for EndStateID, EndState in pairs( self:GetEndStates() ) do
-      self:T( EndState )
+      --self:T3( EndState )
       NewFsm:AddEndState( EndState )
     end
 
     -- Copy the score tables
     for ScoreID, Score in pairs( self:GetScores() ) do
-      self:T( Score )
+      --self:T3( Score )
       NewFsm:AddScore( ScoreID, Score.ScoreText, Score.Score )
     end
 
@@ -1241,7 +1241,7 @@ do -- FSM_PROCESS
 
   -- TODO: Need to check and fix that an FSM_PROCESS is only for a UNIT. Not for a GROUP.  
 
-  --- Send a message of the @{Task} to the Group of the Unit.
+  --- Send a message of the @{Tasking.Task} to the Group of the Unit.
   -- @param #FSM_PROCESS self
   function FSM_PROCESS:Message( Message )
     self:F( { Message = Message } )
@@ -1260,7 +1260,7 @@ do -- FSM_PROCESS
 
   --- Assign the process to a @{Wrapper.Unit} and activate the process.
   -- @param #FSM_PROCESS self
-  -- @param Task.Tasking#TASK Task
+  -- @param Tasking.Task#TASK Task
   -- @param Wrapper.Unit#UNIT ProcessUnit
   -- @return #FSM_PROCESS self
   function FSM_PROCESS:Assign( ProcessUnit, Task )
@@ -1382,7 +1382,7 @@ do -- FSM_SET
   -- @field Core.Set#SET_BASE Set
   -- @extends Core.Fsm#FSM
 
-  --- FSM_SET class models Finite State Machines for @{Set}s. Note that these FSMs control multiple objects!!! So State concerns here
+  --- FSM_SET class models Finite State Machines for @{Core.Set}s. Note that these FSMs control multiple objects!!! So State concerns here
   -- for multiple objects or the position of the state machine in the process.
   --
   -- ===
@@ -1422,7 +1422,7 @@ do -- FSM_SET
   -- @param #FSM_SET self
   -- @return Core.Set#SET_BASE
   function FSM_SET:Get()
-    return self.Controllable
+    return self.Set
   end
 
   function FSM_SET:_call_handler( step, trigger, params, EventName )

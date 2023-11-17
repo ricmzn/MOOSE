@@ -18,7 +18,7 @@ do -- TASK_A2A
   -- @field Core.Set#SET_UNIT TargetSetUnit
   -- @extends Tasking.Task#TASK
 
-  --- Defines Air To Air tasks for a @{Set} of Target Units, 
+  --- Defines Air To Air tasks for a @{Core.Set} of Target Units, 
   -- based on the tasking capabilities defined in @{Tasking.Task#TASK}.
   -- The TASK_A2A is implemented using a @{Core.Fsm#FSM_TASK}, and has the following statuses:
   -- 
@@ -35,6 +35,11 @@ do -- TASK_A2A
   --   * @{#TASK_A2A.SetScoreOnDestroy}(): Set a score when a target in scope of the A2A attack, has been destroyed.
   --   * @{#TASK_A2A.SetScoreOnSuccess}(): Set a score when all the targets in scope of the A2A attack, have been destroyed.
   --   * @{#TASK_A2A.SetPenaltyOnFailed}(): Set a penalty when the A2A attack has failed.
+  --
+  -- # Developer Note
+  -- 
+  -- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+  -- Therefore, this class is considered to be deprecated
   --
   -- @field #TASK_A2A
   TASK_A2A = {

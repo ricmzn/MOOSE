@@ -13,7 +13,7 @@
 --
 -- ### Author: **funkyfranky**
 -- @module Wrapper.Marker
--- @image Wrapper_Marker.png
+-- @image MOOSE_Core.JPG
 
 --- Marker class.
 -- @type MARKER
@@ -31,8 +31,6 @@
 --- Just because...
 --
 -- ===
---
--- ![Banner Image](..\Presentations\MARKER\Marker_Main.jpg)
 --
 -- # The MARKER Class Idea
 --
@@ -58,18 +56,16 @@
 -- If the maker should be visible to a specific coalition, you can use the :ToCoalition() function.
 --
 --     mymarker = MARKER:New( Coordinate , "I am Batumi Airfield" ):ToCoalition( coalition.side.BLUE )
---
--- ### To Blue Coalition
---
--- ### To Red Coalition
---
+--     
 -- This would show the marker only to the Blue coalition.
 --
 -- ## For a Group
 --
+--     mymarker = MARKER:New( Coordinate , "Target Location" ):ToGroup( tankGroup )
 --
 -- # Removing a Marker
---
+--     mymarker:Remove(60)
+-- This removes the marker after 60 seconds
 --
 -- # Updating a Marker
 --
@@ -150,7 +146,7 @@ _MARKERID = 0
 
 --- Marker class version.
 -- @field #string version
-MARKER.version = "0.1.0"
+MARKER.version="0.1.1"
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- TODO list
@@ -175,7 +171,7 @@ function MARKER:New( Coordinate, Text )
   -- Inherit everything from FSM class.
   local self = BASE:Inherit( self, FSM:New() ) -- #MARKER
 
-  self.coordinate = Coordinate
+  self.coordinate=UTILS.DeepCopy(Coordinate)
 
   self.text = Text
 
@@ -305,12 +301,22 @@ end
 -- User API Functions
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
---- Marker is readonly. Text cannot be changed and marker cannot be removed.
+--- Marker is readonly. Text cannot be changed and marker cannot be removed. The will not update the marker in the game, Call MARKER:Refresh to update state.
 -- @param #MARKER self
 -- @return #MARKER self
 function MARKER:ReadOnly()
 
   self.readonly = true
+
+  return self
+end
+
+--- Marker is read and write. Text cannot be changed and marker cannot be removed. The will not update the marker in the game, Call MARKER:Refresh to update state.
+-- @param #MARKER self
+-- @return #MARKER self
+function MARKER:ReadWrite()
+
+  self.readonly=false
 
   return self
 end
@@ -580,7 +586,7 @@ end
 
 --- Set text that is displayed in the marker panel. Note this does not show the marker.
 -- @param #MARKER self
--- @param #string Text Marker text. Default is an empty sting "".
+-- @param #string Text Marker text. Default is an empty string "".
 -- @return #MARKER self
 function MARKER:SetText( Text )
   self.text = Text and tostring( Text ) or ""
@@ -637,7 +643,9 @@ function MARKER:OnEventMarkRemoved( EventData )
 
     local MarkID = EventData.MarkID
 
-    self:T3( self.lid .. string.format( "Captured event MarkAdded for Mark ID=%s", tostring( MarkID ) ) )
+    local MarkID=EventData.MarkID
+
+    self:T3(self.lid..string.format("Captured event MarkRemoved for Mark ID=%s", tostring(MarkID)))
 
     if MarkID == self.mid then
 
@@ -664,16 +672,22 @@ function MARKER:OnEventMarkChange( EventData )
 
     if MarkID == self.mid then
 
-      self:Changed( EventData )
+    local MarkID=EventData.MarkID
 
-      self:TextChanged( tostring( EventData.MarkText ) )
+    self:T3(self.lid..string.format("Captured event MarkChange for Mark ID=%s", tostring(MarkID)))
+
+    if MarkID==self.mid then
+
+      self.text=tostring(EventData.MarkText)
+
+      self:Changed(EventData)
 
     end
 
   end
 
 end
-
+end
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- FSM Event Functions
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

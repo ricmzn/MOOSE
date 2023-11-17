@@ -1,4 +1,4 @@
---- **Wrapper** -- CLIENT wraps DCS Unit objects acting as a __Client__ or __Player__ within a mission.
+--- **Wrapper** - CLIENT wraps DCS Unit objects acting as a __Client__ or __Player__ within a mission.
 -- 
 -- ===
 -- 
@@ -13,6 +13,17 @@
 
 --- The CLIENT class
 -- @type CLIENT
+-- @field #string ClassName Name of the class.
+-- @field #string ClientName Name of the client.
+-- @field #string ClientBriefing Briefing.
+-- @field #function ClientCallBack Callback function.
+-- @field #table ClientParameters Parameters of the callback function.
+-- @field #number ClientGroupID Group ID of the client.
+-- @field #string ClientGroupName Group name.
+-- @field #boolean ClientAlive Client alive.
+-- @field #boolean ClientAlive2 Client alive 2.
+-- @field #table Players Player table.
+-- @field Core.Point#COORDINATE SpawnCoord Spawn coordinate from the template.
 -- @extends Wrapper.Unit#UNIT
 
 
@@ -28,11 +39,11 @@
 --  * Handles messages to players.
 --  * Manage the "state" of the DCS Unit.
 -- 
--- Clients are being used by the @{MISSION} class to follow players and register their successes.
+-- Clients are being used by the @{Tasking.Mission#MISSION} class to follow players and register their successes.
 --  
 -- ## CLIENT reference methods
 -- 
--- For each DCS Unit having skill level Player or Client, a CLIENT wrapper object (instance) will be created within the _@{DATABASE} object.
+-- For each DCS Unit having skill level Player or Client, a CLIENT wrapper object (instance) will be created within the global _DATABASE object (an instance of @{Core.Database#DATABASE}).
 -- This is done at the beginning of the mission (when the mission starts).
 --  
 -- The CLIENT class does not contain a :New() method, rather it provides :Find() methods to retrieve the object reference
@@ -44,22 +55,22 @@
 --  
 -- The CLIENT class provides the following functions to retrieve quickly the relevant CLIENT instance:
 -- 
---  * @{#CLIENT.Find}(): Find a CLIENT instance from the _DATABASE object using a DCS Unit object.
---  * @{#CLIENT.FindByName}(): Find a CLIENT instance from the _DATABASE object using a DCS Unit name.
+--  * @{#CLIENT.Find}(): Find a CLIENT instance from the global _DATABASE object (an instance of @{Core.Database#DATABASE}) using a DCS Unit object.
+--  * @{#CLIENT.FindByName}(): Find a CLIENT instance from the global _DATABASE object (an instance of @{Core.Database#DATABASE}) using a DCS Unit name.
 --  
--- **IMPORTANT: ONE SHOULD NEVER SANATIZE these CLIENT OBJECT REFERENCES! (make the CLIENT object references nil).**
+-- **IMPORTANT: ONE SHOULD NEVER SANITIZE these CLIENT OBJECT REFERENCES! (make the CLIENT object references nil).**
 -- 
 -- @field #CLIENT
 CLIENT = {
-	ClassName = "CLIENT",
-	ClientName = nil,
-	ClientAlive = false,
-	ClientTransport = false,
-	ClientBriefingShown = false,
-	_Menus = {},
-	_Tasks = {},
-	Messages = {},
-	Players = {},
+  ClassName = "CLIENT",
+  ClientName = nil,
+  ClientAlive = false,
+  ClientTransport = false,
+  ClientBriefingShown = false,
+  _Menus = {},
+  _Tasks = {},
+  Messages = {},
+  Players = {},
 }
 
 
@@ -84,6 +95,22 @@ function CLIENT:Find(DCSUnit, Error)
   end
 end
 
+--- Finds a CLIENT from the _DATABASE using the relevant player name.
+-- @param #CLIENT self
+-- @param #string Name Name of the player
+-- @return #CLIENT or nil if not found
+function CLIENT:FindByPlayerName(Name)
+  
+  local foundclient = nil
+  _DATABASE:ForEachClient(
+    function(client)
+      if client:GetPlayerName() == Name then
+        foundclient = client
+      end
+    end
+  )
+  return foundclient
+end
 
 --- Finds a CLIENT from the _DATABASE using the relevant Client Unit Name.
 -- As an optional parameter, a briefing text can be given also.
@@ -94,13 +121,13 @@ end
 -- @return #CLIENT
 -- @usage
 -- -- Create new Clients.
---	local Mission = MISSIONSCHEDULER.AddMission( 'Russia Transport Troops SA-6', 'Operational', 'Transport troops from the control center to one of the SA-6 SAM sites to activate their operation.', 'Russia' )
---	Mission:AddGoal( DeploySA6TroopsGoal )
+--  local Mission = MISSIONSCHEDULER.AddMission( 'Russia Transport Troops SA-6', 'Operational', 'Transport troops from the control center to one of the SA-6 SAM sites to activate their operation.', 'Russia' )
+--  Mission:AddGoal( DeploySA6TroopsGoal )
 --
---	Mission:AddClient( CLIENT:FindByName( 'RU MI-8MTV2*HOT-Deploy Troops 1' ):Transport() )
---	Mission:AddClient( CLIENT:FindByName( 'RU MI-8MTV2*RAMP-Deploy Troops 3' ):Transport() )
---	Mission:AddClient( CLIENT:FindByName( 'RU MI-8MTV2*HOT-Deploy Troops 2' ):Transport() )
---	Mission:AddClient( CLIENT:FindByName( 'RU MI-8MTV2*RAMP-Deploy Troops 4' ):Transport() )
+--  Mission:AddClient( CLIENT:FindByName( 'RU MI-8MTV2*HOT-Deploy Troops 1' ):Transport() )
+--  Mission:AddClient( CLIENT:FindByName( 'RU MI-8MTV2*RAMP-Deploy Troops 3' ):Transport() )
+--  Mission:AddClient( CLIENT:FindByName( 'RU MI-8MTV2*HOT-Deploy Troops 2' ):Transport() )
+--  Mission:AddClient( CLIENT:FindByName( 'RU MI-8MTV2*RAMP-Deploy Troops 4' ):Transport() )
 function CLIENT:FindByName( ClientName, ClientBriefing, Error )
 
   -- Client
@@ -113,7 +140,7 @@ function CLIENT:FindByName( ClientName, ClientBriefing, Error )
     
     ClientFound.MessageSwitch = true
 
-  	return ClientFound
+    return ClientFound
   end
   
   if not Error then
@@ -251,8 +278,8 @@ end
 -- @param #CLIENT self
 -- @param #string ClientName Name of the Group as defined within the Mission Editor. The Group must have a Unit with the type Client.
 function CLIENT:Reset( ClientName )
-	self:F()
-	self._Menus = {}
+  self:F()
+  self._Menus = {}
 end
 
 -- Is Functions
@@ -296,7 +323,7 @@ function CLIENT:Alive( CallBackFunction, ... )
   return self
 end
 
---- @param #CLIENT self
+-- @param #CLIENT self
 function CLIENT:_AliveCheckScheduler( SchedulerName )
   self:F3( { SchedulerName, self.ClientName, self.ClientAlive2, self.ClientBriefingShown, self.ClientCallBack } )
 
@@ -336,85 +363,85 @@ function CLIENT:GetDCSGroup()
   self:F3()
 
 --  local ClientData = Group.getByName( self.ClientName )
---	if ClientData and ClientData:isExist() then
---		self:T( self.ClientName .. " : group found!" )
---		return ClientData
---	else
---		return nil
---	end
+--  if ClientData and ClientData:isExist() then
+--    self:T( self.ClientName .. " : group found!" )
+--    return ClientData
+--  else
+--    return nil
+--  end
   
   local ClientUnit = Unit.getByName( self.ClientName )
 
-	local CoalitionsData = { AlivePlayersRed = coalition.getPlayers( coalition.side.RED ), AlivePlayersBlue = coalition.getPlayers( coalition.side.BLUE ) }
-	
-	for CoalitionId, CoalitionData in pairs( CoalitionsData ) do
-		self:T3( { "CoalitionData:", CoalitionData } )
-		for UnitId, UnitData in pairs( CoalitionData ) do
-			self:T3( { "UnitData:", UnitData } )
-			if UnitData and UnitData:isExist() then
+  local CoalitionsData = { AlivePlayersRed = coalition.getPlayers( coalition.side.RED ), AlivePlayersBlue = coalition.getPlayers( coalition.side.BLUE ) }
+  
+  for CoalitionId, CoalitionData in pairs( CoalitionsData ) do
+    self:T3( { "CoalitionData:", CoalitionData } )
+    for UnitId, UnitData in pairs( CoalitionData ) do
+      self:T3( { "UnitData:", UnitData } )
+      if UnitData and UnitData:isExist() then
 
         --self:F(self.ClientName)
         if ClientUnit then
         
-  				local ClientGroup = ClientUnit:getGroup()
-  				
-  				if ClientGroup then
-  					self:T3( "ClientGroup = " .. self.ClientName )
-  					
-  					if ClientGroup:isExist() and UnitData:getGroup():isExist() then
-  					 
-  						if ClientGroup:getID() == UnitData:getGroup():getID() then
-  							self:T3( "Normal logic" )
-  							self:T3( self.ClientName .. " : group found!" )
+          local ClientGroup = ClientUnit:getGroup()
+          
+          if ClientGroup then
+            self:T3( "ClientGroup = " .. self.ClientName )
+            
+            if ClientGroup:isExist() and UnitData:getGroup():isExist() then
+             
+              if ClientGroup:getID() == UnitData:getGroup():getID() then
+                self:T3( "Normal logic" )
+                self:T3( self.ClientName .. " : group found!" )
                 self.ClientGroupID = ClientGroup:getID()
-  							self.ClientGroupName = ClientGroup:getName()
-  							return ClientGroup
-  						end
-  						
-  					else
-  					
-  						-- Now we need to resolve the bugs in DCS 1.5 ...
-  						-- Consult the database for the units of the Client Group. (ClientGroup:getUnits() returns nil)
-  						self:T3( "Bug 1.5 logic" )
-  						
-  						local ClientGroupTemplate = _DATABASE.Templates.Units[self.ClientName].GroupTemplate
-  						
-  						self.ClientGroupID = ClientGroupTemplate.groupId
-  						
-  						self.ClientGroupName = _DATABASE.Templates.Units[self.ClientName].GroupName
-  						
-  						self:T3( self.ClientName .. " : group found in bug 1.5 resolvement logic!" )
-  						return ClientGroup
-  						
-  					end
-  --				else
-  --					error( "Client " .. self.ClientName .. " not found!" )
-  				end
-  			else
-  			  --self:F( { "Client not found!", self.ClientName } )
-  		  end
-			end
-		end
-	end
-
-	-- For non player clients
-	if ClientUnit then
-  	local ClientGroup = ClientUnit:getGroup()
-  	if ClientGroup then
-  		self:T3( "ClientGroup = " .. self.ClientName )
-  		if ClientGroup:isExist() then 
-  			self:T3( "Normal logic" )
-  			self:T3( self.ClientName .. " : group found!" )
-  			return ClientGroup
-  		end
-  	end
+                self.ClientGroupName = ClientGroup:getName()
+                return ClientGroup
+              end
+              
+            else
+            
+              -- Now we need to resolve the bugs in DCS 1.5 ...
+              -- Consult the database for the units of the Client Group. (ClientGroup:getUnits() returns nil)
+              self:T3( "Bug 1.5 logic" )
+              
+              local ClientGroupTemplate = _DATABASE.Templates.Units[self.ClientName].GroupTemplate
+              
+              self.ClientGroupID = ClientGroupTemplate.groupId
+              
+              self.ClientGroupName = _DATABASE.Templates.Units[self.ClientName].GroupName
+              
+              self:T3( self.ClientName .. " : group found in bug 1.5 resolvement logic!" )
+              return ClientGroup
+              
+            end
+  --        else
+  --          error( "Client " .. self.ClientName .. " not found!" )
+          end
+        else
+          --self:F( { "Client not found!", self.ClientName } )
+        end
+      end
+    end
   end
-	
-	-- Nothing could be found :(
-	self.ClientGroupID = nil
-	self.ClientGroupName = nil
-	
-	return nil
+
+  -- For non player clients
+  if ClientUnit then
+    local ClientGroup = ClientUnit:getGroup()
+    if ClientGroup then
+      self:T3( "ClientGroup = " .. self.ClientName )
+      if ClientGroup:isExist() then 
+        self:T3( "Normal logic" )
+        self:T3( self.ClientName .. " : group found!" )
+        return ClientGroup
+      end
+    end
+  end
+  
+  -- Nothing could be found :(
+  self.ClientGroupID = nil
+  self.ClientGroupName = nil
+  
+  return nil
 end 
 
 
@@ -426,7 +453,7 @@ function CLIENT:GetClientGroupID()
   -- This updates the ID.
   self:GetDCSGroup()
 
-	return self.ClientGroupID
+  return self.ClientGroupID
 end
 
 
@@ -438,7 +465,7 @@ function CLIENT:GetClientGroupName()
   -- This updates the group name.
   self:GetDCSGroup()
   
-	return self.ClientGroupName
+  return self.ClientGroupName
 end
 
 --- Returns the UNIT of the CLIENT.
@@ -447,23 +474,23 @@ end
 function CLIENT:GetClientGroupUnit()
   self:F2()
   
-	local ClientDCSUnit = Unit.getByName( self.ClientName )
+  local ClientDCSUnit = Unit.getByName( self.ClientName )
 
   self:T( self.ClientDCSUnit )
   
-	if ClientDCSUnit and ClientDCSUnit:isExist() then
-		local ClientUnit=_DATABASE:FindUnit( self.ClientName )
-		return ClientUnit
-	end
-	
-	return nil
+  if ClientDCSUnit and ClientDCSUnit:isExist() then
+    local ClientUnit=_DATABASE:FindUnit( self.ClientName )
+    return ClientUnit
+  end
+  
+  return nil
 end
 
 --- Returns the DCSUnit of the CLIENT.
 -- @param #CLIENT self
 -- @return DCS#Unit
 function CLIENT:GetClientGroupDCSUnit()
-	self:F2()
+  self:F2()
 
   local ClientDCSUnit = Unit.getByName( self.ClientName )
   
@@ -478,33 +505,31 @@ end
 -- @param #CLIENT self
 -- @return #boolean true is a transport.
 function CLIENT:IsTransport()
-	self:F()
-	return self.ClientTransport
+  self:F()
+  return self.ClientTransport
 end
 
 --- Shows the @{AI.AI_Cargo#CARGO} contained within the CLIENT to the player as a message.
 -- The @{AI.AI_Cargo#CARGO} is shown using the @{Core.Message#MESSAGE} distribution system.
 -- @param #CLIENT self
 function CLIENT:ShowCargo()
-	self:F()
+  self:F()
 
-	local CargoMsg = ""
+  local CargoMsg = ""
   
-	for CargoName, Cargo in pairs( CARGOS ) do
-		if self == Cargo:IsLoadedInClient() then
-			CargoMsg = CargoMsg .. Cargo.CargoName .. " Type:" ..  Cargo.CargoType .. " Weight: " .. Cargo.CargoWeight .. "\n"
-		end
-	end
+  for CargoName, Cargo in pairs( CARGOS ) do
+    if self == Cargo:IsLoadedInClient() then
+      CargoMsg = CargoMsg .. Cargo.CargoName .. " Type:" ..  Cargo.CargoType .. " Weight: " .. Cargo.CargoWeight .. "\n"
+    end
+  end
   
-	if CargoMsg == "" then
-		CargoMsg = "empty"
-	end
+  if CargoMsg == "" then
+    CargoMsg = "empty"
+  end
   
-	self:Message( CargoMsg, 15, "Co-Pilot: Cargo Status", 30 )
+  self:Message( CargoMsg, 15, "Co-Pilot: Cargo Status", 30 )
 
 end
-
-
 
 --- The main message driver for the CLIENT.
 -- This function displays various messages to the Player logged into the CLIENT through the DCS World Messaging system.
@@ -515,39 +540,72 @@ end
 -- @param #number MessageInterval is the interval in seconds between the display of the @{Core.Message#MESSAGE} when the CLIENT is in the air.
 -- @param #string MessageID is the identifier of the message when displayed with intervals.
 function CLIENT:Message( Message, MessageDuration, MessageCategory, MessageInterval, MessageID )
-	self:F( { Message, MessageDuration, MessageCategory, MessageInterval } )
+  self:F( { Message, MessageDuration, MessageCategory, MessageInterval } )
 
-	if self.MessageSwitch == true then
-		if MessageCategory == nil then
-			MessageCategory = "Messages"
-		end
-		if MessageID ~= nil then
-  		if self.Messages[MessageID] == nil then
-  			self.Messages[MessageID] = {}
-  			self.Messages[MessageID].MessageId = MessageID
-  			self.Messages[MessageID].MessageTime = timer.getTime()
-  			self.Messages[MessageID].MessageDuration = MessageDuration
-  			if MessageInterval == nil then
-  				self.Messages[MessageID].MessageInterval = 600
-  			else
-  				self.Messages[MessageID].MessageInterval = MessageInterval
-  			end
-  			MESSAGE:New( Message, MessageDuration, MessageCategory ):ToClient( self )
-  		else
-  			if self:GetClientGroupDCSUnit() and not self:GetClientGroupDCSUnit():inAir() then
-  				if timer.getTime() - self.Messages[MessageID].MessageTime >= self.Messages[MessageID].MessageDuration + 10 then
-  					MESSAGE:New( Message, MessageDuration , MessageCategory):ToClient( self )
-  					self.Messages[MessageID].MessageTime = timer.getTime()
-  				end
-  			else
-  				if timer.getTime() - self.Messages[MessageID].MessageTime  >= self.Messages[MessageID].MessageDuration + self.Messages[MessageID].MessageInterval then
-  					MESSAGE:New( Message, MessageDuration, MessageCategory ):ToClient( self )
-  					self.Messages[MessageID].MessageTime = timer.getTime()
-  				end
-  			end
-  		end
-		else
+  if self.MessageSwitch == true then
+    if MessageCategory == nil then
+      MessageCategory = "Messages"
+    end
+    if MessageID ~= nil then
+      if self.Messages[MessageID] == nil then
+        self.Messages[MessageID] = {}
+        self.Messages[MessageID].MessageId = MessageID
+        self.Messages[MessageID].MessageTime = timer.getTime()
+        self.Messages[MessageID].MessageDuration = MessageDuration
+        if MessageInterval == nil then
+          self.Messages[MessageID].MessageInterval = 600
+        else
+          self.Messages[MessageID].MessageInterval = MessageInterval
+        end
+        MESSAGE:New( Message, MessageDuration, MessageCategory ):ToClient( self )
+      else
+        if self:GetClientGroupDCSUnit() and not self:GetClientGroupDCSUnit():inAir() then
+          if timer.getTime() - self.Messages[MessageID].MessageTime >= self.Messages[MessageID].MessageDuration + 10 then
+            MESSAGE:New( Message, MessageDuration , MessageCategory):ToClient( self )
+            self.Messages[MessageID].MessageTime = timer.getTime()
+          end
+        else
+          if timer.getTime() - self.Messages[MessageID].MessageTime  >= self.Messages[MessageID].MessageDuration + self.Messages[MessageID].MessageInterval then
+            MESSAGE:New( Message, MessageDuration, MessageCategory ):ToClient( self )
+            self.Messages[MessageID].MessageTime = timer.getTime()
+          end
+        end
+      end
+    else
       MESSAGE:New( Message, MessageDuration, MessageCategory ):ToClient( self )
     end
-	end
+  end
 end
+
+--- [Multi-Player Server] Get UCID from a CLIENT.
+-- @param #CLIENT self
+-- @return #string UCID
+function CLIENT:GetUCID()
+  local PID = NET.GetPlayerIDByName(nil,self:GetPlayerName())
+  return net.get_player_info(tonumber(PID), 'ucid')
+end
+
+--- [Multi-Player Server] Return a table of attributes from CLIENT. If optional attribute is present, only that value is returned. 
+-- @param #CLIENT self
+-- @param #string Attribute (Optional) The attribute to obtain. List see below.
+-- @return #table PlayerInfo or nil if it cannot be found
+-- @usage
+-- Returned table holds these attributes:
+--
+--          'id'    : player ID
+--          'name'  : player name
+--          'side'  : 0 - spectators, 1 - red, 2 - blue
+--          'slot'  : slot ID of the player or 
+--          'ping'  : ping of the player in ms
+--          'ipaddr': IP address of the player, SERVER ONLY
+--          'ucid'  : Unique Client Identifier, SERVER ONLY
+--
+function CLIENT:GetPlayerInfo(Attribute)
+  local PID = NET.GetPlayerIDByName(nil,self:GetPlayerName())
+  if PID then
+    return net.get_player_info(tonumber(PID), Attribute)
+  else
+    return nil
+  end
+end
+

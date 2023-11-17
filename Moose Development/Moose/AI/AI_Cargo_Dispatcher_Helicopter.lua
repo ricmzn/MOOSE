@@ -1,4 +1,4 @@
---- **AI** -- (2.4) - Models the intelligent transportation of infantry and other cargo using Helicopters.
+--- **AI** - Models the intelligent transportation of infantry and other cargo using Helicopters.
 --
 -- ## Features:
 -- 
@@ -140,7 +140,12 @@
 -- Use @{#AI_CARGO_DISPATCHER_HELICOPTER.SetHomeZone}() to specify the home zone.
 -- 
 -- If no home zone is specified, the helicopters will wait near the deploy zone for a new pickup command.   
+--
+-- # Developer Note
 -- 
+-- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+-- Therefore, this class is considered to be deprecated
+--
 -- ===
 -- 
 -- @field #AI_CARGO_DISPATCHER_HELICOPTER
@@ -174,8 +179,8 @@ function AI_CARGO_DISPATCHER_HELICOPTER:New( HelicopterSet, CargoSet, PickupZone
   self:SetPickupSpeed( 350, 150 )
   self:SetDeploySpeed( 350, 150 )
 
-  self:SetPickupRadius( 0, 0 )
-  self:SetDeployRadius( 0, 0 )
+  self:SetPickupRadius( 40, 12 )
+  self:SetDeployRadius( 40, 12 )
   
   self:SetPickupHeight( 500, 200 )
   self:SetDeployHeight( 500, 200 )
@@ -186,6 +191,9 @@ end
 
 function AI_CARGO_DISPATCHER_HELICOPTER:AICargo( Helicopter, CargoSet )
 
-  return AI_CARGO_HELICOPTER:New( Helicopter, CargoSet )
+  local dispatcher = AI_CARGO_HELICOPTER:New( Helicopter, CargoSet )
+  dispatcher:SetLandingSpeedAndHeight(27, 6)
+  return dispatcher
+  
 end
 

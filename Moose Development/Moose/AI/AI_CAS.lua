@@ -1,4 +1,4 @@
---- **AI** -- Perform Close Air Support (CAS) near friendlies.
+--- **AI** - Perform Close Air Support (CAS) near friendlies.
 --
 -- **Features:**
 -- 
@@ -11,7 +11,7 @@
 --
 -- ===
 -- 
--- ### [Demo Missions](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master-release/CAS%20-%20Close%20Air%20Support)
+-- ### [Demo Missions](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/CAS%20-%20Close%20Air%20Support)
 -- 
 -- ===
 -- 
@@ -22,22 +22,22 @@
 -- ### Author: **FlightControl**
 -- ### Contributions: 
 --
---   * **[Quax](https://forums.eagle.ru/member.php?u=90530)**: Concept, Advice & Testing.
---   * **[Pikey](https://forums.eagle.ru/member.php?u=62835)**: Concept, Advice & Testing.
---   * **[Gunterlund](http://forums.eagle.ru:8080/member.php?u=75036)**: Test case revision.
+--   * **Quax**: Concept, Advice & Testing.
+--   * **Pikey**: Concept, Advice & Testing.
+--   * **Gunterlund**: Test case revision.
 --
 -- ===
 --
--- @module AI.AI_Cas
+-- @module AI.AI_CAS
 -- @image AI_Close_Air_Support.JPG
 
 --- AI_CAS_ZONE class
 -- @type AI_CAS_ZONE
 -- @field Wrapper.Controllable#CONTROLLABLE AIControllable The @{Wrapper.Controllable} patrolling.
--- @field Core.Zone#ZONE_BASE TargetZone The @{Zone} where the patrol needs to be executed.
+-- @field Core.Zone#ZONE_BASE TargetZone The @{Core.Zone} where the patrol needs to be executed.
 -- @extends AI.AI_Patrol#AI_PATROL_ZONE
 
---- Implements the core functions to provide Close Air Support in an Engage @{Zone} by an AIR @{Wrapper.Controllable} or @{Wrapper.Group}.
+--- Implements the core functions to provide Close Air Support in an Engage @{Core.Zone} by an AIR @{Wrapper.Controllable} or @{Wrapper.Group}.
 -- The AI_CAS_ZONE runs a process. It holds an AI in a Patrol Zone and when the AI is commanded to engage, it will fly to an Engage Zone.
 -- 
 -- ![HoldAndEngage](..\Presentations\AI_CAS\Dia3.JPG)
@@ -118,7 +118,12 @@
 --   * **@{#AI_CAS_ZONE.Destroy}**: The AI has destroyed a target @{Wrapper.Unit}.
 --   * **@{#AI_CAS_ZONE.Destroyed}**: The AI has destroyed all target @{Wrapper.Unit}s assigned in the CAS task.
 --   * **Status**: The AI is checking status (fuel and damage). When the thresholds have been reached, the AI will RTB.
+--
+-- # Developer Note
 -- 
+-- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+-- Therefore, this class is considered to be deprecated
+--
 -- ===
 -- 
 -- @field #AI_CAS_ZONE
@@ -130,7 +135,7 @@ AI_CAS_ZONE = {
 
 --- Creates a new AI_CAS_ZONE object
 -- @param #AI_CAS_ZONE self
--- @param Core.Zone#ZONE_BASE PatrolZone The @{Zone} where the patrol needs to be executed.
+-- @param Core.Zone#ZONE_BASE PatrolZone The @{Core.Zone} where the patrol needs to be executed.
 -- @param DCS#Altitude PatrolFloorAltitude The lowest altitude in meters where to execute the patrol.
 -- @param DCS#Altitude PatrolCeilingAltitude The highest altitude in meters where to execute the patrol.
 -- @param DCS#Speed  PatrolMinSpeed The minimum speed of the @{Wrapper.Controllable} in km/h.
@@ -459,8 +464,8 @@ function AI_CAS_ZONE:onafterEngage( Controllable, From, Event, To,
     --- Calculate the current route point.
     local CurrentVec2 = self.Controllable:GetVec2()
     
-    --TODO: Create GetAltitude function for GROUP, and delete GetUnit(1).
-    local CurrentAltitude = self.Controllable:GetUnit(1):GetAltitude()
+    --DONE: Create GetAltitude function for GROUP, and delete GetUnit(1).
+    local CurrentAltitude = self.Controllable:GetAltitude()
     local CurrentPointVec3 = POINT_VEC3:New( CurrentVec2.x, CurrentAltitude, CurrentVec2.y )
     local ToEngageZoneSpeed = self.PatrolMaxSpeed
     local CurrentRoutePoint = CurrentPointVec3:WaypointAir( 
@@ -496,7 +501,7 @@ function AI_CAS_ZONE:onafterEngage( Controllable, From, Event, To,
     AttackTasks[#AttackTasks+1] = Controllable:TaskFunction( "AI_CAS_ZONE.EngageRoute", self )
     EngageRoute[#EngageRoute].task = Controllable:TaskCombo( AttackTasks )
 
-    --- Define a random point in the @{Zone}. The AI will fly to that point within the zone.
+    --- Define a random point in the @{Core.Zone}. The AI will fly to that point within the zone.
     
       --- Find a random 2D point in EngageZone.
     local ToTargetVec2 = self.EngageZone:GetRandomVec2()

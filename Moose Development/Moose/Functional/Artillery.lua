@@ -25,12 +25,12 @@
 --
 -- ===
 --
--- ### Author: **[funkyfranky](https://forums.eagle.ru/member.php?u=115026)**
+-- ### Author: **funkyfranky**
 --
--- ### Contributions: [FlightControl](https://forums.eagle.ru/member.php?u=89536)
+-- ### Contributions: FlightControl
 --
 -- ====
--- @module Functional.Arty
+-- @module Functional.Artillery
 -- @image Artillery.JPG
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -103,12 +103,13 @@
 -- @field #number coalition The coalition of the arty group.
 -- @field #boolean respawnafterdeath Respawn arty group after all units are dead.
 -- @field #number respawndelay Respawn delay in seconds.
+-- @field #number dtTrack Time interval in seconds for weapon tracking.
 -- @extends Core.Fsm#FSM_CONTROLLABLE
 
 --- Enables mission designers easily to assign targets for artillery units. Since the implementation is based on a Finite State Model (FSM), the mission designer can
 -- interact with the process at certain events or states.
 --
--- A new ARTY object can be created with the @{#ARTY.New}(*group*) contructor.
+-- A new ARTY object can be created with the @{#ARTY.New}(*group*) constructor.
 -- The parameter *group* has to be a MOOSE Group object and defines ARTY group.
 --
 -- The ARTY FSM process can be started by the @{#ARTY.Start}() command.
@@ -146,7 +147,7 @@
 -- When a new target is assigned via the @{#ARTY.AssignTargetCoord}() function (see below), the **NewTarget** event is triggered.
 --
 -- ## Assigning Targets
--- Assigning targets is a central point of the ARTY class. Multiple targets can be assigned simultanioulsly and are put into a queue.
+-- Assigning targets is a central point of the ARTY class. Multiple targets can be assigned simultaneously and are put into a queue.
 -- Of course, targets can be added at any time during the mission. For example, once they are detected by a reconnaissance unit.
 --
 -- In order to add a target, the function @{#ARTY.AssignTargetCoord}(*coord*, *prio*, *radius*, *nshells*, *maxengage*, *time*, *weapontype*, *name*) has to be used.
@@ -161,7 +162,7 @@
 -- * *maxengage*: Number of times a target is engaged.
 -- * *time*: Time of day the engagement is schedule in the format "hh:mm:ss" for hh=hours, mm=minutes, ss=seconds.
 -- For example "10:15:35". In the case the attack will be executed at a quarter past ten in the morning at the day the mission started.
--- If the engagement should start on the following day the format can be specified as "10:15:35+1", where the +1 denots the following day.
+-- If the engagement should start on the following day the format can be specified as "10:15:35+1", where the +1 denotes the following day.
 -- This is useful for longer running missions or if the mission starts at 23:00 hours and the attack should be scheduled at 01:00 hours on the following day.
 -- Of course, later days are also possible by appending "+2", "+3", etc.
 -- **Note** that the time has to be given as a string. So the enclosing quotation marks "" are important.
@@ -179,7 +180,7 @@
 -- Let's first consider the case that none of the targets is scheduled to be executed at a certain time (*time*=nil).
 -- The ARTY group will first engage the target with higher priority (*prio*=10). After the engagement is finished, the target with lower priority is attacked.
 -- This is because the target with lower prio has been attacked one time less. After the attack on the lower priority task is finished and both targets
--- have been engaged equally often, the target with the higher priority is engaged again. This coninues until a target has engaged three times.
+-- have been engaged equally often, the target with the higher priority is engaged again. This continues until a target has engaged three times.
 -- Once the maximum number of engagements is reached, the target is deleted from the queue.
 --
 -- In other words, the queue is first sorted with respect to the number of engagements and targets with the same number of engagements are sorted with
@@ -190,7 +191,7 @@
 -- As mentioned above, targets can be engaged at a specific time of the day via the *time* parameter.
 --
 -- If the *time* parameter is specified for a target, the first engagement of that target will happen at that time of the day and not before.
--- This also applies when multiple engagements are requested via the *maxengage* parameter. The first attack will not happen before the specifed time.
+-- This also applies when multiple engagements are requested via the *maxengage* parameter. The first attack will not happen before the specified time.
 -- When that timed attack is finished, the *time* parameter is deleted and the remaining engagements are carried out in the same manner as for untimed targets (described above).
 --
 -- Of course, it can happen that a scheduled task should be executed at a time, when another target is already under attack.
@@ -201,7 +202,7 @@
 --
 -- ## Determining the Amount of Ammo
 --
--- In order to determin when a unit is out of ammo and possible initiate the rearming process it is necessary to know which types of weapons have to be counted.
+-- In order to determine when a unit is out of ammo and possible initiate the rearming process it is necessary to know which types of weapons have to be counted.
 -- For most artillery unit types, this is simple because they only have one type of weapon and hence ammunition.
 --
 -- However, there are more complex scenarios. For example, naval units carry a big arsenal of different ammunition types ranging from various cannon shell types
@@ -217,7 +218,7 @@
 -- **Note** that the default parameters "weapons.shells", "weapons.nurs", "weapons.missiles" **should in priciple** capture all the corresponding ammo types.
 -- However, the logic searches for the string "weapon.missies" in the ammo type. Especially for missiles, this string is often not contained in the ammo type descriptor.
 --
--- One way to determin which types of ammo the unit carries, one can use the debug mode of the arty class via @{#ARTY.SetDebugON}().
+-- One way to determine which types of ammo the unit carries, one can use the debug mode of the arty class via @{#ARTY.SetDebugON}().
 -- In debug mode, the all ammo types of the group are printed to the monitor as message and can be found in the DCS.log file.
 --
 -- ## Employing Selected Weapons
@@ -274,7 +275,7 @@
 --
 -- ## Simulated Weapons
 --
--- In addtion to the standard weapons a group has available some special weapon types that are not possible to use in the native DCS environment are simulated.
+-- In addition to the standard weapons a group has available some special weapon types that are not possible to use in the native DCS environment are simulated.
 --
 -- ### Tactical Nukes
 --
@@ -283,30 +284,30 @@
 --
 -- By default, they group does not have any nukes available. To give the group the ability the function @{#ARTY.SetTacNukeShells}(*n*) can be used.
 -- This supplies the group with *n* nuclear shells, where *n* is restricted to the number of conventional shells the group can carry.
--- Note that the group must always have convenctional shells left in order to fire a nuclear shell.
+-- Note that the group must always have conventional shells left in order to fire a nuclear shell.
 --
--- The default explostion strength is 0.075 kilo tons TNT. The can be changed with the @{#ARTY.SetTacNukeWarhead}(*strength*), where *strength* is given in kilo tons TNT.
+-- The default explosion strength is 0.075 kilo tons TNT. The can be changed with the @{#ARTY.SetTacNukeWarhead}(*strength*), where *strength* is given in kilo tons TNT.
 --
 -- ### Illumination Shells
 --
 -- ARTY groups that possess shells can fire shells with illumination bombs. First, the group needs to be equipped with this weapon. This is done by the
--- function @{ARTY.SetIlluminationShells}(*n*, *power*), where *n* is the number of shells the group has available and *power* the illumination power in mega candela (mcd).
+-- function @{#ARTY.SetIlluminationShells}(*n*, *power*), where *n* is the number of shells the group has available and *power* the illumination power in mega candela (mcd).
 --
 -- In order to execute an engagement with illumination shells one has to use the weapon type *ARTY.WeaponType.IlluminationShells* in the
 -- @{#ARTY.AssignTargetCoord}() function.
 --
 -- In the simulation, the explosive shell that is fired is destroyed once it gets close to the target point but before it can actually impact.
 -- At this position an illumination bomb is triggered at a random altitude between 500 and 1000 meters. This interval can be set by the function
--- @{ARTY.SetIlluminationMinMaxAlt}(*minalt*, *maxalt*).
+-- @{#ARTY.SetIlluminationMinMaxAlt}(*minalt*, *maxalt*).
 --
 -- ### Smoke Shells
 --
--- In a similar way to illumination shells, ARTY groups can also employ smoke shells. The numer of smoke shells the group has available is set by the function
+-- In a similar way to illumination shells, ARTY groups can also employ smoke shells. The number of smoke shells the group has available is set by the function
 -- @{#ARTY.SetSmokeShells}(*n*, *color*), where *n* is the number of shells and *color* defines the smoke color. Default is SMOKECOLOR.Red.
 --
 -- The weapon type to be used in the @{#ARTY.AssignTargetCoord}() function is *ARTY.WeaponType.SmokeShells*.
 --
--- The explosive shell the group fired is destroyed shortly before its impact on the ground and smoke of the speficied color is triggered at that position.
+-- The explosive shell the group fired is destroyed shortly before its impact on the ground and smoke of the specified color is triggered at that position.
 --
 --
 -- ## Assignments via Markers on F10 Map
@@ -320,15 +321,15 @@
 -- ### Target Assignments
 -- A new target can be assigned by writing **arty engage** in the marker text.
 -- This is followed by a **comma separated list** of (optional) keywords and parameters.
--- First, it is important to address the ARTY group or groups that should engage. This can be done in numrous ways. The keywords are *battery*, *alias*, *cluster*.
+-- First, it is important to address the ARTY group or groups that should engage. This can be done in numerous ways. The keywords are *battery*, *alias*, *cluster*.
 -- It is also possible to address all ARTY groups by the keyword *everyone* or *allbatteries*. These two can be used synonymously.
 -- **Note that**, if no battery is assigned nothing will happen.
 --
 -- * *everyone* or *allbatteries* The target is assigned to all batteries.
 -- * *battery* Name of the ARTY group that the target is assigned to. Note that **the name is case sensitive** and has to be given in quotation marks. Default is all ARTY groups of the right coalition.
 -- * *alias* Alias of the ARTY group that the target is assigned to. The alias is **case sensitive** and needs to be in quotation marks.
--- * *cluster* The cluster of ARTY groups that is addessed. Clusters can be defined by the function @{#ARTY.AddToCluster}(*clusters*). Names are **case sensitive** and need to be in quotation marks.
--- * *key* A number to authorize the target assignment. Only specifing the correct number will trigger an engagement.
+-- * *cluster* The cluster of ARTY groups that is addressed. Clusters can be defined by the function @{#ARTY.AddToCluster}(*clusters*). Names are **case sensitive** and need to be in quotation marks.
+-- * *key* A number to authorize the target assignment. Only specifying the correct number will trigger an engagement.
 -- * *time* Time for which which the engagement is schedules, e.g. 08:42. Default is as soon as possible.
 -- * *prio*  Priority of the engagement as number between 1 (high prio) and 100 (low prio). Default is 50, i.e. medium priority.
 -- * *shots* Number of shots (shells, rockets or missiles) fired at each engagement. Default is 5.
@@ -353,8 +354,8 @@
 --      arty engage, battery "Paladin Alpha", weapon nukes, shots 1, time 20:15
 --      arty engage, battery "Horwitzer 1", lldms 41:51:00N 41:47:58E
 --
--- Note that the keywords and parameters are *case insensitve*. Only exception are the battery, alias and cluster names.
--- These must be exactly the same as the names of the goups defined in the mission editor or the aliases and cluster names defined in the script.
+-- Note that the keywords and parameters are *case insensitive*. Only exception are the battery, alias and cluster names.
+-- These must be exactly the same as the names of the groups defined in the mission editor or the aliases and cluster names defined in the script.
 --
 -- ### Relocation Assignments
 --
@@ -363,11 +364,11 @@
 -- * *time* Time for which which the relocation/move is schedules, e.g. 08:42. Default is as soon as possible.
 -- * *speed* The speed in km/h the group will drive at. Default is 70% of its max possible speed.
 -- * *on road* Group will use mainly roads. Default is off, i.e. it will go in a straight line from its current position to the assigned coordinate.
--- * *canceltarget* Group will cancel all running firing engagements and immidiately start to move. Default is that group will wait until is current assignment is over.
+-- * *canceltarget* Group will cancel all running firing engagements and immediately start to move. Default is that group will wait until is current assignment is over.
 -- * *battery* Name of the ARTY group that the relocation is assigned to.
 -- * *alias* Alias of the ARTY group that the target is assigned to. The alias is **case sensitive** and needs to be in quotation marks.
--- * *cluster* The cluster of ARTY groups that is addessed. Clusters can be defined by the function @{#ARTY.AddToCluster}(*clusters*). Names are **case sensitive** and need to be in quotation marks.
--- * *key* A number to authorize the target assignment. Only specifing the correct number will trigger an engagement.
+-- * *cluster* The cluster of ARTY groups that is addressed. Clusters can be defined by the function @{#ARTY.AddToCluster}(*clusters*). Names are **case sensitive** and need to be in quotation marks.
+-- * *key* A number to authorize the target assignment. Only specifying the correct number will trigger an engagement.
 -- * *lldms* Specify the coordinates in Lat/Long degrees, minutes and seconds format. The actual location of the marker is unimportant. The group will move to the coordinates given in the lldms keyword.
 -- Format is DD:MM:SS[N,S] DD:MM:SS[W,E]. See example below.
 -- * *readonly* Marker cannot be deleted by users any more. Hence, assignment cannot be cancelled by removing the marker.
@@ -410,12 +411,12 @@
 --
 -- A few options can be set by marks. The corresponding keyword is **arty set**. This can be used to define the rearming place and group for a battery.
 --
--- To set the reamring place of a group at the marker position type
+-- To set the rearming place of a group at the marker position type
 --      arty set, battery "Paladin Alpha", rearming place
 --
 -- Setting the rearming group is independent of the position of the mark. Just create one anywhere on the map and type
 --      arty set, battery "Mortar Bravo", rearming group "Ammo Truck M818"
--- Note that the name of the rearming group has to be given in quotation marks and spellt exactly as the group name defined in the mission editor.
+-- Note that the name of the rearming group has to be given in quotation marks and spelt exactly as the group name defined in the mission editor.
 --
 -- ## Transporting
 --
@@ -693,7 +694,7 @@ ARTY.db={
 
 --- Arty script version.
 -- @field #string version
-ARTY.version="1.2.0"
+ARTY.version="1.3.0"
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -801,6 +802,9 @@ function ARTY:New(group, alias)
   else
     self.ismobile=false
   end
+  
+  -- Set track time interval.
+  self.dtTrack=0.2
 
   -- Set speed to 0.7 of maximum.
   self.Speed=self.SpeedMax * 0.7
@@ -1497,6 +1501,15 @@ function ARTY:SetStatusInterval(interval)
   return self
 end
 
+--- Set time interval for weapon tracking.
+-- @param #ARTY self
+-- @param #number interval Time interval in seconds. Default 0.2 seconds.
+-- @return self
+function ARTY:SetTrackInterval(interval)
+  self.dtTrack=interval or 0.2
+  return self
+end
+
 --- Set time how it is waited a unit the first shot event happens. If no shot is fired after this time, the task to fire is aborted and the target removed.
 -- @param #ARTY self
 -- @param #number waittime Time in seconds. Default 300 seconds.
@@ -2129,6 +2142,95 @@ end
 -- Event Handling
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+--- Function called during tracking of weapon.
+-- @param Wrapper.Weapon#WEAPON weapon Weapon object.
+-- @param #ARTY self ARTY object.
+-- @param #ARTY.Target target Target of the weapon.
+function ARTY._FuncTrack(weapon, self, target)
+  
+  -- Coordinate and distance to target.
+  local _coord=weapon.coordinate
+  local _dist=_coord:Get2DDistance(target.coord)
+  local _destroyweapon=false
+  
+  -- Debug
+  self:T3(self.lid..string.format("ARTY %s weapon to target dist = %d m", self.groupname,_dist))
+  
+  if target.weapontype==ARTY.WeaponType.IlluminationShells then
+  
+    -- Check if within distace.
+    if _dist<target.radius then
+  
+      -- Get random coordinate within certain radius of the target.
+      local _cr=target.coord:GetRandomCoordinateInRadius(target.radius)
+  
+      -- Get random altitude over target.
+      local _alt=_cr:GetLandHeight()+math.random(self.illuMinalt, self.illuMaxalt)
+  
+      -- Adjust explosion height of coordinate.
+      local _ci=COORDINATE:New(_cr.x,_alt,_cr.z)
+  
+      -- Create illumination flare.
+      _ci:IlluminationBomb(self.illuPower)
+  
+      -- Destroy actual shell.
+      _destroyweapon=true
+    end
+  
+  elseif target.weapontype==ARTY.WeaponType.SmokeShells then
+  
+    if _dist<target.radius then
+  
+      -- Get random coordinate within a certain radius.
+      local _cr=_coord:GetRandomCoordinateInRadius(_data.target.radius)
+  
+      -- Fire smoke at this coordinate.
+      _cr:Smoke(self.smokeColor)
+  
+      -- Destroy actual shell.
+      _destroyweapon=true
+  
+    end
+  
+  end
+  
+  if _destroyweapon then
+  
+    self:T2(self.lid..string.format("ARTY %s destroying shell, stopping timer.", self.groupname))
+  
+    -- Destroy weapon and stop timer.
+    weapon:Destroy()
+    
+    -- No more tracking.
+    weapon.tracking=false
+
+  end
+
+end
+
+
+--- Function called after impact of weapon.
+-- @param Wrapper.Weapon#WEAPON weapon Weapon object.
+-- @param #ARTY self ARTY object.
+-- @param #ARTY.Target target Target of the weapon.
+function ARTY._FuncImpact(weapon, self, target)
+
+  -- Debug info.
+  self:I(self.lid..string.format("ARTY %s weapon NOT ALIVE any more.", self.groupname))
+
+  -- Get impact coordinate.
+  local _impactcoord=weapon:GetImpactCoordinate()
+    
+  -- Create a "nuclear" explosion and blast at the impact point.
+  if target.weapontype==ARTY.WeaponType.TacticalNukes then
+    self:T(self.lid..string.format("ARTY %s triggering nuclear explosion in one second.", self.groupname))
+    --SCHEDULER:New(nil, ARTY._NuclearBlast, {self,_impactcoord}, 1.0)
+    self:ScheduleOnce(1.0, ARTY._NuclearBlast, self, _impactcoord)
+  end
+
+end
+
+
 --- Eventhandler for shot event.
 -- @param #ARTY self
 -- @param Core.Event#EVENTDATA EventData
@@ -2162,128 +2264,32 @@ function ARTY:OnEventShot(EventData)
         self:T(self.lid..text)
         MESSAGE:New(text, 5):Clear():ToAllIf(self.report or self.Debug)
 
-        -- Last known position of the weapon fired.
-        local _lastpos={x=0, y=0, z=0}
-
-        --- Track the position of the weapon if it is supposed to model a tac nuke, illumination or smoke shell.
-        -- @param #table _weapon
-        local function _TrackWeapon(_data)
-
-          -- When the pcall status returns false the weapon has hit.
-          local _weaponalive,_currpos =  pcall(
-          function()
-            return _data.weapon:getPoint()
-          end)
-
-          -- Debug
-          self:T3(self.lid..string.format("ARTY %s: Weapon still in air: %s", self.groupname, tostring(_weaponalive)))
-
-          -- Destroy weapon before impact.
-          local _destroyweapon=false
-
-          if _weaponalive then
-
-            -- Update last position.
-            _lastpos={x=_currpos.x, y=_currpos.y, z=_currpos.z}
-
-            -- Coordinate and distance to target.
-            local _coord=COORDINATE:NewFromVec3(_lastpos)
-            local _dist=_coord:Get2DDistance(_data.target.coord)
-
-            -- Debug
-            self:T3(self.lid..string.format("ARTY %s weapon to target dist = %d m", self.groupname,_dist))
-
-            if _data.target.weapontype==ARTY.WeaponType.IlluminationShells then
-
-              -- Check if within distace.
-              if _dist<_data.target.radius then
-
-                -- Get random coordinate within certain radius of the target.
-                local _cr=_data.target.coord:GetRandomCoordinateInRadius(_data.target.radius)
-
-                -- Get random altitude over target.
-                local _alt=_cr:GetLandHeight()+math.random(self.illuMinalt, self.illuMaxalt)
-
-                -- Adjust explosion height of coordinate.
-                local _ci=COORDINATE:New(_cr.x,_alt,_cr.z)
-
-                -- Create illumination flare.
-                _ci:IlluminationBomb(self.illuPower)
-
-                -- Destroy actual shell.
-                _destroyweapon=true
-              end
-
-            elseif _data.target.weapontype==ARTY.WeaponType.SmokeShells then
-
-              if _dist<_data.target.radius then
-
-                -- Get random coordinate within a certain radius.
-                local _cr=_coord:GetRandomCoordinateInRadius(_data.target.radius)
-
-                -- Fire smoke at this coordinate.
-                _cr:Smoke(self.smokeColor)
-
-                -- Destroy actual shell.
-                _destroyweapon=true
-
-              end
-
-            end
-
-            if _destroyweapon then
-
-              self:T2(self.lid..string.format("ARTY %s destroying shell, stopping timer.", self.groupname))
-
-              -- Destroy weapon and stop timer.
-              _data.weapon:destroy()
-              return nil
-
-            else
-
-              -- TODO: Make dt input parameter.
-              local dt=0.02
-
-              self:T3(self.lid..string.format("ARTY %s tracking weapon again in %.3f seconds", self.groupname, dt))
-
-              -- Check again in 0.05 seconds.
-              return timer.getTime() + dt
-
-            end
-
-          else
-
-            -- Get impact coordinate.
-            local _impactcoord=COORDINATE:NewFromVec3(_lastpos)
-            
-            self:I(self.lid..string.format("ARTY %s weapon NOT ALIVE any more.", self.groupname))
-
-            -- Create a "nuclear" explosion and blast at the impact point.
-            if _data.target.weapontype==ARTY.WeaponType.TacticalNukes then
-              self:T(self.lid..string.format("ARTY %s triggering nuclear explosion in one second.", self.groupname))
-              SCHEDULER:New(nil, ARTY._NuclearBlast, {self,_impactcoord}, 1.0)
-            end
-
-            -- Stop timer.
-            return nil
-
-          end
-
-        end
-
         -- Start track the shell if we want to model a tactical nuke.
         local _tracknuke  = self.currentTarget.weapontype==ARTY.WeaponType.TacticalNukes and self.Nukes>0
         local _trackillu  = self.currentTarget.weapontype==ARTY.WeaponType.IlluminationShells and self.Nillu>0
         local _tracksmoke = self.currentTarget.weapontype==ARTY.WeaponType.SmokeShells and self.Nsmoke>0
+        
+        
         if _tracknuke or _trackillu or _tracksmoke then
 
-            self:T(self.lid..string.format("ARTY %s: Tracking of weapon starts in two seconds.", self.groupname))
-
-            local _peter={}
-            _peter.weapon=EventData.weapon
-            _peter.target=UTILS.DeepCopy(self.currentTarget)
-
-            timer.scheduleFunction(_TrackWeapon, _peter, timer.getTime() + 2.0)
+          -- Debug info.  
+          self:T(self.lid..string.format("ARTY %s: Tracking of weapon starts in two seconds.", self.groupname))
+            
+          -- Create a weapon object.
+          local weapon=WEAPON:New(EventData.weapon)
+          
+          -- Set time step for tracking.
+          weapon:SetTimeStepTrack(self.dtTrack)
+          
+          -- Copy target. We need a copy because it might already be overwritten with the next target during flight of weapon.
+          local target=UTILS.DeepCopy(self.currentTarget)
+          
+          -- Set callback functions.
+          weapon:SetFuncTrack(ARTY._FuncTrack, self, target)
+          weapon:SetFuncImpact(ARTY._FuncImpact, self, target)
+          
+          -- Start tracking in 2 sec (arty ammo should fly a bit).
+          weapon:StartTrack(2)
         end
 
         -- Get current ammo.
@@ -3422,7 +3428,7 @@ function ARTY:onafterMove(Controllable, From, Event, To, move)
   -- Set current move.
   self.currentMove=move
 
-  -- Route group to coodinate.
+  -- Route group to coordinate.
   self:_Move(self.Controllable, move.coord, move.speed, move.onroad)
 
 end
@@ -3931,9 +3937,10 @@ function ARTY:GetAmmo(display)
     return nammo, nshells, nrockets, nmissiles
   end
 
-  for _,unit in pairs(units) do
+  for _,_unit in pairs(units) do
+    local unit=_unit --Wrapper.Unit#UNIT
 
-    if unit and unit:IsAlive() then
+    if unit then
 
       -- Output.
       local text=string.format("ARTY group %s - unit %s:\n", self.groupname, unit:GetName())

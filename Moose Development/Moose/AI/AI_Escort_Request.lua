@@ -1,4 +1,4 @@
---- **Functional** -- Taking the lead of AI escorting your flight or of other AI, upon request using the menu.
+--- **AI** - Taking the lead of AI escorting your flight or of other AI, upon request using the menu.
 -- 
 -- ===
 -- 
@@ -137,13 +137,18 @@
 -- Escort groups can have their own mission. This menu item will allow the escort group to resume their Mission from a given waypoint.
 -- Note that this is really fantastic, as you now have the dynamic of taking control of the escort groups, and allowing them to resume their path or mission.
 --
+-- # Developer Note
+-- 
+-- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+-- Therefore, this class is considered to be deprecated
+--
 -- ===
 -- 
 -- ### Authors: **FlightControl** 
 -- 
 -- ===
 --
--- @module AI.AI_Escort
+-- @module AI.AI_Escort_Request
 -- @image Escorting.JPG
 
 
@@ -292,7 +297,7 @@ function AI_ESCORT_REQUEST:onafterStop( EscortGroupSet )
   self:F()
   
   EscortGroupSet:ForEachGroup(
-    --- @param Core.Group#GROUP EscortGroup
+    --- @param Wrapper.Group#GROUP EscortGroup
     function( EscortGroup )
       EscortGroup:WayPointInitialize()
     

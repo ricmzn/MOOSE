@@ -13,21 +13,23 @@
 -- 
 -- ### Author: **FlightControl**
 -- 
--- ### Contributions: **funkyfranky**
+-- ### Contributions: **funkyfranky**, **Applevangelist**
 -- 
 -- ===
 -- 
 -- @module Wrapper.Unit
 -- @image Wrapper_Unit.JPG
 
-
---- @type UNIT
+---
+-- @type UNIT
 -- @field #string ClassName Name of the class.
 -- @field #string UnitName Name of the unit.
+-- @field #string GroupName Name of the group the unit belongs to.
+-- @field #table DCSUnit The DCS Unit object from the API.
 -- @extends Wrapper.Controllable#CONTROLLABLE
 
---- For each DCS Unit object alive within a running mission, a UNIT wrapper object (instance) will be created within the _@{DATABASE} object.
--- This is done at the beginning of the mission (when the mission starts), and dynamically when new DCS Unit objects are spawned (using the @{SPAWN} class).
+--- For each DCS Unit object alive within a running mission, a UNIT wrapper object (instance) will be created within the global _DATABASE object (an instance of @{Core.Database#DATABASE}).
+-- This is done at the beginning of the mission (when the mission starts), and dynamically when new DCS Unit objects are spawned (using the @{Core.Spawn} class).
 --  
 -- The UNIT class **does not contain a :New()** method, rather it provides **:Find()** methods to retrieve the object reference
 -- using the DCS Unit or the DCS UnitName.
@@ -38,10 +40,12 @@
 --  
 -- The UNIT class provides the following functions to retrieve quickly the relevant UNIT instance:
 -- 
---  * @{#UNIT.Find}(): Find a UNIT instance from the _DATABASE object using a DCS Unit object.
---  * @{#UNIT.FindByName}(): Find a UNIT instance from the _DATABASE object using a DCS Unit name.
+--  * @{#UNIT.Find}(): Find a UNIT instance from the global _DATABASE object (an instance of @{Core.Database#DATABASE}) using a DCS Unit object.
+--  * @{#UNIT.FindByName}(): Find a UNIT instance from the global _DATABASE object (an instance of @{Core.Database#DATABASE}) using a DCS Unit name.
+--  * @{#UNIT.FindByMatching}(): Find a UNIT instance from the global _DATABASE object (an instance of @{Core.Database#DATABASE}) using a pattern.
+--  * @{#UNIT.FindAllByMatching}(): Find all UNIT instances from the global _DATABASE object (an instance of @{Core.Database#DATABASE}) using a pattern.
 --  
--- IMPORTANT: ONE SHOULD NEVER SANATIZE these UNIT OBJECT REFERENCES! (make the UNIT object references nil).
+-- IMPORTANT: ONE SHOULD NEVER SANITIZE these UNIT OBJECT REFERENCES! (make the UNIT object references nil).
 -- 
 -- ## DCS UNIT APIs
 -- 
@@ -86,10 +90,12 @@
 --   * Use the @{#UNIT.IsLOS}() method to check if the given unit is within line of sight.
 -- 
 -- 
--- @field #UNIT UNIT
+-- @field #UNIT
 UNIT = {
   ClassName="UNIT",
   UnitName=nil,
+  GroupName=nil,
+  DCSUnit = nil,
 }
 
 
@@ -110,10 +116,20 @@ UNIT = {
 function UNIT:Register( UnitName )
 
   -- Inherit CONTROLLABLE.
-  local self = BASE:Inherit( self, CONTROLLABLE:New( UnitName ) )
+  local self = BASE:Inherit( self, CONTROLLABLE:New( UnitName ) ) --#UNIT
   
   -- Set unit name.
   self.UnitName = UnitName
+  
+  local unit=Unit.getByName(self.UnitName)
+  
+  if unit then
+    local group = unit:getGroup()
+    if group then 
+      self.GroupName=group:getName()
+    end
+    self.DCSUnit = unit
+  end
   
   -- Set event prio.
   self:SetEventPriority( 3 )
@@ -146,6 +162,55 @@ function UNIT:FindByName( UnitName )
   return UnitFound
 end
 
+--- Find the first(!) UNIT matching using patterns. Note that this is **a lot** slower than `:FindByName()`!
+-- @param #UNIT self
+-- @param #string Pattern The pattern to look for. Refer to [LUA patterns](http://www.easyuo.com/openeuo/wiki/index.php/Lua_Patterns_and_Captures_(Regular_Expressions)) for regular expressions in LUA.
+-- @return #UNIT The UNIT.
+-- @usage
+--          -- Find a group with a partial group name
+--          local unit = UNIT:FindByMatching( "Apple" )
+--          -- will return e.g. a group named "Apple-1-1"
+--          
+--          -- using a pattern
+--          local unit = UNIT:FindByMatching( ".%d.%d$" )
+--          -- will return the first group found ending in "-1-1" to "-9-9", but not e.g. "-10-1"
+function UNIT:FindByMatching( Pattern )
+  local GroupFound = nil
+  
+  for name,group in pairs(_DATABASE.UNITS) do
+    if string.match(name, Pattern ) then
+      GroupFound = group
+      break
+    end
+  end
+  
+  return GroupFound
+end
+
+--- Find all UNIT objects matching using patterns. Note that this is **a lot** slower than `:FindByName()`!
+-- @param #UNIT self
+-- @param #string Pattern The pattern to look for. Refer to [LUA patterns](http://www.easyuo.com/openeuo/wiki/index.php/Lua_Patterns_and_Captures_(Regular_Expressions)) for regular expressions in LUA.
+-- @return #table Units Table of matching #UNIT objects found
+-- @usage
+--          -- Find all group with a partial group name
+--          local unittable = UNIT:FindAllByMatching( "Apple" )
+--          -- will return all units with "Apple" in the name
+--          
+--          -- using a pattern
+--          local unittable = UNIT:FindAllByMatching( ".%d.%d$" )
+--          -- will return the all units found ending in "-1-1" to "-9-9", but not e.g. "-10-1" or "-1-10"
+function UNIT:FindAllByMatching( Pattern )
+  local GroupsFound = {}
+  
+  for name,group in pairs(_DATABASE.UNITS) do
+    if string.match(name, Pattern ) then
+      GroupsFound[#GroupsFound+1] = group
+    end
+  end
+  
+  return GroupsFound
+end
+
 --- Return the name of the UNIT.
 -- @param #UNIT self
 -- @return #string The UNIT name.
@@ -156,7 +221,7 @@ end
 
 --- Get the DCS unit object.
 -- @param #UNIT self
--- @return DCS#Unit
+-- @return DCS#Unit The DCS unit object.
 function UNIT:GetDCSObject()
 
   local DCSUnit = Unit.getByName( self.UnitName )
@@ -164,12 +229,36 @@ function UNIT:GetDCSObject()
   if DCSUnit then
     return DCSUnit
   end
-
+  
+  --if self.DCSUnit then
+    --return self.DCSUnit
+  --end
+  
   return nil
 end
 
+--- Returns the unit altitude above sea level in meters.
+-- @param Wrapper.Unit#UNIT self
+-- @param #boolean FromGround Measure from the ground or from sea level (ASL). Provide **true** for measuring from the ground (AGL). **false** or **nil** if you measure from sea level. 
+-- @return #number The height of the group or nil if is not existing or alive.  
+function UNIT:GetAltitude(FromGround)
+  
+  local DCSUnit = Unit.getByName( self.UnitName )
 
+  if DCSUnit then
+    local altitude = 0
+    local point = DCSUnit:getPoint() --DCS#Vec3
+    altitude = point.y
+    if FromGround then
+      local land = land.getHeight( { x = point.x, y = point.z } ) or 0
+      altitude = altitude - land
+    end
+    return altitude
+  end
 
+  return nil
+  
+end
 
 --- Respawn the @{Wrapper.Unit} using a (tweaked) template of the parent Group.
 -- 
@@ -198,7 +287,7 @@ function UNIT:ReSpawnAt( Coordinate, Heading )
     SpawnGroupTemplate.y = Coordinate.z
     
     self:F( #SpawnGroupTemplate.units )
-    for UnitID, UnitData in pairs( SpawnGroup:GetUnits() ) do
+    for UnitID, UnitData in pairs( SpawnGroup:GetUnits() or {} ) do
       local GroupUnit = UnitData -- #UNIT
       self:F( GroupUnit:GetName() )
       if GroupUnit:IsAlive() then
@@ -282,26 +371,48 @@ function UNIT:IsActive()
   return nil
 end
 
---- Returns if the Unit is alive.  
--- If the Unit is not alive, nil is returned.  
--- If the Unit is alive and active, true is returned.    
--- If the Unit is alive but not active, false is returned.  
+--- Returns if the unit is exists in the mission.
+-- If not even the DCS unit object does exist, `nil` is returned.  
+-- If the unit object exists, the value of the DCS API function [isExist](https://wiki.hoggitworld.com/view/DCS_func_isExist) is returned.  
 -- @param #UNIT self
--- @return #boolean `true` if Unit is alive and active. `false` if Unit is alive but not active. `nil` if the Unit is not existing or is not alive.
+-- @return #boolean Returns `true` if unit exists in the mission.
+function UNIT:IsExist()
+
+  local DCSUnit = self:GetDCSObject() -- DCS#Unit
+  
+  if DCSUnit then
+    local exists = DCSUnit:isExist()
+    return exists
+  end 
+  
+  return nil
+end
+
+--- Returns if the Unit is alive.  
+-- If the Unit is not alive/existent, `nil` is returned.  
+-- If the Unit is alive and active, `true` is returned.    
+-- If the Unit is alive but not active, `false`` is returned.  
+-- @param #UNIT self
+-- @return #boolean Returns `true` if Unit is alive and active, `false` if it exists but is not active and `nil` if the object does not exist or DCS `isExist` function returns false.
 function UNIT:IsAlive()
   self:F3( self.UnitName )
 
   local DCSUnit = self:GetDCSObject() -- DCS#Unit
   
-  if DCSUnit then
-    local UnitIsAlive  = DCSUnit:isExist() and DCSUnit:isActive()
+  if DCSUnit and DCSUnit:isExist() then
+    local UnitIsAlive = DCSUnit:isActive()
     return UnitIsAlive
   end 
   
   return nil
 end
 
-
+--- Returns if the Unit is dead.
+-- @param #UNIT self  
+-- @return #boolean `true` if Unit is dead, else false or nil if the unit does not exist
+function UNIT:IsDead()
+  return not self:IsAlive()
+end
 
 --- Returns the Unit's callsign - the localized string.
 -- @param #UNIT self
@@ -330,6 +441,8 @@ function UNIT:IsPlayer()
   
   -- Get group.
   local group=self:GetGroup()
+  
+  if not group then return false end
     
   -- Units of template group.
   local units=group:GetTemplate().units
@@ -499,7 +612,7 @@ end
 
 --- Check if the unit is a tanker. Also retrieves the refuelling system (boom or probe) if applicable.
 -- @param #UNIT self
--- @return #boolean If true, unit is refuelable (checks for the attribute "Refuelable").
+-- @return #boolean If true, unit is a tanker (checks for the attribute "Tankers").
 -- @return #number Refueling system (if any): 0=boom, 1=probe.
 function UNIT:IsTanker()
   self:F2( self.UnitName )
@@ -520,7 +633,7 @@ function UNIT:IsTanker()
     -- Some hard coded data as this is not in the descriptors...
     if typename=="IL-78M" then
       system=1 --probe
-    elseif typename=="KC130" then
+    elseif typename=="KC130" or typename=="KC130J" then
       system=1 --probe
     elseif typename=="KC135BDA" then
       system=1 --probe
@@ -528,6 +641,10 @@ function UNIT:IsTanker()
       system=1 --probe
     elseif typename=="S-3B Tanker" then
       system=1 --probe
+    elseif typename=="KC_10_Extender" then
+      system=1 --probe
+    elseif typename=="KC_10_Extender_D" then
+      system=0 --boom
     end
     
   end
@@ -593,32 +710,29 @@ function UNIT:IsFuelSupply()
   return false
 end
 
---- Returns the unit's group if it exist and nil otherwise.
+--- Returns the unit's group if it exists and nil otherwise.
 -- @param Wrapper.Unit#UNIT self
 -- @return Wrapper.Group#GROUP The Group of the Unit or `nil` if the unit does not exist.  
 function UNIT:GetGroup()
-  self:F2( self.UnitName )
-
-  local DCSUnit = self:GetDCSObject()
-  
-  if DCSUnit then
-    local DCSGroup = DCSUnit:getGroup()
-    if DCSGroup then
-      local GroupName = DCSGroup:getName()
-      if GroupName then
-        return GROUP:FindByName( DCSUnit:getGroup():getName() )
+  self:F2( self.UnitName )  
+  local UnitGroup = GROUP:FindByName(self.GroupName)
+  if UnitGroup then
+    return UnitGroup
+  else
+    local DCSUnit = self:GetDCSObject()    
+    if DCSUnit then
+      local grp = DCSUnit:getGroup()
+      if grp then
+        local UnitGroup = GROUP:FindByName( grp:getName() )
+        return UnitGroup
       end
     end
   end
-
   return nil
 end
 
-
--- Need to add here functions to check if radar is on and which object etc.
-
 --- Returns the prefix name of the DCS Unit. A prefix name is a part of the name before a '#'-sign.
--- DCS Units spawned with the @{SPAWN} class contain a '#'-sign to indicate the end of the (base) DCS Unit name. 
+-- DCS Units spawned with the @{Core.Spawn#SPAWN} class contain a '#'-sign to indicate the end of the (base) DCS Unit name. 
 -- The spawn sequence number and unit number are contained within the name after the '#' sign. 
 -- @param #UNIT self
 -- @return #string The name of the DCS Unit.
@@ -639,19 +753,26 @@ end
 
 --- Returns the Unit's ammunition.
 -- @param #UNIT self
--- @return DCS#Unit.Ammo Table with ammuntion of the unit (or nil). This can be a complex table!  
+-- @return DCS#Unit.Ammo Table with ammuntion of the unit (or nil). This can be a complex table! 
 function UNIT:GetAmmo()
   self:F2( self.UnitName )
-
   local DCSUnit = self:GetDCSObject()
-  
   if DCSUnit then
+    --local status, unitammo = pcall(
+      -- function()
+        -- local UnitAmmo = DCSUnit:getAmmo()
+        -- return UnitAmmo
+       --end
+    --)
+    --if status then
+      --return unitammo
+    --end
     local UnitAmmo = DCSUnit:getAmmo()
     return UnitAmmo
   end
-  
   return nil
 end
+
 
 --- Sets the Unit's Internal Cargo Mass, in kg
 -- @param #UNIT self
@@ -672,6 +793,7 @@ end
 -- @return #number Number of rockets left.
 -- @return #number Number of bombs left.
 -- @return #number Number of missiles left.
+-- @return #number Number of artillery shells left (with explosive mass, included in shells; shells can also be machine gun ammo)
 function UNIT:GetAmmunition()
 
   -- Init counter.
@@ -680,6 +802,7 @@ function UNIT:GetAmmunition()
   local nrockets=0
   local nmissiles=0
   local nbombs=0
+  local narti=0
 
   local unit=self
 
@@ -716,7 +839,11 @@ function UNIT:GetAmmunition()
 
         -- Add up all shells.
         nshells=nshells+Nammo
-
+        
+        if ammotable[w].desc.warhead and ammotable[w].desc.warhead.explosiveMass and ammotable[w].desc.warhead.explosiveMass > 0 then
+          narti=narti+Nammo
+        end
+        
       elseif Category==Weapon.Category.ROCKET then
 
         -- Add up all rockets.
@@ -753,7 +880,7 @@ function UNIT:GetAmmunition()
   -- Total amount of ammunition.
   nammo=nshells+nrockets+nmissiles+nbombs
 
-  return nammo, nshells, nrockets, nbombs, nmissiles
+  return nammo, nshells, nrockets, nbombs, nmissiles, narti
 end
 
 --- Returns the unit sensors.
@@ -804,7 +931,9 @@ function UNIT:HasSEAD()
     
     local HasSEAD = false
     if UnitSEADAttributes["RADAR_BAND1_FOR_ARM"] and UnitSEADAttributes["RADAR_BAND1_FOR_ARM"] == true or
-       UnitSEADAttributes["RADAR_BAND2_FOR_ARM"] and UnitSEADAttributes["RADAR_BAND2_FOR_ARM"] == true then
+       UnitSEADAttributes["RADAR_BAND2_FOR_ARM"] and UnitSEADAttributes["RADAR_BAND2_FOR_ARM"] == true or
+       UnitSEADAttributes["Optical Tracker"] and UnitSEADAttributes["Optical Tracker"] == true  
+       then
        HasSEAD = true
     end
     return HasSEAD
@@ -877,7 +1006,7 @@ function UNIT:GetLife()
 
   local DCSUnit = self:GetDCSObject()
   
-  if DCSUnit then
+  if DCSUnit and DCSUnit:isExist() then
     local UnitLife = DCSUnit:getLife()
     return UnitLife
   end
@@ -927,6 +1056,24 @@ function UNIT:GetDamageRelative()
   end
   
   return 1
+end
+
+--- Returns the current value for an animation argument on the external model of the given object. 
+-- Each model animation has an id tied to with different values representing different states of the model. 
+-- Animation arguments can be figured out by opening the respective 3d model in the modelviewer.
+-- @param #UNIT self
+-- @param #number AnimationArgument Number corresponding to the animated part of the unit.
+-- @return #number Value of the animation argument [-1, 1]. If draw argument value is invalid for the unit in question a value of 0 will be returned.
+function UNIT:GetDrawArgumentValue(AnimationArgument)
+
+  local DCSUnit = self:GetDCSObject()
+  
+  if DCSUnit then
+    local value = DCSUnit:getDrawArgumentValue(AnimationArgument or 0)
+    return value
+  end
+  
+  return 0
 end
 
 --- Returns the category of the #UNIT from descriptor. Returns one of
@@ -1041,7 +1188,7 @@ function UNIT:GetThreatLevel()
   if Descriptor then 
   
     local Attributes = Descriptor.attributes
-  
+    
     if self:IsGround() then
     
       local ThreatLevels = {

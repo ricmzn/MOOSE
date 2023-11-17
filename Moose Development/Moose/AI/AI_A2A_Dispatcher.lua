@@ -1,4 +1,4 @@
---- **AI** - (R2.2) - Manages the process of an automatic A2A defense system based on an EWR network targets and coordinating CAP and GCI.
+--- **AI** - Manages the process of an automatic A2A defense system based on an EWR network targets and coordinating CAP and GCI.
 --
 -- ===
 --
@@ -57,8 +57,8 @@
 --
 -- ## 2. Which type of EWR will I setup? Grouping based per AREA, per TYPE or per UNIT? (Later others will follow).
 --
--- The MOOSE framework leverages the @{Detection} classes to perform the EWR detection.
--- Several types of @{Detection} classes exist, and the most common characteristics of these classes is that they:
+-- The MOOSE framework leverages the @{Functional.Detection} classes to perform the EWR detection.
+-- Several types of @{Functional.Detection} classes exist, and the most common characteristics of these classes is that they:
 --
 --    * Perform detections from multiple FACs as one co-operating entity.
 --    * Communicate with a Head Quarters, which consolidates each detection.
@@ -126,7 +126,7 @@
 --    * polygon zones
 --    * moving zones
 --
--- Depending on the type of zone selected, a different @{Zone} object needs to be created from a ZONE_ class.
+-- Depending on the type of zone selected, a different @{Core.Zone} object needs to be created from a ZONE_ class.
 --
 -- ## 14. For each Squadron doing CAP, what are the time intervals and CAP amounts to be performed?
 --
@@ -176,6 +176,11 @@
 -- Per one, two, three, four?
 --
 -- **The default grouping is 1. That means, that each spawned defender will act individually.**
+--
+-- # Developer Note
+-- 
+-- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+-- Therefore, this class is considered to be deprecated
 --
 -- ===
 --
@@ -305,7 +310,7 @@ do -- AI_A2A_DISPATCHER
   -- Use the method @{#AI_A2A_DISPATCHER.SetEngageRadius}() to set a specific Engage Radius.
   -- **The Engage Radius is defined for ALL squadrons which are operational.**
   --
-  -- Demonstration Mission: [AID-019 - AI_A2A - Engage Range Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/release-2-2-pre/AID%20-%20AI%20Dispatching/AID-019%20-%20AI_A2A%20-%20Engage%20Range%20Test)
+  -- Demonstration Mission: [AID-019 - AI_A2A - Engage Range Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching/AID-A2A-019%20-%20Engage%20Range%20Test)
   --
   -- In this example an Engage Radius is set to various values.
   --
@@ -328,7 +333,7 @@ do -- AI_A2A_DISPATCHER
   -- Use the method @{#AI_A2A_DISPATCHER.SetGciRadius}() to set a specific controlled ground intercept radius.
   -- **The Ground Controlled Intercept radius is defined for ALL squadrons which are operational.**
   --
-  -- Demonstration Mission: [AID-013 - AI_A2A - Intercept Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/release-2-2-pre/AID%20-%20AI%20Dispatching/AID-013%20-%20AI_A2A%20-%20Intercept%20Test)
+  -- Demonstration Mission: [AID-013 - AI_A2A - Intercept Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching/AID-A2A-013%20-%20Intercept%20Test)
   --
   -- In these examples, the Gci Radius is set to various values:
   --
@@ -356,12 +361,12 @@ do -- AI_A2A_DISPATCHER
   --
   -- ![Banner Image](..\Presentations\AI_A2A_DISPATCHER\Dia9.JPG)
   --
-  -- If it's a cold war then the **borders of red and blue territory** need to be defined using a @{zone} object derived from @{Core.Zone#ZONE_BASE}.
+  -- If it's a cold war then the **borders of red and blue territory** need to be defined using a @{Core.Zone} object derived from @{Core.Zone#ZONE_BASE}.
   -- If a hot war is chosen then **no borders** actually need to be defined using the helicopter units other than
   -- it makes it easier sometimes for the mission maker to envisage where the red and blue territories roughly are.
   -- In a hot war the borders are effectively defined by the ground based radar coverage of a coalition.
   --
-  -- Demonstration Mission: [AID-009 - AI_A2A - Border Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/release-2-2-pre/AID%20-%20AI%20Dispatching/AID-009 - AI_A2A - Border Test)
+  -- Demonstration Mission: [AID-009 - AI_A2A - Border Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching/AID-A2A-009%20-%20Border%20Test)
   --
   -- In this example a border is set for the CCCP A2A dispatcher:
   --
@@ -425,7 +430,7 @@ do -- AI_A2A_DISPATCHER
   --   * @{#AI_A2A_DISPATCHER.SetSquadronTakeoffFromParkingHot}() will spawn new aircraft in with running engines at a parking spot at the airfield.
   --   * @{#AI_A2A_DISPATCHER.SetSquadronTakeoffFromRunway}() will spawn new aircraft at the runway at the airfield.
   --
-  -- **The default landing method is to spawn new aircraft directly in the air.**
+  -- **The default take-off method is to spawn new aircraft directly in the air.**
   --
   -- Use these methods to fine-tune for specific airfields that are known to create bottlenecks, or have reduced airbase efficiency.
   -- The more and the longer aircraft need to taxi at an airfield, the more risk there is that:
@@ -592,7 +597,7 @@ do -- AI_A2A_DISPATCHER
   --      A2ADispatcher:SetSquadronCap( "Maykop", CAPZoneMiddle, 4000, 8000, 600, 800, 800, 1200, "RADIO" )
   --      A2ADispatcher:SetSquadronCapInterval( "Sochi", 2, 30, 120, 1 )
   --
-  -- Note the different @{Zone} MOOSE classes being used to create zones of different types. Please click the @{Zone} link for more information about the different zone types.
+  -- Note the different @{Core.Zone} MOOSE classes being used to create zones of different types. Please click the @{Core.Zone} link for more information about the different zone types.
   -- Zones can be circles, can be setup in the mission editor using trigger zones, but can also be setup in the mission editor as polygons and in this case GROUP objects are being used!
   --
   -- ## 7.2. Set the squadron to execute CAP:
@@ -881,8 +886,9 @@ do -- AI_A2A_DISPATCHER
   --- Enumerator for spawns at airbases
   -- @type AI_A2A_DISPATCHER.Takeoff
   -- @extends Wrapper.Group#GROUP.Takeoff
-
-  --- @field #AI_A2A_DISPATCHER.Takeoff Takeoff
+  
+  ---
+  -- @field #AI_A2A_DISPATCHER.Takeoff Takeoff
   AI_A2A_DISPATCHER.Takeoff = GROUP.Takeoff
 
   --- Defines Landing type/location.
@@ -928,6 +934,8 @@ do -- AI_A2A_DISPATCHER
     self.DefenderTasks = {} -- The Defenders Tasks.
     self.DefenderDefault = {} -- The Defender Default Settings over all Squadrons.
 
+    self.SetSendPlayerMessages = false --#boolean Flash messages to player
+    
     -- TODO: Check detection through radar.
     self.Detection:FilterCategories( { Unit.Category.AIRPLANE, Unit.Category.HELICOPTER } )
     -- self.Detection:InitDetectRadar( true )
@@ -1145,7 +1153,7 @@ do -- AI_A2A_DISPATCHER
 
     self:I( "Captured " .. AirbaseName )
 
-    -- Now search for all squadrons located at the airbase, and sanatize them.
+    -- Now search for all squadrons located at the airbase, and sanitize them.
     for SquadronName, Squadron in pairs( self.DefenderSquadrons ) do
       if Squadron.AirbaseName == AirbaseName then
         Squadron.ResourceCount = -999 -- The base has been captured, and the resources are eliminated. No more spawning.
@@ -1225,7 +1233,7 @@ do -- AI_A2A_DISPATCHER
   --
   -- **Use the method @{#AI_A2A_DISPATCHER.SetEngageRadius}() to modify the default Engage Radius for ALL squadrons.**
   --
-  -- Demonstration Mission: [AID-019 - AI_A2A - Engage Range Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/release-2-2-pre/AID%20-%20AI%20Dispatching/AID-019%20-%20AI_A2A%20-%20Engage%20Range%20Test)
+  -- Demonstration Mission: [AID-019 - AI_A2A - Engage Range Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching/AID-A2A-019%20-%20Engage%20Range%20Test)
   --
   -- @param #AI_A2A_DISPATCHER self
   -- @param #number EngageRadius (Optional, Default = 100000) The radius to report friendlies near the target.
@@ -1275,7 +1283,7 @@ do -- AI_A2A_DISPATCHER
   -- Use the method @{#AI_A2A_DISPATCHER.SetGciRadius}() to set a specific controlled ground intercept radius.
   -- **The Ground Controlled Intercept radius is defined for ALL squadrons which are operational.**
   --
-  -- Demonstration Mission: [AID-013 - AI_A2A - Intercept Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/release-2-2-pre/AID%20-%20AI%20Dispatching/AID-013%20-%20AI_A2A%20-%20Intercept%20Test)
+  -- Demonstration Mission: [AID-013 - AI_A2A - Intercept Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching/AID-A2A-013%20-%20Intercept%20Test)
   --
   -- @param #AI_A2A_DISPATCHER self
   -- @param #number GciRadius (Optional, Default = 200000) The radius to ground control intercept detected targets from the nearest airbase.
@@ -1301,7 +1309,7 @@ do -- AI_A2A_DISPATCHER
   --- Define a border area to simulate a **cold war** scenario.
   -- A **cold war** is one where CAP aircraft patrol their territory but will not attack enemy aircraft or launch GCI aircraft unless enemy aircraft enter their territory. In other words the EWR may detect an enemy aircraft but will only send aircraft to attack it if it crosses the border.
   -- A **hot war** is one where CAP aircraft will intercept any detected enemy aircraft and GCI aircraft will launch against detected enemy aircraft without regard for territory. In other words if the ground radar can detect the enemy aircraft then it will send CAP and GCI aircraft to attack it.
-  -- If it's a cold war then the **borders of red and blue territory** need to be defined using a @{zone} object derived from @{Core.Zone#ZONE_BASE}. This method needs to be used for this.
+  -- If it's a cold war then the **borders of red and blue territory** need to be defined using a @{Core.Zone} object derived from @{Core.Zone#ZONE_BASE}. This method needs to be used for this.
   -- If a hot war is chosen then **no borders** actually need to be defined using the helicopter units other than it makes it easier sometimes for the mission maker to envisage where the red and blue territories roughly are. In a hot war the borders are effectively defined by the ground based radar coverage of a coalition. Set the noborders parameter to 1
   -- @param #AI_A2A_DISPATCHER self
   -- @param Core.Zone#ZONE_BASE BorderZone An object derived from ZONE_BASE, or a list of objects derived from ZONE_BASE.
@@ -1684,6 +1692,20 @@ do -- AI_A2A_DISPATCHER
 
     return DefenderSquadron
   end
+  
+  --- Get a resource count from a specific squadron
+  -- @param #AI_A2A_DISPATCHER self
+  -- @param #string Squadron Name of the squadron.
+  -- @return #number Number of airframes available or nil if the squadron does not exist
+  function AI_A2A_DISPATCHER:QuerySquadron(Squadron)
+    local Squadron = self:GetSquadron(Squadron)
+    if Squadron.ResourceCount then
+      self:T2(string.format("%s = %s",Squadron.Name,Squadron.ResourceCount))
+      return Squadron.ResourceCount
+    end
+    self:F({Squadron = Squadron.Name,SquadronResourceCount = Squadron.ResourceCount})
+    return nil
+  end
 
   --- [DEPRECATED - Might create problems launching planes] Set the Squadron visible before startup of the dispatcher.
   -- All planes will be spawned as uncontrolled on the parking spot.
@@ -1710,7 +1732,7 @@ do -- AI_A2A_DISPATCHER
     -- Get free parking for fighter aircraft.
     local nfreeparking = DefenderSquadron.Airbase:GetFreeParkingSpotsNumber( AIRBASE.TerminalType.FighterAircraft, true )
 
-    -- Take number of free parking spots if no resource count was specifed.
+    -- Take number of free parking spots if no resource count was specified.
     DefenderSquadron.ResourceCount = DefenderSquadron.ResourceCount or nfreeparking
 
     -- Check that resource count is not larger than free parking spots.
@@ -1755,7 +1777,7 @@ do -- AI_A2A_DISPATCHER
   -- @param DCS#Altitude EngageFloorAltitude The lowest altitude in meters where to execute the engagement.
   -- @param DCS#Altitude EngageCeilingAltitude The highest altitude in meters where to execute the engagement.
   -- @param #number EngageAltType The altitude type to engage, which is a string "BARO" defining Barometric or "RADIO" defining radio controlled altitude.
-  -- @param Core.Zone#ZONE_BASE Zone The @{Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the CAP will be executed.
+  -- @param Core.Zone#ZONE_BASE Zone The @{Core.Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the CAP will be executed.
   -- @param #number PatrolMinSpeed The minimum speed at which the cap can be executed.
   -- @param #number PatrolMaxSpeed The maximum speed at which the cap can be executed.
   -- @param #number PatrolFloorAltitude The minimum altitude at which the cap can be executed.
@@ -1816,7 +1838,7 @@ do -- AI_A2A_DISPATCHER
   --- Set a CAP for a Squadron.
   -- @param #AI_A2A_DISPATCHER self
   -- @param #string SquadronName The squadron name.
-  -- @param Core.Zone#ZONE_BASE Zone The @{Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the CAP will be executed.
+  -- @param Core.Zone#ZONE_BASE Zone The @{Core.Zone} object derived from @{Core.Zone#ZONE_BASE} that defines the zone wherein the CAP will be executed.
   -- @param #number PatrolFloorAltitude The minimum altitude at which the cap can be executed.
   -- @param #number PatrolCeilingAltitude the maximum altitude at which the cap can be executed.
   -- @param #number PatrolMinSpeed The minimum speed at which the cap can be executed.
@@ -2333,6 +2355,13 @@ do -- AI_A2A_DISPATCHER
     self:SetDefaultTakeoff( AI_A2A_DISPATCHER.Takeoff.Air )
 
     return self
+  end
+
+  --- Set flashing player messages on or off
+  -- @param #AI_A2A_DISPATCHER self
+  -- @param #boolean onoff Set messages on (true) or off (false)
+  function AI_A2A_DISPATCHER:SetSendMessages( onoff )
+      self.SetSendPlayerMessages = onoff
   end
 
   --- Sets flights to take-off in the air, as part of the defense system.
@@ -3252,7 +3281,9 @@ do -- AI_A2A_DISPATCHER
               local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
 
               if Squadron then
-                Dispatcher:MessageToPlayers( Squadron, DefenderName .. " Wheels up.", DefenderGroup )
+                if self.SetSendPlayerMessages then
+                  Dispatcher:MessageToPlayers( Squadron,  DefenderName .. " Wheels up.", DefenderGroup )
+                end
                 AI_A2A_Fsm:__Patrol( 2 ) -- Start Patrolling
               end
             end
@@ -3264,10 +3295,10 @@ do -- AI_A2A_DISPATCHER
               self:GetParent( self ).onafterPatrolRoute( self, DefenderGroup, From, Event, To )
 
               local DefenderName = DefenderGroup:GetCallsign()
-              local Dispatcher = self:GetDispatcher() -- #AI_A2G_DISPATCHER
+              local Dispatcher = self:GetDispatcher() -- #AI_A2A_DISPATCHER
               local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
-              if Squadron then
-                Dispatcher:MessageToPlayers( Squadron, DefenderName .. ", patrolling.", DefenderGroup )
+              if Squadron and self.SetSendPlayerMessages then       
+                  Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", patrolling.", DefenderGroup )
               end
 
               Dispatcher:ClearDefenderTaskTarget( DefenderGroup )
@@ -3283,8 +3314,8 @@ do -- AI_A2A_DISPATCHER
               local DefenderName = DefenderGroup:GetCallsign()
               local Dispatcher = self:GetDispatcher() -- #AI_A2A_DISPATCHER
               local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
-              if Squadron then
-                Dispatcher:MessageToPlayers( Squadron, DefenderName .. " returning to base.", DefenderGroup )
+              if Squadron and self.SetSendPlayerMessages then
+                Dispatcher:MessageToPlayers( Squadron,  DefenderName .. " returning to base.", DefenderGroup )
               end
               Dispatcher:ClearDefenderTaskTarget( DefenderGroup )
             end
@@ -3491,16 +3522,16 @@ do -- AI_A2A_DISPATCHER
                   local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
                   local DefenderTarget = Dispatcher:GetDefenderTaskTarget( DefenderGroup )
 
-                  if DefenderTarget then
-                    if Squadron.Language == "EN" then
-                      Dispatcher:MessageToPlayers( Squadron, DefenderName .. " wheels up.", DefenderGroup )
-                    elseif Squadron.Language == "RU" then
-                      Dispatcher:MessageToPlayers( Squadron, DefenderName .. " колеса вверх.", DefenderGroup )
+                    if DefenderTarget then
+                      if Squadron.Language == "EN" and self.SetSendPlayerMessages then
+                        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. " wheels up.", DefenderGroup )
+                      elseif Squadron.Language == "RU" and self.SetSendPlayerMessages then
+                        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. " колёса вверх.", DefenderGroup )
+                      end
+                      -- Fsm:__Engage( 2, DefenderTarget.Set ) -- Engage on the TargetSetUnit
+                      Fsm:EngageRoute( DefenderTarget.Set ) -- Engage on the TargetSetUnit
                     end
-                    -- Fsm:__Engage( 2, DefenderTarget.Set ) -- Engage on the TargetSetUnit
-                    Fsm:EngageRoute( DefenderTarget.Set ) -- Engage on the TargetSetUnit
                   end
-                end
 
                 function Fsm:onafterEngageRoute( DefenderGroup, From, Event, To, AttackSetUnit )
                   self:F( { "GCI Route", DefenderGroup:GetName() } )
@@ -3513,16 +3544,16 @@ do -- AI_A2A_DISPATCHER
                     local FirstUnit = AttackSetUnit:GetFirst()
                     local Coordinate = FirstUnit:GetCoordinate() -- Core.Point#COORDINATE
 
-                    if Squadron.Language == "EN" then
-                      Dispatcher:MessageToPlayers( Squadron, DefenderName .. ", intercepting bogeys at " .. Coordinate:ToStringA2A( DefenderGroup, nil, Squadron.Language ), DefenderGroup )
-                    elseif Squadron.Language == "RU" then
-                      Dispatcher:MessageToPlayers( Squadron, DefenderName .. ", перехват самолетов в " .. Coordinate:ToStringA2A( DefenderGroup, nil, Squadron.Language ), DefenderGroup )
-                    elseif Squadron.Language == "DE" then
-                      Dispatcher:MessageToPlayers( Squadron, DefenderName .. ", Eindringlinge abfangen bei" .. Coordinate:ToStringA2A( DefenderGroup, nil, Squadron.Language ), DefenderGroup )
+                      if Squadron.Language == "EN" and self.SetSendPlayerMessages then
+                        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", intercepting bogeys at " .. Coordinate:ToStringA2A( DefenderGroup, nil, Squadron.Language ), DefenderGroup )
+                      elseif Squadron.Language == "RU" and self.SetSendPlayerMessages then
+                        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", перехватывая боги в " .. Coordinate:ToStringA2A( DefenderGroup, nil, Squadron.Language ), DefenderGroup )
+                      elseif Squadron.Language == "DE" and self.SetSendPlayerMessages then
+                        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", Eindringlinge abfangen bei" .. Coordinate:ToStringA2A( DefenderGroup, nil, Squadron.Language ), DefenderGroup )
+                      end
                     end
+                    self:GetParent( Fsm ).onafterEngageRoute( self, DefenderGroup, From, Event, To, AttackSetUnit )
                   end
-                  self:GetParent( Fsm ).onafterEngageRoute( self, DefenderGroup, From, Event, To, AttackSetUnit )
-                end
 
                 function Fsm:onafterEngage( DefenderGroup, From, Event, To, AttackSetUnit )
                   self:F( { "GCI Engage", DefenderGroup:GetName() } )
@@ -3535,14 +3566,14 @@ do -- AI_A2A_DISPATCHER
                     local FirstUnit = AttackSetUnit:GetFirst()
                     local Coordinate = FirstUnit:GetCoordinate() -- Core.Point#COORDINATE
 
-                    if Squadron.Language == "EN" then
-                      Dispatcher:MessageToPlayers( Squadron, DefenderName .. ", engaging bogeys at " .. Coordinate:ToStringA2A( DefenderGroup, nil, Squadron.Language ), DefenderGroup )
-                    elseif Squadron.Language == "RU" then
-                      Dispatcher:MessageToPlayers( Squadron, DefenderName .. ", захватывающие самолеты в " .. Coordinate:ToStringA2A( DefenderGroup, nil, Squadron.Language ), DefenderGroup )
+                      if Squadron.Language == "EN" then
+                        Dispatcher:MessageToPlayers( Squadron, DefenderName .. ", engaging bogeys at " .. Coordinate:ToStringA2A( DefenderGroup, nil, Squadron.Language ), DefenderGroup )
+                      elseif Squadron.Language == "RU" then
+                        Dispatcher:MessageToPlayers( Squadron, DefenderName .. ", захватывающие самолеты в " .. Coordinate:ToStringA2A( DefenderGroup, nil, Squadron.Language ), DefenderGroup )
+                      end
                     end
+                    self:GetParent( Fsm ).onafterEngage( self, DefenderGroup, From, Event, To, AttackSetUnit )
                   end
-                  self:GetParent( Fsm ).onafterEngage( self, DefenderGroup, From, Event, To, AttackSetUnit )
-                end
 
                 function Fsm:onafterRTB( DefenderGroup, From, Event, To )
                   self:F( { "GCI RTB", DefenderGroup:GetName() } )
@@ -3552,15 +3583,15 @@ do -- AI_A2A_DISPATCHER
                   local Dispatcher = self:GetDispatcher() -- #AI_A2A_DISPATCHER
                   local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
 
-                  if Squadron then
-                    if Squadron.Language == "EN" then
-                      Dispatcher:MessageToPlayers( Squadron, DefenderName .. " returning to base.", DefenderGroup )
-                    elseif Squadron.Language == "RU" then
-                      Dispatcher:MessageToPlayers( Squadron, DefenderName .. ", возвращаясь на базу.", DefenderGroup )
+                    if Squadron then
+                      if Squadron.Language == "EN" and self.SetSendPlayerMessages then
+                        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. " returning to base.", DefenderGroup )
+                      elseif Squadron.Language == "RU" and self.SetSendPlayerMessages then
+                        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", возвращение на базу.", DefenderGroup )
+                      end
                     end
+                    Dispatcher:ClearDefenderTaskTarget( DefenderGroup )
                   end
-                  Dispatcher:ClearDefenderTaskTarget( DefenderGroup )
-                end
 
                 --- @param #AI_A2A_DISPATCHER self
                 function Fsm:onafterLostControl( Defender, From, Event, To )
@@ -3584,11 +3615,11 @@ do -- AI_A2A_DISPATCHER
                   local Dispatcher = self:GetDispatcher() -- #AI_A2A_DISPATCHER
                   local Squadron = Dispatcher:GetSquadronFromDefender( DefenderGroup )
 
-                  if Squadron.Language == "EN" then
-                    Dispatcher:MessageToPlayers( Squadron, DefenderName .. " landing at base.", DefenderGroup )
-                  elseif Squadron.Language == "RU" then
-                    Dispatcher:MessageToPlayers( Squadron, DefenderName .. ", захватывающие самолеты в посадка на базу.", DefenderGroup )
-                  end
+                      if Squadron.Language == "EN" and self.SetSendPlayerMessages then
+                        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. " landing at base.", DefenderGroup )
+                      elseif Squadron.Language == "RU" and self.SetSendPlayerMessages then
+                        Dispatcher:MessageToPlayers( Squadron,  DefenderName .. ", посадка на базу.", DefenderGroup )
+                      end
 
                   if Action and Action == "Destroy" then
                     Dispatcher:RemoveDefenderFromSquadron( Squadron, DefenderGroup )
@@ -3969,7 +4000,7 @@ do
     self:CAP( SquadronName )
   end
   
-   --- Add resources to a Squadron
+  --- Add resources to a Squadron
   -- @param #AI_A2A_DISPATCHER self
   -- @param #string Squadron The squadron name.
   -- @param #number Amount Number of resources to add.
@@ -3992,7 +4023,7 @@ do
     end
     self:T({Squadron = Squadron.Name,SquadronResourceCount = Squadron.ResourceCount})
   end
-  
+
 end
 
 do
@@ -4007,11 +4038,7 @@ do
   --
   -- # Demo Missions
   --
-  -- ### [AI\_A2A\_GCICAP for Caucasus](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/release-2-2-pre/AID%20-%20AI%20Dispatching/AID-200%20-%20AI_A2A%20-%20GCICAP%20Demonstration)
-  -- ### [AI\_A2A\_GCICAP for NTTR](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/release-2-2-pre/AID%20-%20AI%20Dispatching/AID-210%20-%20NTTR%20AI_A2A_GCICAP%20Demonstration)
-  -- ### [AI\_A2A\_GCICAP for Normandy](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/release-2-2-pre/AID%20-%20AI%20Dispatching/AID-220%20-%20NORMANDY%20AI_A2A_GCICAP%20Demonstration)
-  --
-  -- ### [AI\_A2A\_GCICAP for beta testers](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching)
+  -- ### [Demo Missions](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching)
   --
   -- ===
   --
@@ -4563,5 +4590,5 @@ do
     return self
 
   end
-
+  
 end

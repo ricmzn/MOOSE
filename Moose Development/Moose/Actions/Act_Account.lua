@@ -1,10 +1,10 @@
---- **Actions** - ACT_ACCOUNT_ classes **account for** (detect, count & report) various DCS events occuring on @{Wrapper.Unit}s.
+--- **Actions** - ACT_ACCOUNT_ classes **account for** (detect, count & report) various DCS events occurring on UNITs.
 --
 -- ![Banner Image](..\Presentations\ACT_ACCOUNT\Dia1.JPG)
 --
 -- ===
 --
--- @module Actions.Account
+-- @module Actions.Act_Account
 -- @image MOOSE.JPG
 
 do -- ACT_ACCOUNT
@@ -20,7 +20,7 @@ do -- ACT_ACCOUNT
   --
   -- ### ACT_ACCOUNT States
   --
-  --   * **Asigned**: The player is assigned.
+  --   * **Assigned**: The player is assigned.
   --   * **Waiting**: Waiting for an event.
   --   * **Report**: Reporting.
   --   * **Account**: Account for an event.
@@ -53,6 +53,11 @@ do -- ACT_ACCOUNT
   --   * **After** the state transition.
   --     The state transition method needs to start with the name **OnAfter + the name of the state**.
   --     These state transition methods need to provide a return value, which is specified at the function description.
+  --
+  -- # Developer Note
+  -- 
+  -- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+  -- Therefore, this class is considered to be deprecated
   --
   -- @type ACT_ACCOUNT
   -- @field Core.Set#SET_UNIT TargetSetUnit
@@ -104,7 +109,6 @@ do -- ACT_ACCOUNT
     self:__Wait( 1 )
   end
 
-
     --- StateMachine callback function
     -- @param #ACT_ACCOUNT self
     -- @param Wrapper.Unit#UNIT ProcessUnit
@@ -138,10 +142,10 @@ end -- ACT_ACCOUNT
 
 do -- ACT_ACCOUNT_DEADS
 
-  --- # @{#ACT_ACCOUNT_DEADS} FSM class, extends @{Core.Fsm.Account#ACT_ACCOUNT}
+  --- # @{#ACT_ACCOUNT_DEADS} FSM class, extends @{#ACT_ACCOUNT}
   --
   -- The ACT_ACCOUNT_DEADS class accounts (detects, counts and reports) successful kills of DCS units.
-  -- The process is given a @{Set} of units that will be tracked upon successful destruction.
+  -- The process is given a @{Core.Set} of units that will be tracked upon successful destruction.
   -- The process will end after each target has been successfully destroyed.
   -- Each successful dead will trigger an Account state transition that can be scored, modified or administered.
   --
@@ -156,7 +160,6 @@ do -- ACT_ACCOUNT_DEADS
   ACT_ACCOUNT_DEADS = {
     ClassName = "ACT_ACCOUNT_DEADS",
   }
-
 
   --- Creates a new DESTROY process.
   -- @param #ACT_ACCOUNT_DEADS self
@@ -194,7 +197,6 @@ do -- ACT_ACCOUNT_DEADS
     local MessageText = "Your group with assigned " .. self.TaskName .. " task has " .. Task.TargetSetUnit:GetUnitTypesText() .. " targets left to be destroyed."
     self:GetCommandCenter():MessageTypeToGroup( MessageText, ProcessUnit:GetGroup(), MESSAGE.Type.Information )
   end
-
 
   --- StateMachine callback function
   -- @param #ACT_ACCOUNT_DEADS self
@@ -269,7 +271,6 @@ do -- ACT_ACCOUNT_DEADS
       self:__NoMore( 1 )
     end
   end
-
 
   --- DCS Events
 

@@ -1,4 +1,4 @@
---- **Functional** - Rudimentary ATC.
+--- **Functional** - Basic ATC.
 --  
 -- ![Banner Image](..\Presentations\PSEUDOATC\PSEUDOATC_Main.jpg)
 -- 
@@ -26,9 +26,9 @@
 -- 
 -- ===
 -- 
--- ### Author: **[funkyfranky](https://forums.eagle.ru/member.php?u=115026)**
+-- ### Author: **funkyfranky**
 -- 
--- ### Contributions: [FlightControl](https://forums.eagle.ru/member.php?u=89536)
+-- ### Contributions: FlightControl, Applevangelist
 -- 
 -- ====
 -- @module Functional.PseudoATC
@@ -44,7 +44,8 @@
 -- @field #number mrefresh Interval in seconds after which the F10 menu is refreshed. E.g. by the closest airports. Default is 120 sec.
 -- @field #number talt Interval in seconds between reporting altitude until touchdown. Default 3 sec.
 -- @field #boolean chatty Display some messages on events like take-off and touchdown.
--- @field #boolean eventsmoose If true, events are handled by MOOSE. If false, events are handled directly by DCS eventhandler.
+-- @field #boolean eventsmoose [Deprecated] If true, events are handled by MOOSE. If false, events are handled directly by DCS eventhandler.
+-- @field #boolean reportplayername If true, use playername not callsign on callouts
 -- @extends Core.Base#BASE
 
 --- Adds some rudimentary ATC functionality via the radio menu.
@@ -88,6 +89,7 @@ PSEUDOATC={
   talt=3,
   chatty=true,
   eventsmoose=true,
+  reportplayername = false,
 }
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -98,13 +100,14 @@ PSEUDOATC.id="PseudoATC | "
 
 --- PSEUDOATC version.
 -- @field #number version
-PSEUDOATC.version="0.9.2"
+PSEUDOATC.version="0.10.5"
 
 -----------------------------------------------------------------------------------------------------------------------------------------
 
 -- TODO list
 -- DONE: Add takeoff event.
 -- DONE: Add user functions.
+-- DONE: Refactor to use Moose event handling only
 
 -----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -129,23 +132,14 @@ function PSEUDOATC:Start()
   self:F()
   
   -- Debug info
-  self:E(PSEUDOATC.id.."Starting PseudoATC")
+  self:I(PSEUDOATC.id.."Starting PseudoATC")
   
   -- Handle events.
-  if self.eventsmoose then
-    self:T(PSEUDOATC.id.."Events are handled by MOOSE.")
-    self:HandleEvent(EVENTS.Birth,           self._OnBirth)
-    self:HandleEvent(EVENTS.Land,            self._PlayerLanded)
-    self:HandleEvent(EVENTS.Takeoff,         self._PlayerTakeOff)
-    self:HandleEvent(EVENTS.PlayerLeaveUnit, self._PlayerLeft)
-    self:HandleEvent(EVENTS.Crash,           self._PlayerLeft)
-    --self:HandleEvent(EVENTS.Ejection,        self._PlayerLeft)
-    --self:HandleEvent(EVENTS.PilotDead,       self._PlayerLeft)
-  else
-    self:T(PSEUDOATC.id.."Events are handled by DCS.")
-    -- Events are handled directly by DCS.
-    world.addEventHandler(self)
-  end
+  self:HandleEvent(EVENTS.Birth,           self._OnBirth)
+  self:HandleEvent(EVENTS.Land,            self._PlayerLanded)
+  self:HandleEvent(EVENTS.Takeoff,         self._PlayerTakeOff)
+  self:HandleEvent(EVENTS.PlayerLeaveUnit, self._PlayerLeft)
+  self:HandleEvent(EVENTS.Crash,           self._PlayerLeft)
   
 end
 
@@ -183,6 +177,13 @@ function PSEUDOATC:SetMessageDuration(duration)
   self.mdur=duration or 30
 end
 
+--- Use player name, not call sign, in callouts
+-- @param #PSEUDOATC self
+function PSEUDOATC:SetReportPlayername()
+  self.reportplayername = true
+  return self
+end
+
 --- Set time interval after which the F10 radio menu is refreshed.
 -- @param #PSEUDOATC self
 -- @param #number interval Interval in seconds. Default is every 120 sec.
@@ -190,7 +191,7 @@ function PSEUDOATC:SetMenuRefresh(interval)
   self.mrefresh=interval or 120
 end
 
---- Enable/disable event handling by MOOSE or DCS.
+--- [Deprecated] Enable/disable event handling by MOOSE or DCS.
 -- @param #PSEUDOATC self
 -- @param #boolean switch If true, events are handled by MOOSE (default). If false, events are handled directly by DCS.
 function PSEUDOATC:SetEventsMoose(switch)
@@ -207,84 +208,6 @@ end
 -----------------------------------------------------------------------------------------------------------------------------------------
 -- Event Handling
 
---- Event handler for suppressed groups.
---@param #PSEUDOATC self
---@param #table Event Event data table. Holds event.id, event.initiator and event.target etc.
-function PSEUDOATC:onEvent(Event)
-  if Event == nil or Event.initiator == nil or Unit.getByName(Event.initiator:getName()) == nil then
-    return true
-  end
-
-  local DCSiniunit  = Event.initiator
-  local DCSplace    = Event.place
-  local DCSsubplace = Event.subplace
-
-  local EventData={}
-  local _playerunit=nil
-  local _playername=nil
-  
-  if Event.initiator then
-    EventData.IniUnitName  = Event.initiator:getName()
-    EventData.IniDCSGroup  = Event.initiator:getGroup()
-    EventData.IniGroupName = Event.initiator:getGroup():getName()  
-    -- Get player unit and name. This returns nil,nil if the event was not fired by a player unit. And these are the only events we are interested in. 
-    _playerunit, _playername = self:_GetPlayerUnitAndName(EventData.IniUnitName)  
-  end
-
-  if Event.place then
-    EventData.Place=Event.place
-    EventData.PlaceName=Event.place:getName()
-  end
-  if Event.subplace then
-    EventData.SubPlace=Event.subplace
-    EventData.SubPlaceName=Event.subplace:getName()
-  end
-  
-  -- Event info.
-  self:T3(PSEUDOATC.id..string.format("EVENT: Event in onEvent with ID = %s", tostring(Event.id)))
-  self:T3(PSEUDOATC.id..string.format("EVENT: Ini unit   = %s" , tostring(EventData.IniUnitName)))
-  self:T3(PSEUDOATC.id..string.format("EVENT: Ini group  = %s" , tostring(EventData.IniGroupName)))
-  self:T3(PSEUDOATC.id..string.format("EVENT: Ini player = %s" , tostring(_playername)))
-  self:T3(PSEUDOATC.id..string.format("EVENT: Place      = %s" , tostring(EventData.PlaceName)))
-  self:T3(PSEUDOATC.id..string.format("EVENT: SubPlace   = %s" , tostring(EventData.SubPlaceName)))
-  
-  -- Event birth.
-  if Event.id == world.event.S_EVENT_BIRTH and _playername then
-    self:_OnBirth(EventData)
-  end
-  
-  -- Event takeoff.
-  if Event.id == world.event.S_EVENT_TAKEOFF and _playername and EventData.Place then
-    self:_PlayerTakeOff(EventData)
-  end
-  
-  -- Event land.
-  if Event.id == world.event.S_EVENT_LAND and _playername and EventData.Place then
-    self:_PlayerLanded(EventData)
-  end
-  
-  -- Event player left unit
-  if Event.id == world.event.S_EVENT_PLAYER_LEAVE_UNIT and _playername then
-    self:_PlayerLeft(EventData)
-  end
-
-  -- Event crash ==> player left unit
-  if Event.id == world.event.S_EVENT_CRASH and _playername then
-    self:_PlayerLeft(EventData)
-  end
-
---[[
-  -- Event eject ==> player left unit
-  if Event.id == world.event.S_EVENT_EJECTION and _playername then
-    self:_PlayerLeft(EventData)
-  end
-
-  -- Event pilot dead ==> player left unit
-  if Event.id == world.event.S_EVENT_PILOT_DEAD and _playername then
-    self:_PlayerLeft(EventData)
-  end
-]]    
-end
 
 --- Function called my MOOSE event handler when a player enters a unit.
 -- @param #PSEUDOATC self
@@ -294,7 +217,9 @@ function PSEUDOATC:_OnBirth(EventData)
   
   -- Get unit and player.
   local _unitName=EventData.IniUnitName  
-  local _unit, _playername=self:_GetPlayerUnitAndName(_unitName)
+  --local _unit, _playername=self:_GetPlayerUnitAndName(_unitName)
+  local _unit = EventData.IniUnit
+  local _playername = EventData.IniPlayerName
   
   -- Check if a player entered.
   if _unit and _playername then
@@ -311,7 +236,10 @@ function PSEUDOATC:_PlayerLeft(EventData)
 
   -- Get unit and player.
   local _unitName=EventData.IniUnitName  
-  local _unit, _playername=self:_GetPlayerUnitAndName(_unitName)
+  --local _unit, _playername=self:_GetPlayerUnitAndName(_unitName)
+  
+  local _unit = EventData.IniUnit
+  local _playername = EventData.IniPlayerName
   
   -- Check if a player left.
   if _unit and _playername then
@@ -326,18 +254,16 @@ function PSEUDOATC:_PlayerLanded(EventData)
   self:F({EventData=EventData})
 
   -- Get unit, player and place.
-  local _unitName=EventData.IniUnitName  
-  local _unit, _playername=self:_GetPlayerUnitAndName(_unitName)
+  local _unitName=EventData.IniUnitName
+  local _unit = EventData.IniUnit
+  local _playername = EventData.IniPlayerName  
+  --local _unit, _playername=self:_GetPlayerUnitAndName(_unitName)
   local _base=nil
   local _baseName=nil
   if EventData.place then
     _base=EventData.place
     _baseName=EventData.place:getName()
   end
---  if EventData.subplace then
---    local _subPlace=EventData.subplace
---    local _subPlaceName=EventData.subplace:getName()
---  end
   
   -- Call landed function.
   if _unit and _playername and _base then
@@ -352,8 +278,10 @@ function PSEUDOATC:_PlayerTakeOff(EventData)
   self:F({EventData=EventData})
 
   -- Get unit, player and place.
-  local _unitName=EventData.IniUnitName  
-  local _unit,_playername=self:_GetPlayerUnitAndName(_unitName)
+  local _unitName=EventData.IniUnitName
+  local _unit = EventData.IniUnit
+  local _playername = EventData.IniPlayerName  
+  --local _unit,_playername=self:_GetPlayerUnitAndName(_unitName)
   local _base=nil
   local _baseName=nil
   if EventData.place then
@@ -441,14 +369,15 @@ function PSEUDOATC:PlayerLanded(unit, place)
   local group=unit:GetGroup()
   local GID=group:GetID()
   local UID=unit:GetDCSObject():getID()
-  local PlayerName=self.group[GID].player[UID].playername
-  local UnitName=self.group[GID].player[UID].unitname
-  local GroupName=self.group[GID].player[UID].groupname
-  
-  -- Debug message.
-  local text=string.format("Player %s in unit %s of group %s (id=%d) landed at %s.", PlayerName, UnitName, GroupName, GID, place)
-  self:T(PSEUDOATC.id..text)
-  MESSAGE:New(text, 30):ToAllIf(self.Debug)
+  local PlayerName = unit:GetPlayerName() or "Ghost"
+  local UnitName = unit:GetName() or "Ghostplane"
+  local GroupName = group:GetName() or "Ghostgroup"
+  if self.Debug then
+    -- Debug message.
+    local text=string.format("Player %s in unit %s of group %s landed at %s.", PlayerName, UnitName, GroupName, place)
+    self:T(PSEUDOATC.id..text)
+    MESSAGE:New(text, 30):ToAllIf(self.Debug)
+  end
   
   -- Stop altitude reporting timer if its activated.
   self:AltitudeTimerStop(GID,UID)
@@ -470,21 +399,22 @@ function PSEUDOATC:PlayerTakeOff(unit, place)
   
   -- Gather some information.
   local group=unit:GetGroup()
-  local GID=group:GetID()
-  local UID=unit:GetDCSObject():getID()
-  local PlayerName=self.group[GID].player[UID].playername
-  local CallSign=self.group[GID].player[UID].callsign
-  local UnitName=self.group[GID].player[UID].unitname
-  local GroupName=self.group[GID].player[UID].groupname
-  
-  -- Debug message.
-  local text=string.format("Player %s in unit %s of group %s (id=%d) took off at %s.", PlayerName, UnitName, GroupName, GID, place)
-  self:T(PSEUDOATC.id..text)
-  MESSAGE:New(text, 30):ToAllIf(self.Debug)
-    
+  local PlayerName = unit:GetPlayerName() or "Ghost"
+  local UnitName = unit:GetName() or "Ghostplane"
+  local GroupName = group:GetName() or "Ghostgroup"
+  local CallSign = unit:GetCallsign() or "Ghost11"
+  if self.Debug then
+    -- Debug message.
+    local text=string.format("Player %s in unit %s of group %s took off at %s.", PlayerName, UnitName, GroupName, place)
+    self:T(PSEUDOATC.id..text)
+    MESSAGE:New(text, 30):ToAllIf(self.Debug)
+  end
   -- Bye-Bye message.
   if place and self.chatty then
     local text=string.format("%s, %s, you are airborne. Have a safe trip!", place, CallSign)
+  if self.reportplayername then
+    text=string.format("%s, %s, you are airborne. Have a safe trip!", place, PlayerName)
+  end
     MESSAGE:New(text, self.mdur):ToGroup(group)
   end
 
@@ -501,7 +431,7 @@ function PSEUDOATC:PlayerLeft(unit)
   local GID=group:GetID()
   local UID=unit:GetDCSObject():getID()
   
-  if self.group[GID].player[UID] then
+  if self.group[GID] and self.group[GID].player and self.group[GID].player[UID] then
     local PlayerName=self.group[GID].player[UID].playername
     local CallSign=self.group[GID].player[UID].callsign
     local UnitName=self.group[GID].player[UID].unitname
@@ -687,7 +617,9 @@ function PSEUDOATC:MenuWaypoints(GID, UID)
       -- Position of Waypoint
       local pos=COORDINATE:New(wp.x, wp.alt, wp.y)
       local name=string.format("Waypoint %d", i-1)
-      
+      if wp.name and wp.name ~= "" then
+        name = string.format("Waypoint %s",wp.name)
+      end
       -- "F10/PseudoATC/Waypoints/Waypoint X"
       local submenu=missionCommands.addSubMenuForGroup(GID, name, self.group[GID].player[UID].menu_waypoints)
       
@@ -844,7 +776,8 @@ function PSEUDOATC:ReportHeight(GID, UID, dt, _clear)
     local position=unit:GetCoordinate()
     local height=get_AGL(position)
     local callsign=unit:GetCallsign()
-    
+    local PlayerName=self.group[GID].player[UID].playername
+  
     -- Settings.
     local settings=_DATABASE:GetPlayerSettings(self.group[GID].player[UID].playername) or _SETTINGS --Core.Settings#SETTINGS
     
@@ -856,7 +789,9 @@ function PSEUDOATC:ReportHeight(GID, UID, dt, _clear)
     
     -- Message text.
     local _text=string.format("%s, your altitude is %s AGL.", callsign, Hs)
-    
+    if self.reportplayername then
+    _text=string.format("%s, your altitude is %s AGL.", PlayerName, Hs)
+  end
     -- Append flight level.
     if _clear==false then
       _text=_text..string.format(" FL%03d.", position.y/30.48)
@@ -901,7 +836,7 @@ function PSEUDOATC:AltitudeTimeStart(GID, UID)
   self:T(PSEUDOATC.id..string.format("Starting altitude report timer for player ID %d.", UID))
   
   -- Start timer. Altitude is reported every ~3 seconds.
-  self.group[GID].player[UID].altimer, self.group[GID].player[UID].altimerid=SCHEDULER:New(nil, self.ReportHeight, {self, GID, UID, 0.1, true}, 1, 3)
+  self.group[GID].player[UID].altimer, self.group[GID].player[UID].altimerid=SCHEDULER:New(nil, self.ReportHeight, {self, GID, UID, 1, true}, 1, 3)
 end
 
 --- Stop/destroy DCS scheduler function for reporting altitude.
@@ -949,11 +884,14 @@ function PSEUDOATC:LocalAirports(GID, UID)
     for _,airbase in pairs(airports) do
     
       local name=airbase:getName()
-      local q=AIRBASE:FindByName(name):GetCoordinate()
-      local d=q:Get2DDistance(pos)
+      local a=AIRBASE:FindByName(name)
+      if a then
+        local q=a:GetCoordinate()
+        local d=q:Get2DDistance(pos)
       
-      -- Add to table.
-      table.insert(self.group[GID].player[UID].airports, {distance=d, name=name})
+        -- Add to table.
+        table.insert(self.group[GID].player[UID].airports, {distance=d, name=name})
+      end
       
     end
   end
@@ -1041,6 +979,3 @@ function PSEUDOATC:_myname(unitname)
   
   return string.format("%s (%s)", csign, pname)
 end
-
-
-

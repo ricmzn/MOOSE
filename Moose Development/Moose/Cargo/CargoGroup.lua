@@ -1,4 +1,4 @@
---- **Cargo** - Management of grouped cargo logistics, which are based on a @{Wrapper.Group} object.
+--- **Cargo** - Management of grouped cargo logistics, which are based on a GROUP object.
 --
 -- ===
 -- 
@@ -38,7 +38,12 @@ do -- CARGO_GROUP
   -- 
   --   * @{Tasking.Task_Cargo_Transport#TASK_CARGO_TRANSPORT} to transport cargo by human players.
   --   * @{Tasking.Task_Cargo_Transport#TASK_CARGO_CSAR} to transport downed pilots by human players.
+  --
+  -- # Developer Note
   -- 
+  -- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+  -- Therefore, this class is considered to be deprecated
+  --
   -- @field #CARGO_GROUP CARGO_GROUP
   -- 
   CARGO_GROUP = {
@@ -47,7 +52,7 @@ do -- CARGO_GROUP
 
   --- CARGO_GROUP constructor.
   -- This make a new CARGO_GROUP from a @{Wrapper.Group} object.
-  -- It will "ungroup" the group object within the sim, and will create a @{Set} of individual Unit objects.
+  -- It will "ungroup" the group object within the sim, and will create a @{Core.Set} of individual Unit objects.
   -- @param #CARGO_GROUP self
   -- @param Wrapper.Group#GROUP CargoGroup Group to be transported as cargo.
   -- @param #string Type Cargo type, e.g. "Infantry". This is the type used in SET_CARGO:New():FilterTypes("Infantry") to define the valid cargo groups of the set.
@@ -727,7 +732,7 @@ do -- CARGO_GROUP
     end
   end
   
-  --- Check if the first element of the CargoGroup is the given @{Zone}.
+  --- Check if the first element of the CargoGroup is the given @{Core.Zone}.
   -- @param #CARGO_GROUP self
   -- @param Core.Zone#ZONE_BASE Zone
   -- @return #boolean **true** if the first element of the CargoGroup is in the Zone

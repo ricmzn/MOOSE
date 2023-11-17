@@ -1,7 +1,7 @@
 --- **Core** - Prepares and handles the execution of functions over scheduled time (intervals).
 --
 -- ===
---
+-- 
 -- ## Features:
 --
 --   * Schedule functions over time,
@@ -13,9 +13,9 @@
 -- ===
 --
 -- # Demo Missions
---
--- ### [SCHEDULER Demo Missions source code](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master-release/SCH%20-%20Scheduler)
---
+-- 
+-- ### [SCHEDULER Demo Missions source code](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/SCH%20-%20Scheduler)
+-- 
 -- ### [SCHEDULER Demo Missions, only for beta testers](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/SCH%20-%20Scheduler)
 --
 -- ### [ALL Demo Missions pack of the last release](https://github.com/FlightControl-Master/MOOSE_MISSIONS/releases)
@@ -52,7 +52,7 @@
 --
 -- A SCHEDULER can manage **multiple** (repeating) schedules. Each planned or executing schedule has a unique **ScheduleID**.
 -- The ScheduleID is returned when the method @{#SCHEDULER.Schedule}() is called.
--- It is recommended to store the ScheduleID in a variable, as it is used in the methods @{SCHEDULER.Start}() and @{SCHEDULER.Stop}(),
+-- It is recommended to store the ScheduleID in a variable, as it is used in the methods @{#SCHEDULER.Start}() and @{#SCHEDULER.Stop}(),
 -- which can start and stop specific repeating schedules respectively within a SCHEDULER object.
 --
 -- ## SCHEDULER constructor
@@ -208,7 +208,7 @@ SCHEDULER = {
 -- @param #number RandomizeFactor Specifies a randomization factor between 0 and 1 to randomize the Repeat.
 -- @param #number Stop Specifies the amount of seconds when the scheduler will be stopped.
 -- @return #SCHEDULER self.
--- @return #table The ScheduleID of the planned schedule.
+-- @return #string The ScheduleID of the planned schedule.
 function SCHEDULER:New( MasterObject, SchedulerFunction, SchedulerArguments, Start, Repeat, RandomizeFactor, Stop )
 
   local self = BASE:Inherit( self, BASE:New() ) -- #SCHEDULER
@@ -237,7 +237,7 @@ end
 -- @param #number Stop Time interval in seconds after which the scheduler will be stopped.
 -- @param #number TraceLevel Trace level [0,3]. Default 3.
 -- @param Core.Fsm#FSM Fsm Finite state model.
--- @return #table The ScheduleID of the planned schedule.
+-- @return #string The Schedule ID of the planned schedule.
 function SCHEDULER:Schedule( MasterObject, SchedulerFunction, SchedulerArguments, Start, Repeat, RandomizeFactor, Stop, TraceLevel, Fsm )
   self:F2( { Start, Repeat, RandomizeFactor, Stop } )
   self:T3( { SchedulerArguments } )
@@ -271,7 +271,7 @@ end
 
 --- (Re-)Starts the schedules or a specific schedule if a valid ScheduleID is provided.
 -- @param #SCHEDULER self
--- @param #string ScheduleID (Optional) The ScheduleID of the planned (repeating) schedule.
+-- @param #string ScheduleID (Optional) The Schedule ID of the planned (repeating) schedule.
 function SCHEDULER:Start( ScheduleID )
   self:F3( { ScheduleID } )
   self:T( string.format( "Starting scheduler ID=%s", tostring( ScheduleID ) ) )

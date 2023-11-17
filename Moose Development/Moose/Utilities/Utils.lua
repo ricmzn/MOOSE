@@ -1,4 +1,4 @@
---- This module contains derived utilities taken from the MIST framework, as well as a lot of added helpers from the MOOSE community.
+--- **Utilities** - Derived utilities taken from the MIST framework, added helpers from the MOOSE community.
 --
 -- ### Authors:
 --
@@ -9,11 +9,11 @@
 --   * FlightControl : Rework to OO framework.
 --   * And many more
 --
--- @module Utils
+-- @module Utilities.Utils
 -- @image MOOSE.JPG
 
-
---- @type SMOKECOLOR
+---
+-- @type SMOKECOLOR
 -- @field Green
 -- @field Red
 -- @field White
@@ -22,7 +22,8 @@
 
 SMOKECOLOR = trigger.smokeColor -- #SMOKECOLOR
 
---- @type FLARECOLOR
+---
+-- @type FLARECOLOR
 -- @field Green
 -- @field Red
 -- @field White
@@ -43,7 +44,7 @@ BIGSMOKEPRESET = {
   HugeSmoke=8,
 }
 
---- DCS map as returned by env.mission.theatre.
+--- DCS map as returned by `env.mission.theatre`.
 -- @type DCSMAP
 -- @field #string Caucasus Caucasus map.
 -- @field #string Normandy Normandy map.
@@ -52,6 +53,8 @@ BIGSMOKEPRESET = {
 -- @field #string TheChannel The Channel map.
 -- @field #string Syria Syria map.
 -- @field #string MarianaIslands Mariana Islands map.
+-- @field #string Falklands South Atlantic map.
+-- @field #string Sinai Sinai map.
 DCSMAP = {
   Caucasus="Caucasus",
   NTTR="Nevada",
@@ -59,7 +62,9 @@ DCSMAP = {
   PersianGulf="PersianGulf",
   TheChannel="TheChannel",
   Syria="Syria",
-  MarianaIslands="MarianaIslands"
+  MarianaIslands="MarianaIslands",
+  Falklands="Falklands",
+  Sinai="SinaiMap"
 }
 
 
@@ -95,7 +100,10 @@ CALLSIGN={
     Texaco=1,
     Arco=2,
     Shell=3,
-  },
+    Navy_One=4,
+    Mauler=5,
+    Bloodhound=6,  
+    },
   -- JTAC
   JTAC={
     Axeman=1,
@@ -219,7 +227,7 @@ UTILS = {
 -- @return #boolean
 UTILS.IsInstanceOf = function( object, className )
   -- Is className NOT a string ?
-  if not type( className ) == 'string' then
+  if type( className ) ~= 'string' then
 
     -- Is className a Moose class ?
     if type( className ) == 'table' and className.IsInstanceOf ~= nil then
@@ -291,8 +299,9 @@ UTILS.DeepCopy = function(object)
 end
 
 
---- Porting in Slmod's serialize_slmod2.
+--- Serialize a given table.
 -- @param #table tbl Input table.
+-- @return #string Table as a string.
 UTILS.OneLineSerialize = function( tbl )  -- serialization of a table all on a single line, no comments, made to replace old get_table_string function
 
   lookup_table = {}
@@ -319,7 +328,7 @@ UTILS.OneLineSerialize = function( tbl )  -- serialization of a table all on a s
           ind_str[#ind_str + 1] = ']='
         else --must be a string
           ind_str[#ind_str + 1] = '['
-          ind_str[#ind_str + 1] = routines.utils.basicSerialize(ind)
+          ind_str[#ind_str + 1] = UTILS.BasicSerialize(ind)
           ind_str[#ind_str + 1] = ']='
         end
 
@@ -330,7 +339,7 @@ UTILS.OneLineSerialize = function( tbl )  -- serialization of a table all on a s
           tbl_str[#tbl_str + 1] = table.concat(ind_str)
           tbl_str[#tbl_str + 1] = table.concat(val_str)
       elseif type(val) == 'string' then
-          val_str[#val_str + 1] = routines.utils.basicSerialize(val)
+          val_str[#val_str + 1] = UTILS.BasicSerialize(val)
           val_str[#val_str + 1] = ','
           tbl_str[#tbl_str + 1] = table.concat(ind_str)
           tbl_str[#tbl_str + 1] = table.concat(val_str)
@@ -353,7 +362,7 @@ UTILS.OneLineSerialize = function( tbl )  -- serialization of a table all on a s
           tbl_str[#tbl_str + 1] = "f() " .. tostring(ind)
           tbl_str[#tbl_str + 1] = ','   --I think this is right, I just added it
         else
-          env.info('unable to serialize value type ' .. routines.utils.basicSerialize(type(val)) .. ' at index ' .. tostring(ind))
+          env.info('unable to serialize value type ' .. UTILS.BasicSerialize(type(val)) .. ' at index ' .. tostring(ind))
           env.info( debug.traceback() )
         end
 
@@ -369,17 +378,191 @@ UTILS.OneLineSerialize = function( tbl )  -- serialization of a table all on a s
   return objectreturn
 end
 
---porting in Slmod's "safestring" basic serialize
+--- Serialize a table to a single line string.
+-- @param #table tbl table to serialize.
+-- @return #string string containing serialized table.
+function UTILS._OneLineSerialize(tbl)
+
+  if type(tbl) == 'table' then --function only works for tables!
+
+    local tbl_str = {}
+
+    tbl_str[#tbl_str + 1] = '{ '
+
+    for ind,val in pairs(tbl) do -- serialize its fields
+      if type(ind) == "number" then
+        tbl_str[#tbl_str + 1] = '['
+        tbl_str[#tbl_str + 1] = tostring(ind)
+        tbl_str[#tbl_str + 1] = '] = '
+      else --must be a string
+        tbl_str[#tbl_str + 1] = '['
+        tbl_str[#tbl_str + 1] = UTILS.BasicSerialize(ind)
+        tbl_str[#tbl_str + 1] = '] = '
+      end
+
+      if ((type(val) == 'number') or (type(val) == 'boolean')) then
+        tbl_str[#tbl_str + 1] = tostring(val)
+        tbl_str[#tbl_str + 1] = ', '
+      elseif type(val) == 'string' then
+        tbl_str[#tbl_str + 1] = UTILS.BasicSerialize(val)
+        tbl_str[#tbl_str + 1] = ', '
+      elseif type(val) == 'nil' then -- won't ever happen, right?
+        tbl_str[#tbl_str + 1] = 'nil, '
+      elseif type(val) == 'table' then
+        --tbl_str[#tbl_str + 1] = UTILS.TableShow(tbl,loc,indent,tableshow_tbls)
+        --tbl_str[#tbl_str + 1] = ', '   --I think this is right, I just added it
+      else
+        --log:warn('Unable to serialize value type $1 at index $2', mist.utils.basicSerialize(type(val)), tostring(ind))
+      end
+
+    end
+    
+      tbl_str[#tbl_str + 1] = '}'
+      return table.concat(tbl_str)
+    else
+      return  UTILS.BasicSerialize(tbl)
+  end
+end
+
+--- Basic serialize (porting in Slmod's "safestring" basic serialize).
+-- @param #string s Table to serialize.
 UTILS.BasicSerialize = function(s)
   if s == nil then
     return "\"\""
   else
-    if ((type(s) == 'number') or (type(s) == 'boolean') or (type(s) == 'function') or (type(s) == 'table') or (type(s) == 'userdata') ) then
+    if ((type(s) == 'number') or (type(s) == 'boolean') or (type(s) == 'function') or (type(s) == 'userdata') ) then
       return tostring(s)
+    elseif type(s) == "table" then
+      return UTILS._OneLineSerialize(s) 
     elseif type(s) == 'string' then
-      s = string.format('%q', s)
+      s = string.format('(%s)', s)
       return s
     end
+  end
+end
+
+function UTILS.PrintTableToLog(table, indent)
+  if not table then
+    BASE:E("No table passed!")
+    return 
+  end
+  if not indent then indent = 0 end
+  for k, v in pairs(table) do
+    if type(v) == "table" then
+      BASE:I(string.rep("  ", indent) .. tostring(k) .. " = {")
+      UTILS.PrintTableToLog(v, indent + 1)
+      BASE:I(string.rep("  ", indent) .. "}")
+    else
+      BASE:I(string.rep("  ", indent) .. tostring(k) .. " = " .. tostring(v))
+    end
+  end
+end
+
+--- Returns table in a easy readable string representation.
+-- @param tbl table to show
+-- @param loc
+-- @param indent
+-- @param tableshow_tbls
+-- @return Human readable string representation of given table.
+function UTILS.TableShow(tbl, loc, indent, tableshow_tbls)
+  tableshow_tbls = tableshow_tbls or {} --create table of tables
+  loc = loc or ""
+  indent = indent or ""
+  if type(tbl) == 'table' then --function only works for tables!
+    tableshow_tbls[tbl] = loc
+
+    local tbl_str = {}
+
+    tbl_str[#tbl_str + 1] = indent .. '{\n'
+
+    for ind,val in pairs(tbl) do -- serialize its fields
+      if type(ind) == "number" then
+        tbl_str[#tbl_str + 1] = indent
+        tbl_str[#tbl_str + 1] = loc .. '['
+        tbl_str[#tbl_str + 1] = tostring(ind)
+        tbl_str[#tbl_str + 1] = '] = '
+      else
+        tbl_str[#tbl_str + 1] = indent
+        tbl_str[#tbl_str + 1] = loc .. '['
+        tbl_str[#tbl_str + 1] = UTILS.BasicSerialize(ind)
+        tbl_str[#tbl_str + 1] = '] = '
+      end
+
+      if ((type(val) == 'number') or (type(val) == 'boolean')) then
+        tbl_str[#tbl_str + 1] = tostring(val)
+        tbl_str[#tbl_str + 1] = ',\n'
+      elseif type(val) == 'string' then
+        tbl_str[#tbl_str + 1] = UTILS.BasicSerialize(val)
+        tbl_str[#tbl_str + 1] = ',\n'
+      elseif type(val) == 'nil' then -- won't ever happen, right?
+        tbl_str[#tbl_str + 1] = 'nil,\n'
+      elseif type(val) == 'table' then
+        if tableshow_tbls[val] then
+          tbl_str[#tbl_str + 1] = tostring(val) .. ' already defined: ' .. tableshow_tbls[val] .. ',\n'
+        else
+          tableshow_tbls[val] = loc ..  '[' .. UTILS.BasicSerialize(ind) .. ']'
+          tbl_str[#tbl_str + 1] = tostring(val) .. ' '
+          tbl_str[#tbl_str + 1] = UTILS.TableShow(val, loc .. '[' .. UTILS.BasicSerialize(ind).. ']', indent .. '    ', tableshow_tbls)
+          tbl_str[#tbl_str + 1] = ',\n'
+        end
+      elseif type(val) == 'function' then
+        if debug and debug.getinfo then
+          local fcnname = tostring(val)
+          local info = debug.getinfo(val, "S")
+          if info.what == "C" then
+            tbl_str[#tbl_str + 1] = string.format('%q', fcnname .. ', C function') .. ',\n'
+          else
+            if (string.sub(info.source, 1, 2) == [[./]]) then
+              tbl_str[#tbl_str + 1] = string.format('%q', fcnname .. ', defined in (' .. info.linedefined .. '-' .. info.lastlinedefined .. ')' .. info.source) ..',\n'
+            else
+              tbl_str[#tbl_str + 1] = string.format('%q', fcnname .. ', defined in (' .. info.linedefined .. '-' .. info.lastlinedefined .. ')') ..',\n'
+            end
+          end
+
+        else
+          tbl_str[#tbl_str + 1] = 'a function,\n'
+        end
+      else
+        tbl_str[#tbl_str + 1] = 'unable to serialize value type ' .. UTILS.BasicSerialize(type(val)) .. ' at index ' .. tostring(ind)
+      end
+    end
+
+    tbl_str[#tbl_str + 1] = indent .. '}'
+    return table.concat(tbl_str)
+  end
+end
+
+--- Dumps the global table _G.
+-- This dumps the global table _G to a file in the DCS\Logs directory.
+-- This function requires you to disable script sanitization in $DCS_ROOT\Scripts\MissionScripting.lua to access lfs and io libraries.
+-- @param #string fname File name.
+function UTILS.Gdump(fname)
+  if lfs and io then
+  
+    local fdir = lfs.writedir() .. [[Logs\]] .. fname
+    
+    local f = io.open(fdir, 'w')
+    
+    f:write(UTILS.TableShow(_G))
+    
+    f:close()
+    
+    env.info(string.format('Wrote debug data to $1', fdir))
+  else
+    env.error("WARNING: lfs and/or io not de-sanitized - cannot dump _G!")
+  end
+end
+
+--- Executes the given string.
+-- borrowed from Slmod
+-- @param #string s string containing LUA code.
+-- @return #boolean `true` if successfully executed, `false` otherwise.
+function UTILS.DoString(s)
+  local f, err = loadstring(s)
+  if f then
+    return true, f()
+  else
+    return false, err
   end
 end
 
@@ -487,7 +670,32 @@ UTILS.hPa2inHg = function( hPa )
   return hPa * 0.0295299830714
 end
 
---- Convert knots to alitude corrected KIAS, e.g. for tankers.
+--- Convert indicated airspeed (IAS) to true airspeed (TAS) for a given altitude above main sea level.
+-- The conversion is based on the approximation that TAS is ~2% higher than IAS with every 1000 ft altitude above sea level.
+-- @param #number ias Indicated air speed in any unit (m/s, km/h, knots, ...)
+-- @param #number altitude Altitude above main sea level in meters.
+-- @param #number oatcorr (Optional) Outside air temperature correction factor. Default 0.017.
+-- @return #number True airspeed in the same unit the IAS has been given.
+UTILS.IasToTas = function( ias, altitude, oatcorr )
+  oatcorr=oatcorr or 0.017
+  local tas=ias + (ias * oatcorr * UTILS.MetersToFeet(altitude) / 1000)
+  return tas
+end
+
+--- Convert true airspeed (TAS) to indicated airspeed (IAS) for a given altitude above main sea level.
+-- The conversion is based on the approximation that TAS is ~2% higher than IAS with every 1000 ft altitude above sea level.
+-- @param #number tas True air speed in any unit (m/s, km/h, knots, ...)
+-- @param #number altitude Altitude above main sea level in meters.
+-- @param #number oatcorr (Optional) Outside air temperature correction factor. Default 0.017.
+-- @return #number Indicated airspeed in the same unit the TAS has been given.
+UTILS.TasToIas = function( tas, altitude, oatcorr )
+  oatcorr=oatcorr or 0.017
+  local ias=tas/(1+oatcorr*UTILS.MetersToFeet(altitude)/1000)
+  return ias
+end
+
+
+--- Convert knots to altitude corrected KIAS, e.g. for tankers.
 -- @param #number knots Speed in knots.
 -- @param #number altitude Altitude in feet
 -- @return #number Corrected KIAS
@@ -604,10 +812,12 @@ end
 -- acc- the accuracy of each easting/northing.  0, 1, 2, 3, 4, or 5.
 UTILS.tostringMGRS = function(MGRS, acc) --R2.1
 
-  if acc == 0 then
+  if acc <= 0 then
     return MGRS.UTMZone .. ' ' .. MGRS.MGRSDigraph
   else
-
+    
+    if acc > 5 then acc = 5 end
+    
     -- Test if Easting/Northing have less than 4 digits.
     --MGRS.Easting=123    -- should be 00123
     --MGRS.Northing=5432  -- should be 05432
@@ -638,7 +848,10 @@ function UTILS.Round( num, idp )
   return math.floor( num * mult + 0.5 ) / mult
 end
 
--- porting in Slmod's dostring
+--- Porting in Slmod's dostring - execute a string as LUA code with error handling.
+-- @param #string s The code as string to be executed
+-- @return #boolean success If true, code was successfully executed, else false
+-- @return #string Outcome Code outcome if successful or error string if not successful
 function UTILS.DoString( s )
   local f, err = loadstring( s )
   if f then
@@ -648,7 +861,15 @@ function UTILS.DoString( s )
   end
 end
 
--- Here is a customized version of pairs, which I called spairs because it iterates over the table in a sorted order.
+--- Here is a customized version of pairs, which I called spairs because it iterates over the table in a sorted order.
+-- @param #table t The table
+-- @param #string order (Optional) The sorting function
+-- @return #string key The index key
+-- @return #string value The value at the indexed key
+-- @usage
+--            for key,value in UTILS.spairs(mytable) do
+--                -- your code here
+--            end
 function UTILS.spairs( t, order )
     -- collect the keys
     local keys = {}
@@ -673,7 +894,16 @@ function UTILS.spairs( t, order )
 end
 
 
--- Here is a customized version of pairs, which I called kpairs because it iterates over the table in a sorted order, based on a function that will determine the keys as reference first.
+--- Here is a customized version of pairs, which I called kpairs because it iterates over the table in a sorted order, based on a function that will determine the keys as reference first.
+-- @param #table t The table
+-- @param #string getkey The function to determine the keys for sorting
+-- @param #string order (Optional) The sorting function itself
+-- @return #string key The index key
+-- @return #string value The value at the indexed key
+-- @usage
+--            for key,value in UTILS.kpairs(mytable, getkeyfunc) do
+--                -- your code here
+--            end
 function UTILS.kpairs( t, getkey, order )
     -- collect the keys
     local keys = {}
@@ -698,7 +928,14 @@ function UTILS.kpairs( t, getkey, order )
     end
 end
 
--- Here is a customized version of pairs, which I called rpairs because it iterates over the table in a random order.
+--- Here is a customized version of pairs, which I called rpairs because it iterates over the table in a random order.
+-- @param #table t The table
+-- @return #string key The index key
+-- @return #string value The value at the indexed key
+-- @usage
+--            for key,value in UTILS.rpairs(mytable) do
+--                -- your code here
+--            end
 function UTILS.rpairs( t )
     -- collect the keys
 
@@ -738,7 +975,9 @@ function UTILS.RemoveMark(MarkID, Delay)
   if Delay and Delay>0 then
     TIMER:New(UTILS.RemoveMark, MarkID):Start(Delay)
   else
-    trigger.action.removeMark(MarkID)
+    if MarkID then
+      trigger.action.removeMark(MarkID)
+    end
   end
 end
 
@@ -1055,14 +1294,18 @@ function UTILS.Vec2Norm(a)
 end
 
 --- Calculate the distance between two 2D vectors.
--- @param DCS#Vec2 a Vector in 3D with x, y components.
--- @param DCS#Vec2 b Vector in 3D with x, y components.
+-- @param DCS#Vec2 a Vector in 2D with x, y components.
+-- @param DCS#Vec2 b Vector in 2D with x, y components.
 -- @return #number Distance between the vectors.
 function UTILS.VecDist2D(a, b)
 
+  local d = math.huge
+  
+  if (not a) or (not b) then return d end
+
   local c={x=b.x-a.x, y=b.y-a.y}
 
-  local d=math.sqrt(c.x*c.x+c.y*c.y)
+  d=math.sqrt(c.x*c.x+c.y*c.y)
 
   return d
 end
@@ -1073,10 +1316,15 @@ end
 -- @param DCS#Vec3 b Vector in 3D with x, y, z components.
 -- @return #number Distance between the vectors.
 function UTILS.VecDist3D(a, b)
-
+  
+    
+  local d = math.huge
+  
+  if (not a) or (not b) then return d end
+  
   local c={x=b.x-a.x, y=b.y-a.y, z=b.z-a.z}
 
-  local d=math.sqrt(UTILS.VecDot(c, c))
+  d=math.sqrt(UTILS.VecDot(c, c))
 
   return d
 end
@@ -1153,7 +1401,7 @@ function UTILS.VecHdg(a)
 end
 
 --- Calculate "heading" of a 2D vector in the X-Y plane.
--- @param DCS#Vec2 a Vector in "D with x, y components.
+-- @param DCS#Vec2 a Vector in 2D with x, y components.
 -- @return #number Heading in degrees in [0,360).
 function UTILS.Vec2Hdg(a)
   local h=math.deg(math.atan2(a.y, a.x))
@@ -1180,6 +1428,20 @@ function UTILS.HdgDiff(h1, h2)
   local delta=UTILS.VecAngle(v1, v2)
 
   return math.abs(delta)
+end
+
+--- Returns the heading from one vec3 to another vec3.
+-- @param DCS#Vec3 a From vec3.
+-- @param DCS#Vec3 b To vec3.
+-- @return #number Heading in degrees.
+function UTILS.HdgTo(a, b)
+  local dz=b.z-a.z
+  local dx=b.x-a.x
+  local heading=math.deg(math.atan2(dz, dx))
+  if heading < 0 then
+    heading = 360 + heading
+  end
+  return heading
 end
 
 
@@ -1292,7 +1554,7 @@ function UTILS.TACANToFrequency(TACANChannel, TACANMode)
 end
 
 
---- Returns the DCS map/theatre as optained by env.mission.theatre
+--- Returns the DCS map/theatre as optained by `env.mission.theatre`.
 -- @return #string DCS map name.
 function UTILS.GetDCSMap()
   return env.mission.theatre
@@ -1347,6 +1609,8 @@ end
 -- * The Cannel Map -10 (West)
 -- * Syria +5 (East)
 -- * Mariana Islands +2 (East)
+-- * Falklands +12 (East) - note there's a LOT of deviation across the map, as we're closer to the South Pole
+-- * Sinai +4.8 (East)
 -- @param #string map (Optional) Map for which the declination is returned. Default is from env.mission.theatre
 -- @return #number Declination in degrees.
 function UTILS.GetMagneticDeclination(map)
@@ -1369,6 +1633,10 @@ function UTILS.GetMagneticDeclination(map)
     declination=5
   elseif map==DCSMAP.MarianaIslands then
     declination=2
+  elseif map==DCSMAP.Falklands then
+    declination=12
+  elseif map==DCSMAP.Sinai then
+    declination=4.8
   else
     declination=0
   end
@@ -1407,7 +1675,7 @@ function UTILS.CheckMemory(output)
 end
 
 
---- Get the coalition name from its numerical ID, e.g. coaliton.side.RED.
+--- Get the coalition name from its numerical ID, e.g. coalition.side.RED.
 -- @param #number Coalition The coalition ID.
 -- @return #string The coalition name, i.e. "Neutral", "Red" or "Blue" (or "Unknown").
 function UTILS.GetCoalitionName(Coalition)
@@ -1426,6 +1694,30 @@ function UTILS.GetCoalitionName(Coalition)
     return "Unknown"
   end
 
+end
+
+--- Get the enemy coalition for a given coalition.
+-- @param #number Coalition The coalition ID.
+-- @param #boolean Neutral Include neutral as enemy.
+-- @return #table Enemy coalition table.
+function UTILS.GetCoalitionEnemy(Coalition, Neutral)
+
+  local Coalitions={}
+  if Coalition then
+    if Coalition==coalition.side.RED then      
+      Coalitions={coalition.side.BLUE}
+    elseif Coalition==coalition.side.BLUE then
+      Coalitions={coalition.side.RED}
+    elseif Coalition==coalition.side.NEUTRAL then
+      Coalitions={coalition.side.RED, coalition.side.BLUE}
+    end
+  end
+  
+  if Neutral then
+    table.insert(Coalitions, coalition.side.NEUTRAL)
+  end
+
+  return Coalitions
 end
 
 --- Get the modulation name from its numerical value.
@@ -1558,6 +1850,10 @@ function UTILS.GMTToLocalTimeDifference()
     return 3   -- Damascus is UTC+3 hours
   elseif theatre==DCSMAP.MarianaIslands then
     return 10  -- Guam is UTC+10 hours.
+  elseif theatre==DCSMAP.Falklands then
+    return -3  -- Fireland is UTC-3 hours.
+  elseif theatre==DCSMAP.Sinai then
+    return 2   -- Currently map is +2 but should be +3 (DCS bug?)    
   else
     BASE:E(string.format("ERROR: Unknown Map %s in UTILS.GMTToLocal function. Returning 0", tostring(theatre)))
     return 0
@@ -1720,10 +2016,16 @@ end
 -- @return #number Os time in seconds.
 function UTILS.GetOSTime()
   if os then
-    return os.clock()
+    local ts = 0
+    local t = os.date("*t")
+    local s = t.sec
+    local m = t.min * 60
+    local h = t.hour * 3600
+    ts = s+m+h
+    return ts
+  else
+    return nil
   end
-
-  return nil
 end
 
 --- Shuffle a table accoring to Fisher Yeates algorithm
@@ -1777,71 +2079,73 @@ end
 --@return #boolean Outcome - true if a (loading door) is open, false if not, nil if none exists.
 function UTILS.IsLoadingDoorOpen( unit_name )
 
-  local ret_val = false
   local unit = Unit.getByName(unit_name)
+
   if unit ~= nil then
       local type_name = unit:getTypeName()
+      BASE:T("TypeName = ".. type_name)
 
-      if type_name == "Mi-8MT" and unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(86) == 1 or unit:getDrawArgumentValue(250) < 0 then
+      if type_name == "Mi-8MT" and (unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(86) == 1 or unit:getDrawArgumentValue(250) < 0) then
           BASE:T(unit_name .. " Cargo doors are open or cargo door not present")
-          ret_val =  true
+          return true
       end
 
-      if type_name == "Mi-24P" and unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(86) == 1 then
+      if type_name == "Mi-24P" and (unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(86) == 1) then
           BASE:T(unit_name .. " a side door is open")
-          ret_val =  true
+          return true
       end
 
-      if type_name == "UH-1H" and unit:getDrawArgumentValue(43) == 1 or unit:getDrawArgumentValue(44) == 1 then
+      if type_name == "UH-1H" and (unit:getDrawArgumentValue(43) == 1 or unit:getDrawArgumentValue(44) == 1) then
           BASE:T(unit_name .. " a side door is open ")
-          ret_val =  true
+          return true
+      end
+    
+      if string.find(type_name, "SA342" ) and (unit:getDrawArgumentValue(34) == 1) then
+          BASE:T(unit_name .. " front door(s) are open or doors removed")
+          return true
       end
 
-      if string.find(type_name, "SA342" ) and unit:getDrawArgumentValue(34) == 1 or unit:getDrawArgumentValue(38) == 1 then
-          BASE:T(unit_name .. " front door(s) are open")
-          ret_val =  true
-      end
-
-      if string.find(type_name, "Hercules") and unit:getDrawArgumentValue(1215) == 1 and unit:getDrawArgumentValue(1216) == 1 then
+      if string.find(type_name, "Hercules") and (unit:getDrawArgumentValue(1215) == 1 and unit:getDrawArgumentValue(1216) == 1) then
           BASE:T(unit_name .. " rear doors are open")
-          ret_val =  true
+          return true
       end
 
       if string.find(type_name, "Hercules") and (unit:getDrawArgumentValue(1220) == 1 or unit:getDrawArgumentValue(1221) == 1) then
           BASE:T(unit_name .. " para doors are open")
-          ret_val =  true
+          return true
       end
 
-      if string.find(type_name, "Hercules") and unit:getDrawArgumentValue(1217) == 1 then
+      if string.find(type_name, "Hercules") and (unit:getDrawArgumentValue(1217) == 1) then
           BASE:T(unit_name .. " side door is open")
-          ret_val =  true
+          return true
       end
 
       if string.find(type_name, "Bell-47") then -- bell aint got no doors so always ready to load injured soldiers
           BASE:T(unit_name .. " door is open")
-          ret_val =  true
+          return true
       end
       
-      if string.find(type_name, "UH-60L") and (unit:getDrawArgumentValue(401) == 1) or (unit:getDrawArgumentValue(402) == 1) then
+      if string.find(type_name, "UH-60L") and (unit:getDrawArgumentValue(401) == 1 or unit:getDrawArgumentValue(402) == 1) then
           BASE:T(unit_name .. " cargo door is open")
-          ret_val =  true
+          return true
       end
 
-      if string.find(type_name, "UH-60L" ) and unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(400) == 1 then
+      if string.find(type_name, "UH-60L" ) and (unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(400) == 1 ) then
           BASE:T(unit_name .. " front door(s) are open")
-          ret_val =  true
+          return true
       end
       
       if type_name == "AH-64D_BLK_II" then
          BASE:T(unit_name .. " front door(s) are open")
-         ret_val =  true -- no doors on this one ;)
+         return true -- no doors on this one ;)
       end
       
-      if ret_val == false then
-          BASE:T(unit_name .. " all doors are closed")
+      if type_name == "Bronco-OV-10A" then
+         BASE:T(unit_name .. " front door(s) are open")
+         return true -- no doors on this one ;)
       end
       
-      return ret_val
+      return false
 
   end -- nil
 
@@ -1870,7 +2174,7 @@ function UTILS.GenerateVHFrequencies()
   -- known and sorted map-wise NDBs in kHz
   local _skipFrequencies = {
   214,274,291.5,295,297.5,
-  300.5,304,307,309.5,311,312,312.5,316,
+  300.5,304,305,307,309.5,311,312,312.5,316,
   320,324,328,329,330,332,336,337,
   342,343,348,351,352,353,358,
   363,365,368,372.5,374,
@@ -1881,7 +2185,7 @@ function UTILS.GenerateVHFrequencies()
   705,720,722,730,735,740,745,750,770,795,
   822,830,862,866,
   905,907,920,935,942,950,995,
-  1000,1025,1030,1050,1065,1116,1175,1182,1210
+  1000,1025,1030,1050,1065,1116,1175,1182,1210,1215
   }
 
   local FreeVHFFrequencies = {}
@@ -1949,7 +2253,9 @@ function UTILS.GenerateUHFrequencies()
     local _start = 220000000
 
     while _start < 399000000 do
-        table.insert(FreeUHFFrequencies, _start)
+    if _start ~= 243000000 then
+      table.insert(FreeUHFFrequencies, _start)
+    end
         _start = _start + 500000
     end
 
@@ -1991,6 +2297,28 @@ function UTILS.GenerateLaserCodes()
         _count = _count + 1
     end
     return jtacGeneratedLaserCodes
+end
+
+--- Ensure the passed object is a table. 
+-- @param #table Object The object that should be a table.
+-- @param #boolean ReturnNil If `true`, return `#nil` if `Object` is nil. Otherwise an empty table `{}` is returned.
+-- @return #table The object that now certainly *is* a table.
+function UTILS.EnsureTable(Object, ReturnNil)
+
+  if Object then
+    if type(Object)~="table" then
+      Object={Object}
+    end
+  else
+    if ReturnNil then
+      return nil      
+    else
+      Object={}   
+    end
+    
+  end
+
+  return Object
 end
 
 --- Function to save an object to a file
@@ -2096,7 +2424,7 @@ function UTILS.CheckFileExists(Path,Filename)
      
   -- Check io module is available.
   if not io then
-    BASE:E("ERROR: io not desanitized. Can't save current state.")
+    BASE:E("ERROR: io not desanitized.")
     return false
   end
   
@@ -2127,10 +2455,29 @@ function UTILS.CheckFileExists(Path,Filename)
   end
 end
 
+--- Function to obtain a table of typenames from the group given with the number of units of the same type in the group.
+-- @param Wrapper.Group#GROUP Group The group to list
+-- @return #table Table of typnames and typename counts, e.g. `{["KAMAZ Truck"]=3,["ATZ-5"]=1}`
+function UTILS.GetCountPerTypeName(Group)
+  local units = Group:GetUnits()
+  local TypeNameTable = {}
+  for _,_unt in pairs (units) do
+    local unit = _unt -- Wrapper.Unit#UNIT
+    local typen = unit:GetTypeName()
+    if not TypeNameTable[typen] then
+      TypeNameTable[typen] = 1
+    else
+      TypeNameTable[typen] = TypeNameTable[typen] + 1
+    end
+  end
+  return TypeNameTable
+end
+
 --- Function to save the state of a list of groups found by name
 -- @param #table List Table of strings with groupnames
 -- @param #string Path The path to use. Use double backslashes \\\\ on Windows filesystems.
 -- @param #string Filename The name of the file.
+-- @param #boolean Structured Append the data with a list of typenames in the group plus their count.
 -- @return #boolean outcome True if saving is successful, else false.
 -- @usage
 -- We will go through the list and find the corresponding group and save the current group size (0 when dead).
@@ -2138,7 +2485,7 @@ end
 -- Position is still saved for your usage.
 -- The idea is to reduce the number of units when reloading the data again to restart the saved mission.
 -- The data will be a simple comma separated list of groupname and size, with one header line.
-function UTILS.SaveStationaryListOfGroups(List,Path,Filename)
+function UTILS.SaveStationaryListOfGroups(List,Path,Filename,Structured)
   local filename = Filename or "StateListofGroups"
   local data = "--Save Stationary List of Groups: "..Filename .."\n"
   for _,_group in pairs (List) do
@@ -2146,7 +2493,16 @@ function UTILS.SaveStationaryListOfGroups(List,Path,Filename)
     if group and group:IsAlive() then
       local units = group:CountAliveUnits()
       local position = group:GetVec3()
-      data = string.format("%s%s,%d,%d,%d,%d\n",data,_group,units,position.x,position.y,position.z)
+      if Structured then
+        local structure = UTILS.GetCountPerTypeName(group)
+        local strucdata =  ""
+        for typen,anzahl in pairs (structure) do
+          strucdata = strucdata .. typen .. "=="..anzahl..";"
+        end
+        data = string.format("%s%s,%d,%d,%d,%d,%s\n",data,_group,units,position.x,position.y,position.z,strucdata)
+      else
+        data = string.format("%s%s,%d,%d,%d,%d\n",data,_group,units,position.x,position.y,position.z)
+      end
     else
       data = string.format("%s%s,0,0,0,0\n",data,_group)
     end
@@ -2160,6 +2516,7 @@ end
 -- @param Core.Set#SET_BASE Set of objects to save
 -- @param #string Path The path to use. Use double backslashes \\\\ on Windows filesystems.
 -- @param #string Filename The name of the file.
+-- @param #boolean Structured Append the data with a list of typenames in the group plus their count.
 -- @return #boolean outcome True if saving is successful, else false.
 -- @usage
 -- We will go through the set and find the corresponding group and save the current group size and current position.
@@ -2169,7 +2526,7 @@ end
 -- **Note** Do NOT use dashes or hashes in group template names (-,#)!
 -- The data will be a simple comma separated list of groupname and size, with one header line.
 -- The current task/waypoint/etc cannot be restored. 
-function UTILS.SaveSetOfGroups(Set,Path,Filename)
+function UTILS.SaveSetOfGroups(Set,Path,Filename,Structured)
   local filename = Filename or "SetOfGroups"
   local data = "--Save SET of groups: "..Filename .."\n"
   local List = Set:GetSetObjects()
@@ -2183,7 +2540,16 @@ function UTILS.SaveSetOfGroups(Set,Path,Filename)
       end 
       local units = group:CountAliveUnits()
       local position = group:GetVec3()
-      data = string.format("%s%s,%s,%d,%d,%d,%d\n",data,name,template,units,position.x,position.y,position.z)
+      if Structured then
+        local structure = UTILS.GetCountPerTypeName(group)
+        local strucdata =  ""
+        for typen,anzahl in pairs (structure) do
+          strucdata = strucdata .. typen .. "=="..anzahl..";"
+        end
+        data = string.format("%s%s,%s,%d,%d,%d,%d,%s\n",data,name,template,units,position.x,position.y,position.z,strucdata)
+      else
+        data = string.format("%s%s,%s,%d,%d,%d,%d\n",data,name,template,units,position.x,position.y,position.z)
+      end     
     end
   end
   -- save the data
@@ -2247,8 +2613,41 @@ end
 -- @param #string Path The path to use. Use double backslashes \\\\ on Windows filesystems.
 -- @param #string Filename The name of the file.
 -- @param #boolean Reduce If false, existing loaded groups will not be reduced to fit the saved number.
+-- @param #boolean Structured (Optional, needs Reduce = true) If true, and the data has been saved as structure before, remove the correct unit types as per the saved list.
+-- @param #boolean Cinematic (Optional, needs Structured = true) If true, place a fire/smoke effect on the dead static position.
+-- @param #number Effect (Optional for Cinematic) What effect to use. Defaults to a random effect. Smoke presets are: 1=small smoke and fire, 2=medium smoke and fire, 3=large smoke and fire, 4=huge smoke and fire, 5=small smoke, 6=medium smoke, 7=large smoke, 8=huge smoke.
+-- @param #number Density (Optional for Cinematic) What smoke density to use, can be 0 to 1. Defaults to 0.5.
 -- @return #table Table of data objects (tables) containing groupname, coordinate and group object. Returns nil when file cannot be read.
-function UTILS.LoadStationaryListOfGroups(Path,Filename,Reduce)
+-- @return #table When using Cinematic: table of names of smoke and fire objects, so they can be extinguished with `COORDINATE.StopBigSmokeAndFire( name )`
+function UTILS.LoadStationaryListOfGroups(Path,Filename,Reduce,Structured,Cinematic,Effect,Density)
+  
+  local fires = {}
+  
+  local function Smokers(name,coord,effect,density)
+    local eff = math.random(8)
+    if type(effect) == "number" then eff = effect end
+    coord:BigSmokeAndFire(eff,density,name)
+    table.insert(fires,name)
+  end
+  
+  local function Cruncher(group,typename,anzahl)
+    local units = group:GetUnits()
+    local reduced = 0
+    for _,_unit in pairs (units) do
+      local typo = _unit:GetTypeName()
+      if typename == typo then
+        if Cinematic then
+          local coordinate = _unit:GetCoordinate()
+          local name = _unit:GetName()
+          Smokers(name,coordinate,Effect,Density)
+        end
+        _unit:Destroy(false)
+        reduced = reduced + 1
+        if reduced == anzahl then break end
+      end
+    end
+  end
+  
   local reduce = true
   if Reduce == false then reduce = false end
   local filename = Filename or "StateListofGroups"
@@ -2265,18 +2664,48 @@ function UTILS.LoadStationaryListOfGroups(Path,Filename,Reduce)
       local posx = tonumber(dataset[3])
       local posy = tonumber(dataset[4])
       local posz = tonumber(dataset[5])
+      local structure = dataset[6]
+      --BASE:I({structure})
       local coordinate = COORDINATE:NewFromVec3({x=posx, y=posy, z=posz})
       local data = { groupname=groupname, size=size, coordinate=coordinate, group=GROUP:FindByName(groupname) }
       if reduce then
         local actualgroup = GROUP:FindByName(groupname)
         if actualgroup and actualgroup:IsAlive() and actualgroup:CountAliveUnits() > size then
-          local reduction = actualgroup:CountAliveUnits() - size
-          BASE:I("Reducing groupsize by ".. reduction .. " units!")
-          -- reduce existing group
-          local units = actualgroup:GetUnits()
-          local units2 = UTILS.ShuffleTable(units) -- randomize table
-          for i=1,reduction do
-            units2[i]:Destroy(false)
+          if Structured and structure then
+            --BASE:I("Reducing group structure!")
+            local loadedstructure = {}
+            local strcset = UTILS.Split(structure,";")
+            for _,_data in pairs(strcset) do
+              local datasplit = UTILS.Split(_data,"==")
+              loadedstructure[datasplit[1]] = tonumber(datasplit[2])
+            end
+            --BASE:I({loadedstructure})
+            local originalstructure = UTILS.GetCountPerTypeName(actualgroup)
+            --BASE:I({originalstructure})
+            for _name,_number in pairs(originalstructure) do
+              local loadednumber = 0
+              if loadedstructure[_name] then
+                loadednumber = loadedstructure[_name]
+              end
+              local reduce = false
+              if loadednumber < _number then reduce = true end
+              
+              --BASE:I(string.format("Looking at: %s | Original number: %d | Loaded number: %d | Reduce: %s",_name,_number,loadednumber,tostring(reduce))) 
+              
+              if reduce then
+                Cruncher(actualgroup,_name,_number-loadednumber)  
+              end
+                         
+            end
+          else
+            local reduction = actualgroup:CountAliveUnits() - size
+            --BASE:I("Reducing groupsize by ".. reduction .. " units!")
+            -- reduce existing group
+            local units = actualgroup:GetUnits()
+            local units2 = UTILS.ShuffleTable(units) -- randomize table
+            for i=1,reduction do
+              units2[i]:Destroy(false)
+            end
           end
         end
       end
@@ -2285,22 +2714,121 @@ function UTILS.LoadStationaryListOfGroups(Path,Filename,Reduce)
   else
     return nil
   end
-  return datatable
+  return datatable,fires
 end
 
 --- Load back a SET of groups from file.
 -- @param #string Path The path to use. Use double backslashes \\\\ on Windows filesystems.
 -- @param #string Filename The name of the file.
 -- @param #boolean Spawn If set to false, do not re-spawn the groups loaded in location and reduce to size.
+-- @param #boolean Structured (Optional, needs Spawn=true)If true, and the data has been saved as structure before, remove the correct unit types as per the saved list.
+-- @param #boolean Cinematic (Optional, needs Structured=true) If true, place a fire/smoke effect on the dead static position.
+-- @param #number Effect (Optional for Cinematic) What effect to use. Defaults to a random effect. Smoke presets are: 1=small smoke and fire, 2=medium smoke and fire, 3=large smoke and fire, 4=huge smoke and fire, 5=small smoke, 6=medium smoke, 7=large smoke, 8=huge smoke.
+-- @param #number Density (Optional for Cinematic) What smoke density to use, can be 0 to 1. Defaults to 0.5.
 -- @return Core.Set#SET_GROUP Set of GROUP objects. 
--- Returns nil when file cannot be read. Returns a table of data entries if Spawn is false: `{ groupname=groupname, size=size, coordinate=coordinate }`
-function UTILS.LoadSetOfGroups(Path,Filename,Spawn)
+-- Returns nil when file cannot be read. Returns a table of data entries if Spawn is false: `{ groupname=groupname, size=size, coordinate=coordinate, template=template }`
+-- @return #table When using Cinematic: table of names of smoke and fire objects, so they can be extinguished with `COORDINATE.StopBigSmokeAndFire( name )`
+function UTILS.LoadSetOfGroups(Path,Filename,Spawn,Structured,Cinematic,Effect,Density)
+  
+  local fires = {}
+  local usedtemplates = {}
   local spawn = true
   if Spawn == false then spawn = false end
-  BASE:I("Spawn = "..tostring(spawn))
   local filename = Filename or "SetOfGroups"
   local setdata = SET_GROUP:New()
   local datatable = {}
+  
+  local function Smokers(name,coord,effect,density)
+    local eff = math.random(8)
+    if type(effect) == "number" then eff = effect end
+    coord:BigSmokeAndFire(eff,density,name)
+    table.insert(fires,name)
+  end
+  
+  local function Cruncher(group,typename,anzahl)
+    local units = group:GetUnits()
+    local reduced = 0
+    for _,_unit in pairs (units) do
+      local typo = _unit:GetTypeName()
+      if typename == typo then
+        if Cinematic then
+          local coordinate = _unit:GetCoordinate()
+          local name = _unit:GetName()
+          Smokers(name,coordinate,Effect,Density)
+        end
+        _unit:Destroy(false)
+        reduced = reduced + 1
+        if reduced == anzahl then break end
+      end
+    end
+  end
+  
+  local function PostSpawn(args)
+    local spwndgrp = args[1]
+    local size = args[2]
+    local structure = args[3]
+
+    setdata:AddObject(spwndgrp)
+    local actualsize = spwndgrp:CountAliveUnits()
+    if actualsize > size then
+      if Structured and structure then
+  
+        local loadedstructure = {}
+        local strcset = UTILS.Split(structure,";")
+        for _,_data in pairs(strcset) do
+          local datasplit = UTILS.Split(_data,"==")
+          loadedstructure[datasplit[1]] = tonumber(datasplit[2])
+        end
+  
+        local originalstructure = UTILS.GetCountPerTypeName(spwndgrp)
+  
+        for _name,_number in pairs(originalstructure) do
+          local loadednumber = 0
+          if loadedstructure[_name] then
+            loadednumber = loadedstructure[_name]
+          end
+          local reduce = false
+          if loadednumber < _number then reduce = true end
+          
+          if reduce then
+            Cruncher(spwndgrp,_name,_number-loadednumber)  
+          end
+                     
+        end
+      else
+        local reduction = actualsize-size
+        -- reduce existing group
+        local units = spwndgrp:GetUnits()
+        local units2 = UTILS.ShuffleTable(units) -- randomize table
+        for i=1,reduction do
+          units2[i]:Destroy(false)
+        end
+      end
+    end
+  end
+            
+  local function MultiUse(Data)
+    local template = Data.template 
+    if template and usedtemplates[template] and usedtemplates[template].used and usedtemplates[template].used > 1 then
+      -- multispawn
+      if not usedtemplates[template].done then
+        local spwnd = 0
+        local spawngrp = SPAWN:New(template)
+        spawngrp:InitLimit(0,usedtemplates[template].used)
+        for _,_entry in pairs(usedtemplates[template].data) do       
+          spwnd = spwnd + 1
+          local sgrp=spawngrp:SpawnFromCoordinate(_entry.coordinate,spwnd)
+          BASE:ScheduleOnce(0.5,PostSpawn,{sgrp,_entry.size,_entry.structure})
+        end
+        usedtemplates[template].done = true
+      end
+      return true
+    else
+      return false
+    end
+  end
+  
+  --BASE:I("Spawn = "..tostring(spawn))
   if UTILS.CheckFileExists(Path,filename) then
     local outcome,loadeddata = UTILS.LoadFromFile(Path,Filename)
     -- remove header
@@ -2314,36 +2842,37 @@ function UTILS.LoadSetOfGroups(Path,Filename,Spawn)
       local posx = tonumber(dataset[4])
       local posy = tonumber(dataset[5])
       local posz = tonumber(dataset[6])
+      local structure = dataset[7]
       local coordinate = COORDINATE:NewFromVec3({x=posx, y=posy, z=posz})
       local group=nil
-      local data = { groupname=groupname, size=size, coordinate=coordinate }
-      table.insert(datatable,data)
-      if spawn then
-        local group = SPAWN:New(groupname)
-          :InitDelayOff()
-          :OnSpawnGroup(
-            function(spwndgrp)
-              setdata:AddObject(spwndgrp)
-              local actualsize = spwndgrp:CountAliveUnits()
-              if actualsize > size then
-                local reduction = actualsize-size
-                -- reduce existing group
-                local units = spwndgrp:GetUnits()
-                local units2 = UTILS.ShuffleTable(units) -- randomize table
-                for i=1,reduction do
-                  units2[i]:Destroy(false)
-                end
-              end
-            end
-          )
-          :SpawnFromCoordinate(coordinate)
+      if size > 0 then
+        local data = { groupname=groupname, size=size, coordinate=coordinate, template=template, structure=structure }
+        table.insert(datatable,data)
+        if usedtemplates[template] then
+          usedtemplates[template].used = usedtemplates[template].used + 1
+          table.insert(usedtemplates[template].data,data)
+        else
+          usedtemplates[template] = {
+              data = {},
+              used = 1,
+              done = false,
+            }
+          table.insert(usedtemplates[template].data,data)
+        end
+      end
+    end
+    for _id,_entry in pairs (datatable) do  
+      if spawn and not MultiUse(_entry) and _entry.size > 0 then
+        local group = SPAWN:New(_entry.template)
+        local sgrp=group:SpawnFromCoordinate(_entry.coordinate)
+        BASE:ScheduleOnce(0.5,PostSpawn,{sgrp,_entry.size,_entry.structure})
       end
     end 
   else
     return nil
   end
   if spawn then
-    return setdata
+    return setdata,fires
   else
    return datatable
   end
@@ -2362,13 +2891,11 @@ function UTILS.LoadSetOfStatics(Path,Filename)
     table.remove(loadeddata, 1)
     for _id,_entry in pairs (loadeddata) do
       local dataset = UTILS.Split(_entry,",")
-      -- staticname,position.x,position.y,position.z
       local staticname = dataset[1]
-      local posx = tonumber(dataset[2])
-      local posy = tonumber(dataset[3])
-      local posz = tonumber(dataset[4])
-      local coordinate = COORDINATE:NewFromVec3({x=posx, y=posy, z=posz})
-      datatable:AddObject(STATIC:FindByName(staticname,false))
+      local StaticObject = STATIC:FindByName(staticname,false)
+      if StaticObject then
+        datatable:AddObject(StaticObject)
+      end
     end 
   else
     return nil
@@ -2380,9 +2907,15 @@ end
 -- @param #string Path The path to use. Use double backslashes \\\\ on Windows filesystems.
 -- @param #string Filename The name of the file.
 -- @param #boolean Reduce If false, do not destroy the units with size=0.
--- @return #table Table of data objects (tables) containing staticname, size (0=dead else 1), coordinate and the static object. 
+-- @param #boolean Dead (Optional, needs Reduce = true) If Dead is true, re-spawn the dead object as dead and do not just delete it.
+-- @param #boolean Cinematic (Optional, needs Dead = true) If true, place a fire/smoke effect on the dead static position.
+-- @param #number Effect (Optional for Cinematic) What effect to use. Defaults to a random effect. Smoke presets are: 1=small smoke and fire, 2=medium smoke and fire, 3=large smoke and fire, 4=huge smoke and fire, 5=small smoke, 6=medium smoke, 7=large smoke, 8=huge smoke.
+-- @param #number Density (Optional for Cinematic) What smoke density to use, can be 0 to 1. Defaults to 0.5.
+-- @return #table Table of data objects (tables) containing staticname, size (0=dead else 1), coordinate and the static object. Dead objects will have coordinate points `{x=0,y=0,z=0}`
+-- @return #table When using Cinematic: table of names of smoke and fire objects, so they can be extinguished with `COORDINATE.StopBigSmokeAndFire( name )` 
 -- Returns nil when file cannot be read.
-function UTILS.LoadStationaryListOfStatics(Path,Filename,Reduce)
+function UTILS.LoadStationaryListOfStatics(Path,Filename,Reduce,Dead,Cinematic,Effect,Density)
+  local fires = {}
   local reduce = true
   if Reduce == false then reduce = false end
   local filename = Filename or "StateListofStatics"
@@ -2405,14 +2938,31 @@ function UTILS.LoadStationaryListOfStatics(Path,Filename,Reduce)
       if size==0 and reduce then
         local static = STATIC:FindByName(staticname,false)
         if static then
-          static:Destroy(false)
+          if Dead then
+            local deadobject = SPAWNSTATIC:NewFromStatic(staticname,static:GetCountry())
+            deadobject:InitDead(true)
+            local heading = static:GetHeading()
+            local coord = static:GetCoordinate()
+            static:Destroy(false)
+            deadobject:SpawnFromCoordinate(coord,heading,staticname)
+            if Cinematic then
+              local effect = math.random(8)
+              if type(Effect) == "number" then
+                effect = Effect 
+              end
+              coord:BigSmokeAndFire(effect,Density,staticname)
+              table.insert(fires,staticname)
+            end
+          else
+            static:Destroy(false)
+          end
         end
       end
     end 
   else
     return nil
   end
-  return datatable
+  return datatable,fires
 end
 
 --- Heading Degrees (0-360) to Cardinal
@@ -2437,7 +2987,7 @@ end
 -- @return #string Formatted BRAA NATO call
 function UTILS.ToStringBRAANATO(FromGrp,ToGrp)
   local BRAANATO = "Merged."
-  local GroupNumber = FromGrp:GetSize()
+  local GroupNumber = ToGrp:GetSize()
   local GroupWords = "Singleton"
   if GroupNumber == 2 then GroupWords = "Two-Ship"
     elseif GroupNumber >= 3 then GroupWords = "Heavy"
@@ -2460,4 +3010,94 @@ function UTILS.ToStringBRAANATO(FromGrp,ToGrp)
       end
   end
   return BRAANATO 
+end
+
+--- Check if an object is contained in a table.
+-- @param #table Table The table.
+-- @param #table Object The object to check.
+-- @param #string Key (Optional) Key to check. By default, the object itself is checked.
+-- @return #booolen Returns `true` if object is in table.
+function UTILS.IsInTable(Table, Object, Key)
+
+  for key, object in pairs(Table) do
+    if Key then
+      if Object[Key]==object[Key] then
+        return true
+      end
+    else
+      if object==Object then
+        return true
+      end
+    end
+  end
+
+  return false
+end
+
+--- Check if any object of multiple given objects is contained in a table.
+-- @param #table Table The table.
+-- @param #table Objects The objects to check.
+-- @param #string Key (Optional) Key to check.
+-- @return #booolen Returns `true` if object is in table.
+function UTILS.IsAnyInTable(Table, Objects, Key)
+
+  for _,Object in pairs(UTILS.EnsureTable(Objects)) do
+
+    for key, object in pairs(Table) do
+      if Key then
+        if Object[Key]==object[Key] then
+          return true
+        end
+      else
+        if object==Object then
+          return true
+        end
+      end
+    end
+    
+  end
+
+  return false
+end
+
+--- Helper function to plot a racetrack on the F10 Map - curtesy of Buur.
+-- @param Core.Point#COORDINATE Coordinate
+-- @param #number Altitude Altitude in feet
+-- @param #number Speed Speed in knots
+-- @param #number Heading Heading in degrees
+-- @param #number Leg Leg in NM
+-- @param #number Coalition Coalition side, e.g. coaltion.side.RED or coaltion.side.BLUE
+-- @param #table Color Color of the line in RGB, e.g. {1,0,0} for red
+-- @param #number Alpha Transparency factor, between 0.1 and 1
+-- @param #number LineType Line type to be used, line type: 0=No line, 1=Solid, 2=Dashed, 3=Dotted, 4=Dot dash, 5=Long dash, 6=Two dash. Default 1=Solid.
+-- @param #boolean ReadOnly 
+function UTILS.PlotRacetrack(Coordinate, Altitude, Speed, Heading, Leg, Coalition, Color, Alpha, LineType, ReadOnly)
+    local fix_coordinate = Coordinate
+    local altitude = Altitude
+    local speed = Speed or 350
+    local heading = Heading or 270
+    local leg_distance = Leg or 10
+    
+    local coalition = Coalition or -1
+    local color = Color or {1,0,0}
+    local alpha = Alpha or 1
+    local lineType = LineType or 1
+    
+    
+    speed = UTILS.IasToTas(speed, UTILS.FeetToMeters(altitude), oatcorr)
+      
+    local turn_radius = 0.0211 * speed -3.01
+    
+    local point_two = fix_coordinate:Translate(UTILS.NMToMeters(leg_distance), heading, true, false)
+    local point_three = point_two:Translate(UTILS.NMToMeters(turn_radius)*2, heading - 90, true, false)
+    local point_four = fix_coordinate:Translate(UTILS.NMToMeters(turn_radius)*2, heading - 90, true, false)
+    local circle_center_fix_four = point_two:Translate(UTILS.NMToMeters(turn_radius), heading - 90, true, false)
+    local circle_center_two_three = fix_coordinate:Translate(UTILS.NMToMeters(turn_radius), heading - 90, true, false)
+    
+
+    fix_coordinate:LineToAll(point_two, coalition, color, alpha, lineType)
+    point_four:LineToAll(point_three, coalition, color, alpha, lineType)
+    circle_center_fix_four:CircleToAll(UTILS.NMToMeters(turn_radius), coalition, color, alpha, nil, 0, lineType)--, ReadOnly, Text)
+    circle_center_two_three:CircleToAll(UTILS.NMToMeters(turn_radius), coalition, color, alpha, nil, 0, lineType)--, ReadOnly, Text)
+
 end

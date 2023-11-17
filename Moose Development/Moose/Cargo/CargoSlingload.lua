@@ -1,4 +1,4 @@
---- **Cargo** -- Management of single cargo crates, which are based on a @{Static} object. The cargo can only be slingloaded.
+--- **Cargo** - Management of single cargo crates, which are based on a STATIC object. The cargo can only be slingloaded.
 --
 -- ===
 -- 
@@ -29,7 +29,12 @@ do -- CARGO_SLINGLOAD
   -- 
   --   * @{Tasking.Task_Cargo_Transport#TASK_CARGO_TRANSPORT} to transport cargo by human players.
   --   * @{Tasking.Task_Cargo_Transport#TASK_CARGO_CSAR} to transport downed pilots by human players.
+  --
+  -- # Developer Note
   -- 
+  -- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+  -- Therefore, this class is considered to be deprecated
+  --
   -- ===
   -- 
   -- @field #CARGO_SLINGLOAD

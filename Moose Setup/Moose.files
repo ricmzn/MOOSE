@@ -1,11 +1,11 @@
 Utilities/Enums.lua
-Utilities/Routines.lua
 Utilities/Utils.lua
 Utilities/Enums.lua
 Utilities/Profiler.lua
 Utilities/Templates.lua
 Utilities/STTS.lua
 Utilities/FiFo.lua
+Utilities/Socket.lua
 
 Core/Base.lua
 Core/Beacon.lua
@@ -29,6 +29,11 @@ Core/SpawnStatic.lua
 Core/Timer.lua
 Core/Goal.lua
 Core/Spot.lua
+Core/MarkerOps_Base.lua
+Core/Astar.lua
+Core/Condition.lua
+Core/TextAndSound.lua
+Core/Pathline.lua
 
 Wrapper/Object.lua
 Wrapper/Identifiable.lua
@@ -41,6 +46,9 @@ Wrapper/Static.lua
 Wrapper/Airbase.lua
 Wrapper/Scenery.lua
 Wrapper/Marker.lua
+Wrapper/Weapon.lua
+Wrapper/Net.lua
+Wrapper/Storage.lua
 
 Cargo/Cargo.lua
 Cargo/CargoUnit.lua

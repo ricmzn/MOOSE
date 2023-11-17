@@ -1,4 +1,4 @@
---- **Functional** - Administer the scoring of player achievements, and create a CSV file logging the scoring events for use at team or squadron websites.
+--- **Functional** - Administer the scoring of player achievements, file and log the scoring events for use at websites.
 --
 -- ===
 --
@@ -12,7 +12,7 @@
 --   * Score the hits and destroys of units.
 --   * Score the hits and destroys of statics.
 --   * Score the hits and destroys of scenery.
---   * Log scores into a CSV file.
+--   * (optional) Log scores into a CSV file.
 --   * Connect to a remote server using JSON and IP.
 --
 -- ===
@@ -27,7 +27,7 @@
 -- and creates a CSV file logging the scoring events and results for use at team or squadron websites.
 --
 -- SCORING automatically calculates the threat level of the objects hit and destroyed by players,
--- which can be @{Wrapper.Unit}, @{Static) and @{Scenery} objects.
+-- which can be @{Wrapper.Unit}, @{Wrapper.Static) and @{Scenery} objects.
 --
 -- Positive score points are granted when enemy or neutral targets are destroyed.
 -- Negative score points or penalties are given when a friendly target is hit or destroyed.
@@ -59,7 +59,7 @@
 --
 -- ![Banner Image](..\Presentations\SCORING\Dia9.JPG)
 --
--- Various @{Zone}s can be defined for which scores are also granted when objects in that @{Zone} are destroyed.
+-- Various @{Core.Zone}s can be defined for which scores are also granted when objects in that @{Core.Zone} are destroyed.
 -- This is **specifically useful** to designate **scenery targets on the map** that will generate points when destroyed.
 --
 -- With a small change in MissionScripting.lua, the scoring results can also be logged in a **CSV file**.
@@ -81,7 +81,7 @@
 --
 --   * **Wingthor (TAW)**: Testing & Advice.
 --   * **Dutch-Baron (TAW)**: Testing & Advice.
---   * **[Whisper](http://forums.eagle.ru/member.php?u=3829): Testing and Advice.
+--   * **Whisper**: Testing and Advice.
 --
 -- ===
 --
@@ -115,7 +115,7 @@
 --
 -- Special targets can be set that will give extra scores to the players when these are destroyed.
 -- Use the methods @{#SCORING.AddUnitScore}() and @{#SCORING.RemoveUnitScore}() to specify a special additional score for a specific @{Wrapper.Unit}s.
--- Use the methods @{#SCORING.AddStaticScore}() and @{#SCORING.RemoveStaticScore}() to specify a special additional score for a specific @{Static}s.
+-- Use the methods @{#SCORING.AddStaticScore}() and @{#SCORING.RemoveStaticScore}() to specify a special additional score for a specific @{Wrapper.Static}s.
 -- Use the method @{#SCORING.SetGroupGroup}() to specify a special additional score for a specific @{Wrapper.Group}s.
 --
 --      local Scoring = SCORING:New( "Scoring File" )
@@ -131,11 +131,11 @@
 -- # Define destruction zones that will give extra scores:
 --
 -- Define zones of destruction. Any object destroyed within the zone of the given category will give extra points.
--- Use the method @{#SCORING.AddZoneScore}() to add a @{Zone} for additional scoring.
--- Use the method @{#SCORING.RemoveZoneScore}() to remove a @{Zone} for additional scoring.
--- There are interesting variations that can be achieved with this functionality. For example, if the @{Zone} is a @{Core.Zone#ZONE_UNIT},
--- then the zone is a moving zone, and anything destroyed within that @{Zone} will generate points.
--- The other implementation could be to designate a scenery target (a building) in the mission editor surrounded by a @{Zone},
+-- Use the method @{#SCORING.AddZoneScore}() to add a @{Core.Zone} for additional scoring.
+-- Use the method @{#SCORING.RemoveZoneScore}() to remove a @{Core.Zone} for additional scoring.
+-- There are interesting variations that can be achieved with this functionality. For example, if the @{Core.Zone} is a @{Core.Zone#ZONE_UNIT},
+-- then the zone is a moving zone, and anything destroyed within that @{Core.Zone} will generate points.
+-- The other implementation could be to designate a scenery target (a building) in the mission editor surrounded by a @{Core.Zone},
 -- just large enough around that building.
 --
 -- # Add extra Goal scores upon an event or a condition:
@@ -225,6 +225,8 @@ SCORING = {
   ClassName = "SCORING",
   ClassID = 0,
   Players = {},
+  AutoSave = true,
+  version = "1.17.1"
 }
 
 local _SCORINGCoalition = {
@@ -280,11 +282,11 @@ function SCORING:New( GameName )
   -- Default fratricide penalty level (maximum penalty that can be assigned to a player before he gets kicked).
   self:SetFratricide( self.ScaleDestroyPenalty * 3 )
   self.penaltyonfratricide = true
-
+  
   -- Default penalty when a player changes coalition.
   self:SetCoalitionChangePenalty( self.ScaleDestroyPenalty )
   self.penaltyoncoalitionchange = true
-
+  
   self:SetDisplayMessagePrefix()
 
   -- Event handlers  
@@ -306,6 +308,7 @@ function SCORING:New( GameName )
   end )
 
   -- Create the CSV file.
+  self.AutoSave = true
   self:OpenCSV( GameName )
 
   return self
@@ -373,11 +376,11 @@ function SCORING:RemoveUnitScore( ScoreUnit )
   return self
 end
 
---- Add a @{Static} for additional scoring when the @{Static} is destroyed.
--- Note that if there was already a @{Static} declared within the scoring with the same name,
--- then the old @{Static}  will be replaced with the new @{Static}.
+--- Add a @{Wrapper.Static} for additional scoring when the @{Wrapper.Static} is destroyed.
+-- Note that if there was already a @{Wrapper.Static} declared within the scoring with the same name,
+-- then the old @{Wrapper.Static}  will be replaced with the new @{Wrapper.Static}.
 -- @param #SCORING self
--- @param Wrapper.Static#UNIT ScoreStatic The @{Static} for which the Score needs to be given.
+-- @param Wrapper.Static#UNIT ScoreStatic The @{Wrapper.Static} for which the Score needs to be given.
 -- @param #number Score The Score value.
 -- @return #SCORING
 function SCORING:AddStaticScore( ScoreStatic, Score )
@@ -389,9 +392,9 @@ function SCORING:AddStaticScore( ScoreStatic, Score )
   return self
 end
 
---- Removes a @{Static} for additional scoring when the @{Static} is destroyed.
+--- Removes a @{Wrapper.Static} for additional scoring when the @{Wrapper.Static} is destroyed.
 -- @param #SCORING self
--- @param Wrapper.Static#UNIT ScoreStatic The @{Static} for which the Score needs to be given.
+-- @param Wrapper.Static#UNIT ScoreStatic The @{Wrapper.Static} for which the Score needs to be given.
 -- @return #SCORING
 function SCORING:RemoveStaticScore( ScoreStatic )
 
@@ -419,11 +422,11 @@ function SCORING:AddScoreGroup( ScoreGroup, Score )
   return self
 end
 
---- Add a @{Zone} to define additional scoring when any object is destroyed in that zone.
--- Note that if a @{Zone} with the same name is already within the scoring added, the @{Zone} (type) and Score will be replaced!
+--- Add a @{Core.Zone} to define additional scoring when any object is destroyed in that zone.
+-- Note that if a @{Core.Zone} with the same name is already within the scoring added, the @{Core.Zone} (type) and Score will be replaced!
 -- This allows for a dynamic destruction zone evolution within your mission.
 -- @param #SCORING self
--- @param Core.Zone#ZONE_BASE ScoreZone The @{Zone} which defines the destruction score perimeters.
+-- @param Core.Zone#ZONE_BASE ScoreZone The @{Core.Zone} which defines the destruction score perimeters.
 -- Note that a zone can be a polygon or a moving zone.
 -- @param #number Score The Score value.
 -- @return #SCORING
@@ -438,11 +441,11 @@ function SCORING:AddZoneScore( ScoreZone, Score )
   return self
 end
 
---- Remove a @{Zone} for additional scoring.
--- The scoring will search if any @{Zone} is added with the given name, and will remove that zone from the scoring.
+--- Remove a @{Core.Zone} for additional scoring.
+-- The scoring will search if any @{Core.Zone} is added with the given name, and will remove that zone from the scoring.
 -- This allows for a dynamic destruction zone evolution within your mission.
 -- @param #SCORING self
--- @param Core.Zone#ZONE_BASE ScoreZone The @{Zone} which defines the destruction score perimeters.
+-- @param Core.Zone#ZONE_BASE ScoreZone The @{Core.Zone} which defines the destruction score perimeters.
 -- Note that a zone can be a polygon or a moving zone.
 -- @return #SCORING
 function SCORING:RemoveZoneScore( ScoreZone )
@@ -656,11 +659,12 @@ function SCORING:_AddPlayerFromUnit( UnitData )
       if self.Players[PlayerName].UnitCoalition ~= UnitCoalition and self.penaltyoncoalitionchange then
         self.Players[PlayerName].Penalty = self.Players[PlayerName].Penalty + self.CoalitionChangePenalty or 50
         self.Players[PlayerName].PenaltyCoalition = self.Players[PlayerName].PenaltyCoalition + 1
-        MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. PlayerName .. "' changed coalition from " .. _SCORINGCoalition[self.Players[PlayerName].UnitCoalition] .. " to " .. _SCORINGCoalition[UnitCoalition] .. "(changed " .. self.Players[PlayerName].PenaltyCoalition .. " times the coalition). " ..
-                         self.CoalitionChangePenalty .. "Penalty points added.",
-                         MESSAGE.Type.Information )
-               :ToAll()
-        self:ScoreCSV( PlayerName, "", "COALITION_PENALTY", 1, -1 * self.CoalitionChangePenalty, self.Players[PlayerName].UnitName, _SCORINGCoalition[self.Players[PlayerName].UnitCoalition], _SCORINGCategory[self.Players[PlayerName].UnitCategory], self.Players[PlayerName].UnitType, UnitName, _SCORINGCoalition[UnitCoalition], _SCORINGCategory[UnitCategory], UnitData:GetTypeName() )
+        MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. PlayerName .. "' changed coalition from " .. _SCORINGCoalition[self.Players[PlayerName].UnitCoalition] .. " to " .. _SCORINGCoalition[UnitCoalition] ..
+          "(changed " .. self.Players[PlayerName].PenaltyCoalition .. " times the coalition). ".. self.CoalitionChangePenalty .." penalty points added.",
+          MESSAGE.Type.Information
+        ):ToAll()
+        self:ScoreCSV( PlayerName, "", "COALITION_PENALTY",  1, -1*self.CoalitionChangePenalty, self.Players[PlayerName].UnitName, _SCORINGCoalition[self.Players[PlayerName].UnitCoalition], _SCORINGCategory[self.Players[PlayerName].UnitCategory], self.Players[PlayerName].UnitType,
+          UnitName, _SCORINGCoalition[UnitCoalition], _SCORINGCategory[UnitCategory], UnitData:GetTypeName() )
       end
     end
 
@@ -671,7 +675,7 @@ function SCORING:_AddPlayerFromUnit( UnitData )
     self.Players[PlayerName].UNIT = UnitData
     self.Players[PlayerName].ThreatLevel = UnitThreatLevel
     self.Players[PlayerName].ThreatType = UnitThreatType
-
+    
     -- TODO: make fratricide switchable
     if self.Players[PlayerName].Penalty > self.Fratricide * 0.50 and self.penaltyonfratricide then
       if self.Players[PlayerName].PenaltyWarning < 1 then
@@ -712,11 +716,11 @@ function SCORING:AddGoalScorePlayer( PlayerName, GoalTag, Text, Score )
     PlayerData.Goals[GoalTag] = PlayerData.Goals[GoalTag] or { Score = 0 }
     PlayerData.Goals[GoalTag].Score = PlayerData.Goals[GoalTag].Score + Score
     PlayerData.Score = PlayerData.Score + Score
-
-    MESSAGE:NewType( self.DisplayMessagePrefix .. Text,
-                     MESSAGE.Type.Information )
-           :ToAll()
-
+    if Text then
+      MESSAGE:NewType( self.DisplayMessagePrefix .. Text,
+                       MESSAGE.Type.Information )
+             :ToAll()
+    end
     self:ScoreCSV( PlayerName, "", "GOAL_" .. string.upper( GoalTag ), 1, Score, nil )
   end
 end
@@ -735,7 +739,7 @@ function SCORING:AddGoalScore( PlayerUnit, GoalTag, Text, Score )
 
   local PlayerName = PlayerUnit:GetPlayerName()
 
-  self:F( { PlayerUnit.UnitName, PlayerName, GoalTag, Text, Score } )
+  self:T2( { PlayerUnit.UnitName, PlayerName, GoalTag, Text, Score } )
 
   -- PlayerName can be nil, if the Unit with the player crashed or due to another reason.
   if PlayerName then
@@ -744,11 +748,12 @@ function SCORING:AddGoalScore( PlayerUnit, GoalTag, Text, Score )
     PlayerData.Goals[GoalTag] = PlayerData.Goals[GoalTag] or { Score = 0 }
     PlayerData.Goals[GoalTag].Score = PlayerData.Goals[GoalTag].Score + Score
     PlayerData.Score = PlayerData.Score + Score
-
-    MESSAGE:NewType( self.DisplayMessagePrefix .. Text,
+    
+    if Text then
+      MESSAGE:NewType( self.DisplayMessagePrefix .. Text,
                      MESSAGE.Type.Information )
            :ToAll()
-
+    end
     self:ScoreCSV( PlayerName, "", "GOAL_" .. string.upper( GoalTag ), 1, Score, PlayerUnit:GetName() )
   end
 end
@@ -781,11 +786,12 @@ function SCORING:_AddMissionTaskScore( Mission, PlayerUnit, Text, Score )
 
     PlayerData.Score = self.Players[PlayerName].Score + Score
     PlayerData.Mission[MissionName].ScoreTask = self.Players[PlayerName].Mission[MissionName].ScoreTask + Score
-
-    MESSAGE:NewType( self.DisplayMessagePrefix .. Mission:GetText() .. " : " .. Text .. " Score: " .. Score,
-                     MESSAGE.Type.Information )
-           :ToAll()
-
+    
+    if Text then
+      MESSAGE:NewType( self.DisplayMessagePrefix .. Mission:GetText() .. " : " .. Text .. " Score: " .. Score,
+                       MESSAGE.Type.Information )
+             :ToAll()
+    end
     self:ScoreCSV( PlayerName, "", "TASK_" .. MissionName:gsub( ' ', '_' ), 1, Score, PlayerUnit:GetName() )
   end
 end
@@ -817,9 +823,11 @@ function SCORING:_AddMissionGoalScore( Mission, PlayerName, Text, Score )
 
     PlayerData.Score = self.Players[PlayerName].Score + Score
     PlayerData.Mission[MissionName].ScoreTask = self.Players[PlayerName].Mission[MissionName].ScoreTask + Score
-
-    MESSAGE:NewType( string.format( "%s%s: %s! Player %s receives %d score!", self.DisplayMessagePrefix, Mission:GetText(), Text, PlayerName, Score ), MESSAGE.Type.Information ):ToAll()
-
+    
+    if Text then  
+      MESSAGE:NewType( string.format( "%s%s: %s! Player %s receives %d score!", self.DisplayMessagePrefix, Mission:GetText(), Text, PlayerName, Score ), MESSAGE.Type.Information ):ToAll()
+    end
+    
     self:ScoreCSV( PlayerName, "", "TASK_" .. MissionName:gsub( ' ', '_' ), 1, Score )
   end
 end
@@ -844,11 +852,12 @@ function SCORING:_AddMissionScore( Mission, Text, Score )
 
       PlayerData.Score = PlayerData.Score + Score
       PlayerData.Mission[MissionName].ScoreMission = PlayerData.Mission[MissionName].ScoreMission + Score
-
-      MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. PlayerName .. "' has " .. Text .. " in " .. Mission:GetText() .. ". " .. Score .. " mission score!",
+      
+      if Text then
+        MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. PlayerName .. "' has " .. Text .. " in " .. Mission:GetText() .. ". " .. Score .. " mission score!",
                        MESSAGE.Type.Information )
              :ToAll()
-
+      end
       self:ScoreCSV( PlayerName, "", "MISSION_" .. MissionName:gsub( ' ', '_' ), 1, Score )
     end
   end
@@ -870,8 +879,10 @@ end
 function SCORING:OnEventBirth( Event )
 
   if Event.IniUnit then
+    Event.IniUnit.ThreatLevel, Event.IniUnit.ThreatType = Event.IniUnit:GetThreatLevel()
     if Event.IniObjectCategory == 1 then
       local PlayerName = Event.IniUnit:GetPlayerName()
+      Event.IniUnit.BirthTime = timer.getTime()
       if PlayerName then
         self:_AddPlayerFromUnit( Event.IniUnit )
         self:SetScoringMenu( Event.IniGroup )
@@ -1002,7 +1013,18 @@ function SCORING:_EventOnHit( Event )
         PlayerHit.PenaltyHit = PlayerHit.PenaltyHit or 0
         PlayerHit.TimeStamp = PlayerHit.TimeStamp or 0
         PlayerHit.UNIT = PlayerHit.UNIT or TargetUNIT
+        -- After an instant kill we can't compute the thread level anymore. To fix this we compute at OnEventBirth
+        if PlayerHit.UNIT.ThreatType == nil then
         PlayerHit.ThreatLevel, PlayerHit.ThreatType = PlayerHit.UNIT:GetThreatLevel()
+          -- if this fails for some reason, set a good default value
+          if PlayerHit.ThreatType == nil then
+            PlayerHit.ThreatLevel = 1
+            PlayerHit.ThreatType = "Unknown"
+          end
+        else
+          PlayerHit.ThreatLevel = PlayerHit.UNIT.ThreatLevel
+          PlayerHit.ThreatType = PlayerHit.UNIT.ThreatType
+        end
 
         -- Only grant hit scores if there was more than one second between the last hit.        
         if timer.getTime() - PlayerHit.TimeStamp > 1 then
@@ -1018,27 +1040,30 @@ function SCORING:_EventOnHit( Event )
 
           if InitCoalition then -- A coalition object was hit.
             if InitCoalition == TargetCoalition then
-              Player.Penalty = Player.Penalty + 10
-              PlayerHit.Penalty = PlayerHit.Penalty + 10
+              local Penalty = 10
+              Player.Penalty = Player.Penalty + Penalty
+              PlayerHit.Penalty = PlayerHit.Penalty + Penalty
               PlayerHit.PenaltyHit = PlayerHit.PenaltyHit + 1
 
               if TargetPlayerName ~= nil then -- It is a player hitting another player ...
                 MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. InitPlayerName .. "' hit friendly player '" .. TargetPlayerName .. "' " .. TargetUnitCategory .. " ( " .. TargetType .. " ) " .. PlayerHit.PenaltyHit .. " times. " ..
-                                 "Penalty: -" .. PlayerHit.Penalty .. ".  Score Total:" .. Player.Score - Player.Penalty,
+                                 "Penalty: -" .. Penalty .. ".  Score Total:" .. Player.Score - Player.Penalty,
                                  MESSAGE.Type.Update )
                        :ToAllIf( self:IfMessagesHit() and self:IfMessagesToAll() )
                        :ToCoalitionIf( InitCoalition, self:IfMessagesHit() and self:IfMessagesToCoalition() )
               else
                 MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. InitPlayerName .. "' hit friendly target " .. TargetUnitCategory .. " ( " .. TargetType .. " ) " .. PlayerHit.PenaltyHit .. " times. " ..
-                                 "Penalty: -" .. PlayerHit.Penalty .. ".  Score Total:" .. Player.Score - Player.Penalty,
+                                 "Penalty: -" .. Penalty .. ".  Score Total:" .. Player.Score - Player.Penalty,
                                  MESSAGE.Type.Update )
                       :ToAllIf( self:IfMessagesHit() and self:IfMessagesToAll() )
                       :ToCoalitionIf( InitCoalition, self:IfMessagesHit() and self:IfMessagesToCoalition() )
               end
               self:ScoreCSV( InitPlayerName, TargetPlayerName, "HIT_PENALTY", 1, -10, InitUnitName, InitUnitCoalition, InitUnitCategory, InitUnitType, TargetUnitName, TargetUnitCoalition, TargetUnitCategory, TargetUnitType )
             else
-              Player.Score = Player.Score + 1
-              PlayerHit.Score = PlayerHit.Score + 1
+              -- Hitting a target multiple times before destoying it should not result in a higger score
+              -- Multiple hits is typically a results of bombs/missles missing their target but still inflict some spash damage
+              -- Player.Score = Player.Score + 1
+              -- PlayerHit.Score = PlayerHit.Score + 1
               PlayerHit.ScoreHit = PlayerHit.ScoreHit + 1
               if TargetPlayerName ~= nil then -- It is a player hitting another player ...
                 MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. InitPlayerName .. "' hit enemy player '" .. TargetPlayerName .. "' " .. TargetUnitCategory .. " ( " .. TargetType .. " ) " .. PlayerHit.ScoreHit .. " times. " ..
@@ -1101,7 +1126,18 @@ function SCORING:_EventOnHit( Event )
         PlayerHit.PenaltyHit = PlayerHit.PenaltyHit or 0
         PlayerHit.TimeStamp = PlayerHit.TimeStamp or 0
         PlayerHit.UNIT = PlayerHit.UNIT or TargetUNIT
+        -- After an instant kill we can't compute the thread level anymore. To fix this we compute at OnEventBirth
+        if PlayerHit.UNIT.ThreatType == nil then
         PlayerHit.ThreatLevel, PlayerHit.ThreatType = PlayerHit.UNIT:GetThreatLevel()
+          -- if this fails for some reason, set a good default value
+          if PlayerHit.ThreatType == nil then
+            PlayerHit.ThreatLevel = 1
+            PlayerHit.ThreatType = "Unknown"
+          end
+        else
+          PlayerHit.ThreatLevel = PlayerHit.UNIT.ThreatLevel
+          PlayerHit.ThreatType = PlayerHit.UNIT.ThreatType
+        end
 
         -- Only grant hit scores if there was more than one second between the last hit.        
         if timer.getTime() - PlayerHit.TimeStamp > 1 then
@@ -1112,23 +1148,28 @@ function SCORING:_EventOnHit( Event )
           if InitCoalition then -- A coalition object was hit, probably a static.
             if InitCoalition == TargetCoalition then
               -- TODO: Penalty according scale
-              Player.Penalty = Player.Penalty + 10 -- * self.ScaleDestroyPenalty
-              PlayerHit.Penalty = PlayerHit.Penalty + 10 -- * self.ScaleDestroyPenalty
+              local Penalty = 10
+              Player.Penalty = Player.Penalty + Penalty --* self.ScaleDestroyPenalty
+              PlayerHit.Penalty = PlayerHit.Penalty + Penalty --* self.ScaleDestroyPenalty
               PlayerHit.PenaltyHit = PlayerHit.PenaltyHit + 1 * self.ScaleDestroyPenalty
-
-              MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. Event.WeaponPlayerName .. "' hit friendly target " .. TargetUnitCategory .. " ( " .. TargetType .. " ) " ..
-                               "Penalty: -" .. PlayerHit.Penalty .. " = " .. Player.Score - Player.Penalty,
-                               MESSAGE.Type.Update )
-                     :ToAllIf( self:IfMessagesHit() and self:IfMessagesToAll() )
-                     :ToCoalitionIf( Event.WeaponCoalition, self:IfMessagesHit() and self:IfMessagesToCoalition() )
-
+      
+              MESSAGE
+                :NewType( self.DisplayMessagePrefix .. "Player '" .. Event.WeaponPlayerName .. "' hit friendly target " .. 
+                      TargetUnitCategory .. " ( " .. TargetType .. " ) " .. 
+                      "Penalty: -" .. Penalty .. " = " .. Player.Score - Player.Penalty,
+                      MESSAGE.Type.Update
+                    )
+                :ToAllIf( self:IfMessagesHit() and self:IfMessagesToAll() )
+                :ToCoalitionIf( Event.WeaponCoalition, self:IfMessagesHit() and self:IfMessagesToCoalition() )
               self:ScoreCSV( Event.WeaponPlayerName, TargetPlayerName, "HIT_PENALTY", 1, -10, Event.WeaponName, Event.WeaponCoalition, Event.WeaponCategory, Event.WeaponTypeName, TargetUnitName, TargetUnitCoalition, TargetUnitCategory, TargetUnitType )
             else
-              Player.Score = Player.Score + 1
-              PlayerHit.Score = PlayerHit.Score + 1
+              -- Hitting a target multiple times before destoying it should not result in a higger score
+              -- Multiple hits is typically a results of bombs/missles missing their target but still inflict some spash damage
+              -- Player.Score = Player.Score + 1
+              -- PlayerHit.Score = PlayerHit.Score + 1
               PlayerHit.ScoreHit = PlayerHit.ScoreHit + 1
               MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. Event.WeaponPlayerName .. "' hit enemy target " .. TargetUnitCategory .. " ( " .. TargetType .. " ) " ..
-                               "Score: +" .. PlayerHit.Score .. " = " .. Player.Score - Player.Penalty,
+                               "Score: " .. PlayerHit.Score .. ".  Score Total:" .. Player.Score - Player.Penalty,
                                MESSAGE.Type.Update )
                      :ToAllIf( self:IfMessagesHit() and self:IfMessagesToAll() )
                      :ToCoalitionIf( Event.WeaponCoalition, self:IfMessagesHit() and self:IfMessagesToCoalition() )
@@ -1206,7 +1247,7 @@ function SCORING:_EventOnDeadOrCrash( Event )
       local Destroyed = false
 
       -- What is the player destroying?
-      if Player and Player.Hit and Player.Hit[TargetCategory] and Player.Hit[TargetCategory][TargetUnitName] and Player.Hit[TargetCategory][TargetUnitName].TimeStamp ~= 0 then -- Was there a hit for this unit for this player before registered???
+      if Player and Player.Hit and Player.Hit[TargetCategory] and Player.Hit[TargetCategory][TargetUnitName] and Player.Hit[TargetCategory][TargetUnitName].TimeStamp ~= 0 and (TargetUnit.BirthTime == nil or Player.Hit[TargetCategory][TargetUnitName].TimeStamp > TargetUnit.BirthTime) then -- Was there a hit for this unit for this player before registered???
 
         local TargetThreatLevel = Player.Hit[TargetCategory][TargetUnitName].ThreatLevel
         local TargetThreatType = Player.Hit[TargetCategory][TargetUnitName].ThreatType
@@ -1235,13 +1276,13 @@ function SCORING:_EventOnDeadOrCrash( Event )
 
             if Player.HitPlayers[TargetPlayerName] then -- A player destroyed another player
               MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. PlayerName .. "' destroyed friendly player '" .. TargetPlayerName .. "' " .. TargetUnitCategory .. " ( " .. ThreatTypeTarget .. " ) " ..
-                               "Penalty: -" .. TargetDestroy.Penalty .. " = " .. Player.Score - Player.Penalty,
+                               "Penalty: -" .. ThreatPenalty .. " = " .. Player.Score - Player.Penalty,
                                MESSAGE.Type.Information )
                      :ToAllIf( self:IfMessagesDestroy() and self:IfMessagesToAll() )
                      :ToCoalitionIf( InitCoalition, self:IfMessagesDestroy() and self:IfMessagesToCoalition() )
             else
               MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. PlayerName .. "' destroyed friendly target " .. TargetUnitCategory .. " ( " .. ThreatTypeTarget .. " ) " ..
-                               "Penalty: -" .. TargetDestroy.Penalty .. " = " .. Player.Score - Player.Penalty,
+                               "Penalty: -" .. ThreatPenalty .. " = " .. Player.Score - Player.Penalty,
                                MESSAGE.Type.Information )
                      :ToAllIf( self:IfMessagesDestroy() and self:IfMessagesToAll() )
                      :ToCoalitionIf( InitCoalition, self:IfMessagesDestroy() and self:IfMessagesToCoalition() )
@@ -1263,13 +1304,13 @@ function SCORING:_EventOnDeadOrCrash( Event )
             TargetDestroy.ScoreDestroy = TargetDestroy.ScoreDestroy + 1
             if Player.HitPlayers[TargetPlayerName] then -- A player destroyed another player
               MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. PlayerName .. "' destroyed enemy player '" .. TargetPlayerName .. "' " .. TargetUnitCategory .. " ( " .. ThreatTypeTarget .. " ) " ..
-                               "Score: +" .. TargetDestroy.Score .. " = " .. Player.Score - Player.Penalty,
+                               "Score: +" .. ThreatScore .. " = " .. Player.Score - Player.Penalty,
                                MESSAGE.Type.Information )
                      :ToAllIf( self:IfMessagesDestroy() and self:IfMessagesToAll() )
                      :ToCoalitionIf( InitCoalition, self:IfMessagesDestroy() and self:IfMessagesToCoalition() )
             else
               MESSAGE:NewType( self.DisplayMessagePrefix .. "Player '" .. PlayerName .. "' destroyed enemy " .. TargetUnitCategory .. " ( " .. ThreatTypeTarget .. " ) " ..
-                               "Score: +" .. TargetDestroy.Score .. " = " .. Player.Score - Player.Penalty,
+                               "Score: +" .. ThreatScore .. " = " .. Player.Score - Player.Penalty,
                                MESSAGE.Type.Information )
                      :ToAllIf( self:IfMessagesDestroy() and self:IfMessagesToAll() )
                      :ToCoalitionIf( InitCoalition, self:IfMessagesDestroy() and self:IfMessagesToCoalition() )
@@ -1380,7 +1421,7 @@ function SCORING:ReportDetailedPlayerHits( PlayerName )
           Penalty = Penalty + UnitData.Penalty
           PenaltyHit = UnitData.PenaltyHit
         end
-        local ScoreMessageHit = string.format( "%s:%d  ", CategoryName, Score - Penalty )
+        local ScoreMessageHit = string.format( "%s: %d  ", CategoryName, Score - Penalty )
         self:T( ScoreMessageHit )
         ScoreMessageHits = ScoreMessageHits .. ScoreMessageHit
         PlayerScore = PlayerScore + Score
@@ -1436,7 +1477,7 @@ function SCORING:ReportDetailedPlayerDestroys( PlayerName )
           end
         end
 
-        local ScoreMessageDestroy = string.format( "  %s:%d  ", CategoryName, Score - Penalty )
+        local ScoreMessageDestroy = string.format( "  %s: %d  ", CategoryName, Score - Penalty )
         self:T( ScoreMessageDestroy )
         ScoreMessageDestroys = ScoreMessageDestroys .. ScoreMessageDestroy
 
@@ -1651,18 +1692,19 @@ function SCORING:ReportScoreGroupDetailed( PlayerGroup )
 
       local PlayerScore = ScoreHits + ScoreDestroys + ScoreCoalitionChanges + ScoreGoals + ScoreMissions
       local PlayerPenalty = PenaltyHits + PenaltyDestroys + PenaltyCoalitionChanges + PenaltyGoals + PenaltyMissions
-
-      PlayerMessage = string.format( "Player '%s' Score = %d ( %d Score, -%d Penalties )%s%s%s%s%s",
-                                     PlayerName,
-                                     PlayerScore - PlayerPenalty,
-                                     PlayerScore,
-                                     PlayerPenalty,
-                                     ReportHits,
-                                     ReportDestroys,
-                                     ReportCoalitionChanges,
-                                     ReportGoals,
-                                     ReportMissions
-                                    )
+  
+      PlayerMessage = 
+        string.format( "Player '%s' Score = %d ( %d Score, -%d Penalties )%s%s%s%s%s", 
+                       PlayerName, 
+                       PlayerScore - PlayerPenalty, 
+                       PlayerScore, 
+                       PlayerPenalty, 
+                       ReportHits,
+                       ReportDestroys,
+                       ReportCoalitionChanges,
+                       ReportGoals,
+                       ReportMissions
+                     )
       MESSAGE:NewType( PlayerMessage, MESSAGE.Type.Detailed ):ToGroup( PlayerGroup )
     end
   end
@@ -1706,13 +1748,14 @@ function SCORING:ReportScoreAllSummary( PlayerGroup )
 
       local PlayerScore = ScoreHits + ScoreDestroys + ScoreCoalitionChanges + ScoreGoals + ScoreMissions
       local PlayerPenalty = PenaltyHits + PenaltyDestroys + PenaltyCoalitionChanges + PenaltyGoals + PenaltyMissions
-
-      PlayerMessage = string.format( "Player '%s' Score = %d ( %d Score, -%d Penalties )",
-                                     PlayerName,
-                                     PlayerScore - PlayerPenalty,
-                                     PlayerScore,
-                                     PlayerPenalty
-                                    )
+  
+      PlayerMessage = 
+        string.format( "Player '%s' Score = %d ( %d Score, -%d Penalties )", 
+                       PlayerName, 
+                       PlayerScore - PlayerPenalty, 
+                       PlayerScore, 
+                       PlayerPenalty 
+                     )
       MESSAGE:NewType( PlayerMessage, MESSAGE.Type.Overview ):ToGroup( PlayerGroup )
     end
   end
@@ -1725,9 +1768,9 @@ function SCORING:SecondsToClock( sSeconds )
     -- return nil;
     return "00:00:00";
   else
-    nHours = string.format( "%02.f", math.floor( nSeconds / 3600 ) );
-    nMins = string.format( "%02.f", math.floor( nSeconds / 60 - (nHours * 60) ) );
-    nSecs = string.format( "%02.f", math.floor( nSeconds - nHours * 3600 - nMins * 60 ) );
+    local nHours = string.format( "%02.f", math.floor( nSeconds / 3600 ) );
+    local nMins = string.format( "%02.f", math.floor( nSeconds / 60 - (nHours * 60) ) );
+    local nSecs = string.format( "%02.f", math.floor( nSeconds - nHours * 3600 - nMins * 60 ) );
     return nHours .. ":" .. nMins .. ":" .. nSecs
   end
 end
@@ -1743,7 +1786,7 @@ end
 function SCORING:OpenCSV( ScoringCSV )
   self:F( ScoringCSV )
 
-  if lfs and io and os then
+  if lfs and io and os and self.AutoSave then
     if ScoringCSV then
       self.ScoringCSV = ScoringCSV
       local fdir = lfs.writedir() .. [[Logs\]] .. self.ScoringCSV .. " " .. os.date( "%Y-%m-%d %H-%M-%S" ) .. ".csv"
@@ -1823,7 +1866,7 @@ function SCORING:ScoreCSV( PlayerName, TargetPlayerName, ScoreType, ScoreTimes, 
   TargetUnitType = TargetUnitType or ""
   TargetUnitName = TargetUnitName or ""
 
-  if lfs and io and os then
+  if lfs and io and os and self.AutoSave then
     self.CSVFile:write(
       '"' .. self.GameName        .. '"' .. ',' ..
       '"' .. self.RunTime         .. '"' .. ',' ..
@@ -1847,9 +1890,20 @@ function SCORING:ScoreCSV( PlayerName, TargetPlayerName, ScoreType, ScoreTimes, 
   end
 end
 
+--- Close CSV file
+-- @param #SCORING self
+-- @return #SCORING self
 function SCORING:CloseCSV()
-  if lfs and io and os then
+  if lfs and io and os and self.AutoSave then
     self.CSVFile:close()
   end
 end
 
+--- Registers a score for a player.
+-- @param #SCORING self
+-- @param #boolean OnOff Switch saving to CSV on = true or off = false
+-- @return #SCORING self
+function SCORING:SwitchAutoSave(OnOff)
+  self.AutoSave = OnOff
+  return self
+end

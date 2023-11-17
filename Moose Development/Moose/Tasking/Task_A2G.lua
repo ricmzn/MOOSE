@@ -18,7 +18,7 @@ do -- TASK_A2G
   -- @field Core.Set#SET_UNIT TargetSetUnit
   -- @extends Tasking.Task#TASK
 
-  --- The TASK_A2G class defines Air To Ground tasks for a @{Set} of Target Units,
+  --- The TASK_A2G class defines Air To Ground tasks for a @{Core.Set} of Target Units,
   -- based on the tasking capabilities defined in @{Tasking.Task#TASK}.
   -- The TASK_A2G is implemented using a @{Core.Fsm#FSM_TASK}, and has the following statuses:
   --
@@ -35,6 +35,11 @@ do -- TASK_A2G
   --   * @{#TASK_A2G.SetScoreOnDestroy}(): Set a score when a target in scope of the A2G attack, has been destroyed.
   --   * @{#TASK_A2G.SetScoreOnSuccess}(): Set a score when all the targets in scope of the A2G attack, have been destroyed.
   --   * @{#TASK_A2G.SetPenaltyOnFailed}(): Set a penalty when the A2G attack has failed.
+  --
+  -- # Developer Note
+  -- 
+  -- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+  -- Therefore, this class is considered to be deprecated
   --
   -- @field #TASK_A2G
   TASK_A2G = {

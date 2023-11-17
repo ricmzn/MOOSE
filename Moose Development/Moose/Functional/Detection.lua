@@ -1,4 +1,4 @@
---- **Functional** -- Models the detection of enemy units by FACs or RECCEs and group them according various methods.
+--- **Functional** - Models the detection of enemy units by FACs or RECCEs and group them according various methods.
 --
 -- ===
 --
@@ -40,7 +40,7 @@
 do -- DETECTION_BASE
 
   --- @type DETECTION_BASE
-  -- @field Core.Set#SET_GROUP DetectionSetGroup The @{Set} of GROUPs in the Forward Air Controller role.
+  -- @field Core.Set#SET_GROUP DetectionSetGroup The @{Core.Set} of GROUPs in the Forward Air Controller role.
   -- @field DCS#Distance DetectionRange The range till which targets are accepted to be detected.
   -- @field #DETECTION_BASE.DetectedObjects DetectedObjects The list of detected objects.
   -- @field #table DetectedObjectsIdentified Map of the DetectedObjects identified.
@@ -318,7 +318,7 @@ do -- DETECTION_BASE
 
   --- DETECTION constructor.
   -- @param #DETECTION_BASE self
-  -- @param Core.Set#SET_GROUP DetectionSet The @{Set} of @{Group}s that is used to detect the units.
+  -- @param Core.Set#SET_GROUP DetectionSet The @{Core.Set} of @{Wrapper.Group}s that is used to detect the units.
   -- @return #DETECTION_BASE self
   function DETECTION_BASE:New( DetectionSet )
 
@@ -474,7 +474,7 @@ do -- DETECTION_BASE
     -- @param #string From The From State string.
     -- @param #string Event The Event string.
     -- @param #string To The To State string.
-    -- @param #table DetectedItem The DetectedItem.
+    -- @param #DetectedItem DetectedItem The DetectedItem data structure.
 
     self:AddTransition( "*", "Stop", "Stopped" )
 
@@ -591,7 +591,7 @@ do -- DETECTION_BASE
     -- @param #string From The From State string.
     -- @param #string Event The Event string.
     -- @param #string To The To State string.
-    -- @param Wrapper.Group#GROUP DetectionGroup The Group detecting.
+    -- @param Wrapper.Group#GROUP Detection The Group detecting.
     -- @param #number DetectionTimeStamp Time stamp of detection event.
     function DETECTION_BASE:onafterDetection( From, Event, To, Detection, DetectionTimeStamp )
 
@@ -648,134 +648,132 @@ do -- DETECTION_BASE
             -- self:T2( { TargetIsDetected = TargetIsDetected, TargetIsVisible = TargetIsVisible, TargetLastTime = TargetLastTime, TargetKnowType = TargetKnowType, TargetKnowDistance = TargetKnowDistance, TargetLastPos = TargetLastPos, TargetLastVelocity = TargetLastVelocity } )
 
             -- Only process if the target is visible. Detection also returns invisible units.
-            -- if Detection.visible == true then
-
-            local DetectionAccepted = true
-
-            local DetectedObjectVec3 = DetectedObject:getPoint()
-            local DetectedObjectVec2 = { x = DetectedObjectVec3.x, y = DetectedObjectVec3.z }
-            local DetectionGroupVec3 = Detection:GetVec3()
-            local DetectionGroupVec2 = { x = DetectionGroupVec3.x, y = DetectionGroupVec3.z }
-
-            local Distance = ((DetectedObjectVec3.x - DetectionGroupVec3.x) ^ 2 +
-                             (DetectedObjectVec3.y - DetectionGroupVec3.y) ^ 2 +
-                             (DetectedObjectVec3.z - DetectionGroupVec3.z) ^ 2) ^ 0.5 / 1000
-
-            local DetectedUnitCategory = DetectedObject:getDesc().category
-
-            -- self:F( { "Detected Target:", DetectionGroupName, DetectedObjectName, DetectedObjectType, Distance, DetectedUnitCategory } )
-
-            -- Calculate Acceptance
-
-            DetectionAccepted = self._.FilterCategories[DetectedUnitCategory] ~= nil and DetectionAccepted or false
-
-            --            if Distance > 15000 then
-            --              if DetectedUnitCategory == Unit.Category.GROUND_UNIT or DetectedUnitCategory == Unit.Category.SHIP then
-            --                if DetectedObject:hasSensors( Unit.SensorType.RADAR, Unit.RadarType.AS ) == false then
-            --                  DetectionAccepted = false
-            --                end
-            --              end
-            --            end
-
-            if self.AcceptRange and Distance * 1000 > self.AcceptRange then
-              DetectionAccepted = false
-            end
-
-            if self.AcceptZones then
-              local AnyZoneDetection = false
-              for AcceptZoneID, AcceptZone in pairs( self.AcceptZones ) do
-                local AcceptZone = AcceptZone -- Core.Zone#ZONE_BASE
-                if AcceptZone:IsVec2InZone( DetectedObjectVec2 ) then
-                  AnyZoneDetection = true
+            --if Detection.visible == true then
+            
+              local DetectionAccepted = true
+              
+              local DetectedObjectName = DetectedObject:getName()
+              local DetectedObjectType = DetectedObject:getTypeName()
+      
+              local DetectedObjectVec3 = DetectedObject:getPoint()
+              local DetectedObjectVec2 = { x = DetectedObjectVec3.x, y = DetectedObjectVec3.z }
+              local DetectionGroupVec3 = Detection:GetVec3() or {x=0,y=0,z=0}
+              local DetectionGroupVec2 = { x = DetectionGroupVec3.x, y = DetectionGroupVec3.z }
+      
+              local Distance = ( ( DetectedObjectVec3.x - DetectionGroupVec3.x )^2 +
+                ( DetectedObjectVec3.y - DetectionGroupVec3.y )^2 +
+                ( DetectedObjectVec3.z - DetectionGroupVec3.z )^2
+                ) ^ 0.5 / 1000
+  
+              local DetectedUnitCategory = DetectedObject:getDesc().category
+      
+              --self:F( { "Detected Target:", DetectionGroupName, DetectedObjectName, DetectedObjectType, Distance, DetectedUnitCategory } )
+  
+              -- Calculate Acceptance
+              
+              DetectionAccepted = self._.FilterCategories[DetectedUnitCategory] ~= nil and DetectionAccepted or false
+      
+  --            if Distance > 15000 then
+  --              if DetectedUnitCategory == Unit.Category.GROUND_UNIT or DetectedUnitCategory == Unit.Category.SHIP then
+  --                if DetectedObject:hasSensors( Unit.SensorType.RADAR, Unit.RadarType.AS ) == false then
+  --                  DetectionAccepted = false
+  --                end
+  --              end
+  --            end
+      
+              if self.AcceptRange and Distance * 1000 > self.AcceptRange then
+                DetectionAccepted = false
+              end
+              
+              if self.AcceptZones then
+                local AnyZoneDetection = false
+                for AcceptZoneID, AcceptZone in pairs( self.AcceptZones ) do
+                  local AcceptZone = AcceptZone -- Core.Zone#ZONE_BASE
+                  if AcceptZone:IsVec2InZone( DetectedObjectVec2 ) then
+                    AnyZoneDetection = true
+                  end
+                end
+                if not AnyZoneDetection then
+                  DetectionAccepted = false            
                 end
               end
-              if not AnyZoneDetection then
-                DetectionAccepted = false
-              end
-            end
-
-            if self.RejectZones then
-              for RejectZoneID, RejectZone in pairs( self.RejectZones ) do
-                local RejectZone = RejectZone -- Core.Zone#ZONE_BASE
-                if RejectZone:IsVec2InZone( DetectedObjectVec2 ) == true then
-                  DetectionAccepted = false
-                end
-              end
-            end
-
-            -- Calculate additional probabilities
-
-            if not self.DetectedObjects[DetectedObjectName] and TargetIsVisible and self.DistanceProbability then
-              local DistanceFactor = Distance / 4
-              local DistanceProbabilityReversed = (1 - self.DistanceProbability) * DistanceFactor
-              local DistanceProbability = 1 - DistanceProbabilityReversed
-              DistanceProbability = DistanceProbability * 30 / 300
-              local Probability = math.random() -- Selects a number between 0 and 1
-              -- self:T( { Probability, DistanceProbability } )
-              if Probability > DistanceProbability then
-                DetectionAccepted = false
-              end
-            end
-
-            if not self.DetectedObjects[DetectedObjectName] and TargetIsVisible and self.AlphaAngleProbability then
-
-              local AltitudeDifference = DetectedObjectVec3.y - DetectionGroupVec3.y
-              local GroundDistance = ((DetectedObjectVec2.x - DetectionGroupVec2.x) ^ 2 +
-                                      (DetectedObjectVec2.y - DetectionGroupVec3.y) ^ 2) ^ 0.5
-
-              local AlphaAngle = math.atan2( AltitudeDifference, GroundDistance )
-              local Sinus = math.sin( AlphaAngle )
-              -- Only use exponent in look-up, not look-down
-              if Sinus > 0 then
-                Sinus = Sinus ^ self.AlphaAngleExponent
-              end
-              local AlphaAngleProbabilityReversed = (1 - self.AlphaAngleProbability) * (1 - Sinus)
-              local AlphaAngleProbability = 1 - AlphaAngleProbabilityReversed
-
-              local Probability = math.random() -- Selects a number between 0 and 1
-              -- self:T( { Probability, AlphaAngleProbability } )
-              if Probability > AlphaAngleProbability then
-                DetectionAccepted = false
-              end
-
-            end
-
-            if not self.DetectedObjects[DetectedObjectName] and TargetIsVisible and self.ZoneProbability then
-
-              for ZoneDataID, ZoneData in pairs( self.ZoneProbability ) do
-                self:F( { ZoneData } )
-                local ZoneObject = ZoneData[1] -- Core.Zone#ZONE_BASE
-                local ZoneProbability = ZoneData[2] -- #number
-                ZoneProbability = ZoneProbability * 30 / 300
-
-                if ZoneObject:IsVec2InZone( DetectedObjectVec2 ) == true then
-                  local Probability = math.random() -- Selects a number between 0 and 1
-                  -- self:T( { Probability, ZoneProbability } )
-                  if Probability > ZoneProbability then
+  
+              if self.RejectZones then
+                for RejectZoneID, RejectZone in pairs( self.RejectZones ) do
+                  local RejectZone = RejectZone -- Core.Zone#ZONE_BASE
+                  if RejectZone:IsVec2InZone( DetectedObjectVec2 ) == true then
                     DetectionAccepted = false
-                    break
                   end
                 end
               end
-            end
-
-            if DetectionAccepted then
-
-              HasDetectedObjects = true
-
-              self.DetectedObjects[DetectedObjectName] = self.DetectedObjects[DetectedObjectName] or {}
-              self.DetectedObjects[DetectedObjectName].Name = DetectedObjectName
-
-              if TargetIsDetected and TargetIsDetected == true then
-                self.DetectedObjects[DetectedObjectName].IsDetected = TargetIsDetected
+              
+              -- Calculate additional probabilities
+              
+              if not self.DetectedObjects[DetectedObjectName] and TargetIsVisible and self.DistanceProbability then
+                local DistanceFactor = Distance / 4
+                local DistanceProbabilityReversed = ( 1 - self.DistanceProbability ) * DistanceFactor
+                local DistanceProbability = 1 - DistanceProbabilityReversed
+                DistanceProbability = DistanceProbability * 30 / 300
+                local Probability = math.random() -- Selects a number between 0 and 1
+                --self:T( { Probability, DistanceProbability } )
+                if Probability > DistanceProbability then
+                  DetectionAccepted = false
+                end
               end
-
-              if TargetIsDetected and TargetIsVisible and TargetIsVisible == true then
-                self.DetectedObjects[DetectedObjectName].IsVisible = TargetIsDetected and TargetIsVisible
+              
+              if not self.DetectedObjects[DetectedObjectName] and TargetIsVisible and self.AlphaAngleProbability then
+                local NormalVec2 = { x = DetectedObjectVec2.x - DetectionGroupVec2.x, y = DetectedObjectVec2.y - DetectionGroupVec2.y }
+                local AlphaAngle = math.atan2( NormalVec2.y, NormalVec2.x )
+                local Sinus = math.sin( AlphaAngle )
+                local AlphaAngleProbabilityReversed = ( 1 - self.AlphaAngleProbability ) * ( 1 - Sinus )
+                local AlphaAngleProbability = 1 - AlphaAngleProbabilityReversed
+                
+                AlphaAngleProbability = AlphaAngleProbability * 30 / 300
+                
+                local Probability =  math.random() -- Selects a number between 0 and 1
+                --self:T( { Probability, AlphaAngleProbability } )
+                if Probability > AlphaAngleProbability then
+                  DetectionAccepted = false
+                end
+                 
               end
-
-              if TargetIsDetected and not self.DetectedObjects[DetectedObjectName].KnowType then
-                self.DetectedObjects[DetectedObjectName].KnowType = TargetIsDetected and TargetKnowType
+              
+              if not self.DetectedObjects[DetectedObjectName] and TargetIsVisible and self.ZoneProbability then
+              
+                for ZoneDataID, ZoneData in pairs( self.ZoneProbability ) do
+                  self:F({ZoneData})
+                  local ZoneObject = ZoneData[1] -- Core.Zone#ZONE_BASE
+                  local ZoneProbability = ZoneData[2] -- #number
+                  ZoneProbability = ZoneProbability * 30 / 300
+                  
+                  if ZoneObject:IsVec2InZone( DetectedObjectVec2 ) == true then
+                    local Probability =  math.random() -- Selects a number between 0 and 1
+                    --self:T( { Probability, ZoneProbability } )
+                    if Probability > ZoneProbability then
+                      DetectionAccepted = false
+                      break
+                    end
+                  end
+                end
+              end
+              
+              if DetectionAccepted then
+                
+                HasDetectedObjects = true
+      
+                self.DetectedObjects[DetectedObjectName] = self.DetectedObjects[DetectedObjectName] or {}
+                self.DetectedObjects[DetectedObjectName].Name = DetectedObjectName
+  
+                if TargetIsDetected and TargetIsDetected == true then
+                  self.DetectedObjects[DetectedObjectName].IsDetected = TargetIsDetected
+                end
+                
+                if TargetIsDetected and TargetIsVisible and TargetIsVisible == true then
+                  self.DetectedObjects[DetectedObjectName].IsVisible = TargetIsDetected and TargetIsVisible
+                end
+                
+                if TargetIsDetected and not self.DetectedObjects[DetectedObjectName].KnowType then
+                  self.DetectedObjects[DetectedObjectName].KnowType = TargetIsDetected and TargetKnowType
               end
               self.DetectedObjects[DetectedObjectName].KnowDistance = TargetKnowDistance -- Detection.distance   -- TargetKnowDistance
               self.DetectedObjects[DetectedObjectName].LastTime = (TargetIsDetected and TargetIsVisible == false) and TargetLastTime
@@ -1996,7 +1994,7 @@ do -- DETECTION_UNITS
 
   --- Will detect units within the battle zone.
   --
-  -- It will build a DetectedItems list filled with DetectedItems. Each DetectedItem will contain a field Set, which contains a @{Core.Set#SET_UNIT} containing ONE @{UNIT} object reference.
+  -- It will build a DetectedItems list filled with DetectedItems. Each DetectedItem will contain a field Set, which contains a @{Core.Set#SET_UNIT} containing ONE @{Wrapper.Unit#UNIT} object reference.
   -- Beware that when the amount of units detected is large, the DetectedItems list will be large also.
   --
   -- @field #DETECTION_UNITS
@@ -2007,7 +2005,7 @@ do -- DETECTION_UNITS
 
   --- DETECTION_UNITS constructor.
   -- @param Functional.Detection#DETECTION_UNITS self
-  -- @param Core.Set#SET_GROUP DetectionSetGroup The @{Set} of GROUPs in the Forward Air Controller role.
+  -- @param Core.Set#SET_GROUP DetectionSetGroup The @{Core.Set} of GROUPs in the Forward Air Controller role.
   -- @return Functional.Detection#DETECTION_UNITS self
   function DETECTION_UNITS:New( DetectionSetGroup )
 
@@ -2166,8 +2164,9 @@ do -- DETECTION_UNITS
   -- @param #DETECTION_BASE.DetectedItem DetectedItem The DetectedItem.
   -- @param Wrapper.Group#GROUP AttackGroup The group to generate the report for.
   -- @param Core.Settings#SETTINGS Settings Message formatting settings to use.
+  -- @param #boolean ForceA2GCoordinate Set creation of A2G coordinate
   -- @return Core.Report#REPORT The report of the detection items.
-  function DETECTION_UNITS:DetectedItemReportSummary( DetectedItem, AttackGroup, Settings )
+  function DETECTION_UNITS:DetectedItemReportSummary( DetectedItem, AttackGroup, Settings, ForceA2GCoordinate )
     self:F( { DetectedItem = DetectedItem } )
 
     local DetectedItemID = self:GetDetectedItemID( DetectedItem )
@@ -2202,7 +2201,11 @@ do -- DETECTION_UNITS
       -- TODO: solve Index reference
       local DetectedItemCoordinate = self:GetDetectedItemCoordinate( DetectedItem )
       local DetectedItemCoordText = DetectedItemCoordinate:ToString( AttackGroup, Settings )
-
+      
+      if ForceA2GCoordinate then
+        DetectedItemCoordText = DetectedItemCoordinate:ToStringA2G(AttackGroup,Settings)
+      end
+      
       local ThreatLevelA2G = self:GetDetectedItemThreatLevel( DetectedItem )
 
       local Report = REPORT:New()
@@ -2246,7 +2249,7 @@ do -- DETECTION_TYPES
 
   --- Will detect units within the battle zone.
   -- It will build a DetectedItems[] list filled with DetectedItems, grouped by the type of units detected.
-  -- Each DetectedItem will contain a field Set, which contains a @{Core.Set#SET_UNIT} containing ONE @{UNIT} object reference.
+  -- Each DetectedItem will contain a field Set, which contains a @{Core.Set#SET_UNIT} containing ONE @{Wrapper.Unit#UNIT} object reference.
   -- Beware that when the amount of different types detected is large, the DetectedItems[] list will be large also.
   --
   -- @field #DETECTION_TYPES
@@ -2257,7 +2260,7 @@ do -- DETECTION_TYPES
 
   --- DETECTION_TYPES constructor.
   -- @param Functional.Detection#DETECTION_TYPES self
-  -- @param Core.Set#SET_GROUP DetectionSetGroup The @{Set} of GROUPs in the Recce role.
+  -- @param Core.Set#SET_GROUP DetectionSetGroup The @{Core.Set} of GROUPs in the Recce role.
   -- @return Functional.Detection#DETECTION_TYPES self
   function DETECTION_TYPES:New( DetectionSetGroup )
 
@@ -2363,6 +2366,7 @@ do -- DETECTION_TYPES
           if not DetectedItem then
             DetectedItem = self:AddDetectedItem( "TYPE", DetectedTypeName )
             DetectedItem.TypeName = DetectedTypeName
+            DetectedItem.Name = DetectedUnitName -- fix by @Nocke
           end
 
           DetectedItem.Set:AddUnit( DetectedUnit )
@@ -2445,7 +2449,7 @@ do -- DETECTION_AREAS
 
   --- @type DETECTION_AREAS
   -- @field DCS#Distance DetectionZoneRange The range till which targets are grouped upon the first detected target.
-  -- @field #DETECTION_BASE.DetectedItems DetectedItems A list of areas containing the set of @{Wrapper.Unit}s, @{Zone}s, the center @{Wrapper.Unit} within the zone, and ID of each area that was detected within a DetectionZoneRange.
+  -- @field #DETECTION_BASE.DetectedItems DetectedItems A list of areas containing the set of @{Wrapper.Unit}s, @{Core.Zone}s, the center @{Wrapper.Unit} within the zone, and ID of each area that was detected within a DetectionZoneRange.
   -- @extends Functional.Detection#DETECTION_BASE
 
   --- Detect units within the battle zone for a list of @{Wrapper.Group}s detecting targets following (a) detection method(s),
@@ -2454,16 +2458,16 @@ do -- DETECTION_AREAS
   -- A set with multiple detected zones will be created as there are groups of units detected.
   --
   -- ## 4.1) Retrieve the Detected Unit Sets and Detected Zones
-  --
-  -- The methods to manage the DetectedItems[].Set(s) are implemented in @{Functional.Detection#DETECTION_BASE} and
+  -- 
+  -- The methods to manage the DetectedItems[].Set(s) are implemented in @{Functional.Detection#DECTECTION_BASE} and 
   -- the methods to manage the DetectedItems[].Zone(s) are implemented in @{Functional.Detection#DETECTION_AREAS}.
-  --
+  -- 
   -- Retrieve the DetectedItems[].Set with the method @{Functional.Detection#DETECTION_BASE.GetDetectedSet}(). A @{Core.Set#SET_UNIT} object will be returned.
-  --
-  -- Retrieve the formed @{Zone@ZONE_UNIT}s as a result of the grouping the detected units within the DetectionZoneRange, use the method @{Functional.Detection#DETECTION_AREAS.GetDetectionZones}().
-  -- To understand the amount of zones created, use the method @{Functional.Detection#DETECTION_AREAS.GetDetectionZoneCount}().
+  -- 
+  -- Retrieve the formed @{Core.Zone@ZONE_UNIT}s as a result of the grouping the detected units within the DetectionZoneRange, use the method @{Functional.Detection#DETECTION_AREAS.GetDetectionZones}().
+  -- To understand the amount of zones created, use the method @{Functional.Detection#DETECTION_AREAS.GetDetectionZoneCount}(). 
   -- If you want to obtain a specific zone from the DetectedZones, use the method @{Functional.Detection#DETECTION_AREAS.GetDetectionZoneByID}() with a given index.
-  --
+  -- 
   -- ## 4.4) Flare or Smoke detected units
   --
   -- Use the methods @{Functional.Detection#DETECTION_AREAS.FlareDetectedUnits}() or @{Functional.Detection#DETECTION_AREAS.SmokeDetectedUnits}() to flare or smoke the detected units when a new detection has taken place.
@@ -2486,15 +2490,15 @@ do -- DETECTION_AREAS
 
   --- DETECTION_AREAS constructor.
   -- @param #DETECTION_AREAS self
-  -- @param Core.Set#SET_GROUP DetectionSetGroup The @{Set} of GROUPs in the Forward Air Controller role.
-  -- @param DCS#Distance DetectionZoneRange The range till which targets are grouped upon the first detected target.
+  -- @param Core.Set#SET_GROUP DetectionSetGroup The @{Core.Set} of GROUPs in the Forward Air Controller role.
+  -- @param #number DetectionZoneRange The range in meters within which targets are grouped upon the first detected target. Default 5000m.
   -- @return #DETECTION_AREAS
   function DETECTION_AREAS:New( DetectionSetGroup, DetectionZoneRange )
 
     -- Inherits from DETECTION_BASE
     local self = BASE:Inherit( self, DETECTION_BASE:New( DetectionSetGroup ) )
 
-    self.DetectionZoneRange = DetectionZoneRange
+    self.DetectionZoneRange = DetectionZoneRange or 5000
 
     self._SmokeDetectedUnits = false
     self._FlareDetectedUnits = false
@@ -2504,10 +2508,10 @@ do -- DETECTION_AREAS
 
     return self
   end
-  
+
   --- Retrieve set of detected zones.
   -- @param #DETECTION_AREAS self
-  -- @return Core.Set#SET_ZONE The @{Set} of ZONE_UNIT objects detected.
+  -- @return Core.Set#SET_ZONE The @{Core.Set} of ZONE_UNIT objects detected.
   function DETECTION_AREAS:GetDetectionZones()
     local zoneset = SET_ZONE:New()
     for _ID,_Item in pairs (self.DetectedItems) do
@@ -2997,4 +3001,3 @@ do -- DETECTION_AREAS
   end
 
 end
-

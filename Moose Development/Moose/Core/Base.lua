@@ -34,7 +34,8 @@ local _TraceClassMethod = {}
 
 local _ClassID = 0
 
---- @type BASE
+---
+-- @type BASE
 -- @field ClassName The name of the class.
 -- @field ClassID The ID number of the class.
 -- @field ClassNameAndID The name of the class concatenated with the ID number of the class.
@@ -157,7 +158,7 @@ local _ClassID = 0
 --        self:SmokeBlue()
 --      end
 --
--- See the @{Event} module for more information about event handling.
+-- See the @{Core.Event} module for more information about event handling.
 --
 -- # 4. Class identification methods.
 --
@@ -201,10 +202,10 @@ BASE = {
   Scheduler = nil,
 }
 
---- @field #BASE.__
+-- @field #BASE.__
 BASE.__ = {}
 
---- @field #BASE._
+-- @field #BASE._
 BASE._ = {
   Schedules = {}, --- Contains the Schedulers Active
 }
@@ -229,7 +230,8 @@ FORMATION = {
 -- @param #BASE self
 -- @return #BASE
 function BASE:New()
-  local self = routines.utils.deepCopy( self ) -- Create a new self instance
+  --local self = UTILS.DeepCopy( self ) -- Create a new self instance
+  local self = UTILS.DeepCopy(self)
 
   _ClassID = _ClassID + 1
   self.ClassID = _ClassID
@@ -251,7 +253,7 @@ end
 function BASE:Inherit( Child, Parent )
 
   -- Create child.
-  local Child = routines.utils.deepCopy( Child )
+  local Child = UTILS.DeepCopy( Child )
 
   if Child ~= nil then
 
@@ -411,20 +413,20 @@ do -- Event Handling
     return _EVENTDISPATCHER
   end
 
-  --- Get the Class @{Event} processing Priority.
+  --- Get the Class @{Core.Event} processing Priority.
   -- The Event processing Priority is a number from 1 to 10,
   -- reflecting the order of the classes subscribed to the Event to be processed.
   -- @param #BASE self
-  -- @return #number The @{Event} processing Priority.
+  -- @return #number The @{Core.Event} processing Priority.
   function BASE:GetEventPriority()
     return self._.EventPriority or 5
   end
 
-  --- Set the Class @{Event} processing Priority.
+  --- Set the Class @{Core.Event} processing Priority.
   -- The Event processing Priority is a number from 1 to 10,
   -- reflecting the order of the classes subscribed to the Event to be processed.
   -- @param #BASE self
-  -- @param #number EventPriority The @{Event} processing Priority.
+  -- @param #number EventPriority The @{Core.Event} processing Priority.
   -- @return #BASE self
   function BASE:SetEventPriority( EventPriority )
     self._.EventPriority = EventPriority
@@ -462,132 +464,153 @@ do -- Event Handling
 
     return self
   end
-
-  -- Event handling function prototypes
-
-  --- Occurs whenever any unit in a mission fires a weapon. But not any machine gun or auto cannon based weapon, those are handled by EVENT.ShootingStart.
+  
+  -- Event handling function prototypes - Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  
+  --- Occurs whenever any unit in a mission fires a weapon. But not any machine gun or autocannon based weapon, those are handled by EVENT.ShootingStart.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
   -- @function [parent=#BASE] OnEventShot
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs whenever an object is hit by a weapon.
-  -- initiator : The unit object the fired the weapon.
-  -- weapon: Weapon object that hit the target.
-  -- target: The Object that was hit.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit object the fired the weapon
+  -- weapon: Weapon object that hit the target
+  -- target: The Object that was hit. 
   -- @function [parent=#BASE] OnEventHit
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when an aircraft takes off from an airbase, farp, or ship.
-  -- initiator : The unit that took off.
-  -- place: Object from where the AI took-off from. Can be an Airbase Object, FARP, or Ships.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that tookoff
+  -- place: Object from where the AI took-off from. Can be an Airbase Object, FARP, or Ships 
   -- @function [parent=#BASE] OnEventTakeoff
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when an aircraft lands at an airbase, farp or ship
-  -- initiator : The unit that has landed.
-  -- place: Object that the unit landed on. Can be an Airbase Object, FARP, or Ships.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that has landed
+  -- place: Object that the unit landed on. Can be an Airbase Object, FARP, or Ships 
   -- @function [parent=#BASE] OnEventLand
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when any aircraft crashes into the ground and is completely destroyed.
-  -- initiator : The unit that has crashed.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that has crashed 
   -- @function [parent=#BASE] OnEventCrash
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when a pilot ejects from an aircraft
-  -- initiator : The unit that has ejected
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that has ejected 
   -- @function [parent=#BASE] OnEventEjection
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when an aircraft connects with a tanker and begins taking on fuel.
-  -- initiator : The unit that is receiving fuel.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that is receiving fuel. 
   -- @function [parent=#BASE] OnEventRefueling
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when an object is dead.
-  -- initiator : The unit that is dead.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that is dead. 
   -- @function [parent=#BASE] OnEventDead
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
-  --- Occurs when an object is completely destroyed.
-  -- initiator : The unit that is was destroyed.
+  --- Occurs when an Event for an object is triggered.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that triggered the event. 
   -- @function [parent=#BASE] OnEvent
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when the pilot of an aircraft is killed. Can occur either if the player is alive and crashes or if a weapon kills the pilot without completely destroying the plane.
-  -- initiator : The unit that the pilot has died in.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that the pilot has died in. 
   -- @function [parent=#BASE] OnEventPilotDead
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when a ground unit captures either an airbase or a farp.
-  -- initiator : The unit that captured the base.
-  -- place: The airbase that was captured, can be a FARP or Airbase. When calling place:getCoalition() the faction will already be the new owning faction.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that captured the base
+  -- place: The airbase that was captured, can be a FARP or Airbase. When calling place:getCoalition() the faction will already be the new owning faction. 
   -- @function [parent=#BASE] OnEventBaseCaptured
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
-  --- Occurs when a mission starts.
+  --- Occurs when a mission starts
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes. 
   -- @function [parent=#BASE] OnEventMissionStart
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
-  --- Occurs when a mission ends.
+  --- Occurs when a mission ends
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
   -- @function [parent=#BASE] OnEventMissionEnd
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when an aircraft is finished taking fuel.
-  -- initiator : The unit that was receiving fuel.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that was receiving fuel. 
   -- @function [parent=#BASE] OnEventRefuelingStop
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when any object is spawned into the mission.
-  -- initiator : The unit that was spawned.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that was spawned 
   -- @function [parent=#BASE] OnEventBirth
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when any system fails on a human controlled aircraft.
-  -- initiator : The unit that had the failure.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that had the failure 
   -- @function [parent=#BASE] OnEventHumanFailure
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when any aircraft starts its engines.
-  -- initiator : The unit that is starting its engines..
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that is starting its engines. 
   -- @function [parent=#BASE] OnEventEngineStartup
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when any aircraft shuts down its engines.
-  -- initiator : The unit that is stopping its engines..
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that is stopping its engines. 
   -- @function [parent=#BASE] OnEventEngineShutdown
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
-  --- Occurs when any player assumes direct control of a unit.
-  -- initiator : The unit that is being taken control of.
+  --- Occurs when any player assumes direct control of a unit. Note - not Mulitplayer safe. Use PlayerEnterAircraft.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that is being taken control of. 
   -- @function [parent=#BASE] OnEventPlayerEnterUnit
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when any player relieves control of a unit to the AI.
-  -- initiator : The unit that the player left.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that the player left. 
   -- @function [parent=#BASE] OnEventPlayerLeaveUnit
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
-  --- Occurs when any unit begins firing a weapon that has a high rate of fire. Most common with aircraft cannons (GAU-8), auto cannons, and machine guns.
+  --- Occurs when any unit begins firing a weapon that has a high rate of fire. Most common with aircraft cannons (GAU-8), autocannons, and machine guns.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
   -- initiator : The unit that is doing the shooting.
   -- target: The unit that is being targeted.
   -- @function [parent=#BASE] OnEventShootingStart
@@ -595,25 +618,29 @@ do -- Event Handling
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when any unit stops firing its weapon. Event will always correspond with a shooting start event.
-  -- initiator : The unit that was doing the shooting.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- initiator : The unit that was doing the shooting. 
   -- @function [parent=#BASE] OnEventShootingEnd
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when a new mark was added.
-  -- MarkID: ID of the mark.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- MarkID: ID of the mark. 
   -- @function [parent=#BASE] OnEventMarkAdded
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when a mark was removed.
-  -- MarkID: ID of the mark.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- MarkID: ID of the mark. 
   -- @function [parent=#BASE] OnEventMarkRemoved
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when a mark text was changed.
-  -- MarkID: ID of the mark.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- MarkID: ID of the mark. 
   -- @function [parent=#BASE] OnEventMarkChange
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
@@ -628,13 +655,15 @@ do -- Event Handling
 
   --- Occurs when any modification to the "Score" as seen on the debrief menu would occur.
   -- There is no information on what values the score was changed to. Event is likely similar to player_comment in this regard.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
   -- @function [parent=#BASE] OnEventScore
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs on the death of a unit. Contains more and different information. Similar to unit_lost it will occur for aircraft before the aircraft crash event occurs.
-  --
-  -- * initiator: The unit that killed the target.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- 
+  -- * initiator: The unit that killed the target
   -- * target: Target Object
   -- * weapon: Weapon Object
   --
@@ -644,12 +673,14 @@ do -- Event Handling
 
   --- Occurs when any modification to the "Score" as seen on the debrief menu would occur.
   -- There is no information on what values the score was changed to. Event is likely similar to player_comment in this regard.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
   -- @function [parent=#BASE] OnEventScore
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when the game thinks an object is destroyed.
-  --
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- 
   -- * initiator: The unit that is was destroyed.
   --
   -- @function [parent=#BASE] OnEventUnitLost
@@ -657,7 +688,8 @@ do -- Event Handling
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs shortly after the landing animation of an ejected pilot touching the ground and standing up. Event does not occur if the pilot lands in the water and sub combs to Davey Jones Locker.
-  --
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- 
   -- * initiator: Static object representing the ejected pilot. Place : Aircraft that the pilot ejected from.
   -- * place: may not return as a valid object if the aircraft has crashed into the ground and no longer exists.
   -- * subplace: is always 0 for unknown reasons.
@@ -667,38 +699,45 @@ do -- Event Handling
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Paratrooper landing.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
   -- @function [parent=#BASE] OnEventParatrooperLanding
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Discard chair after ejection.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
   -- @function [parent=#BASE] OnEventDiscardChairAfterEjection
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Weapon add. Fires when entering a mission per pylon with the name of the weapon (double pylons not counted, infinite wep reload not counted.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
   -- @function [parent=#BASE] OnEventParatrooperLanding
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Trigger zone.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
   -- @function [parent=#BASE] OnEventTriggerZone
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
-  --- Landing quality mark.
+  --- Landing quality mark. 
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
   -- @function [parent=#BASE] OnEventLandingQualityMark
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- BDA.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
   -- @function [parent=#BASE] OnEventBDA
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
 
   --- Occurs when a player enters a slot and takes control of an aircraft.
-  -- **NOTE**: This is a workaround of a long standing DCS bug with the PLAYER_ENTER_UNIT event.
-  -- initiator : The unit that is being taken control of.
+  -- Have a look at the class @{Core.Event#EVENT} as these are just the prototypes.
+  -- **NOTE**: This is a workaround of a long standing DCS bug with the PLAYER_ENTER_UNIT event. 
+  -- initiator : The unit that is being taken control of. 
   -- @function [parent=#BASE] OnEventPlayerEnterAircraft
   -- @param #BASE self
   -- @param Core.Event#EVENTDATA EventData The EventData structure.
@@ -731,14 +770,31 @@ end
 -- @param #BASE self
 -- @param DCS#Time EventTime The time stamp of the event.
 -- @param DCS#Object Initiator The initiating object of the event.
-function BASE:CreateEventCrash( EventTime, Initiator )
+function BASE:CreateEventCrash( EventTime, Initiator, IniObjectCategory )
   self:F( { EventTime, Initiator } )
 
   local Event = {
     id = world.event.S_EVENT_CRASH,
     time = EventTime,
     initiator = Initiator,
+    IniObjectCategory = IniObjectCategory,
   }
+
+  world.onEvent( Event )
+end
+
+--- Creation of a Crash Event.
+-- @param #BASE self
+-- @param DCS#Time EventTime The time stamp of the event.
+-- @param DCS#Object Initiator The initiating object of the event.
+function BASE:CreateEventUnitLost(EventTime, Initiator)
+  self:F( { EventTime, Initiator } )
+
+  local Event = {
+    id = world.event.S_EVENT_UNIT_LOST,
+    time = EventTime,
+    initiator = Initiator,
+    }
 
   world.onEvent( Event )
 end
@@ -747,14 +803,15 @@ end
 -- @param #BASE self
 -- @param DCS#Time EventTime The time stamp of the event.
 -- @param DCS#Object Initiator The initiating object of the event.
-function BASE:CreateEventDead( EventTime, Initiator )
-  self:F( { EventTime, Initiator } )
+function BASE:CreateEventDead( EventTime, Initiator, IniObjectCategory )
+  self:F( { EventTime, Initiator, IniObjectCategory } )
 
   local Event = {
     id = world.event.S_EVENT_DEAD,
     time = EventTime,
     initiator = Initiator,
-  }
+    IniObjectCategory = IniObjectCategory,
+    }
 
   world.onEvent( Event )
 end
@@ -791,22 +848,21 @@ function BASE:CreateEventTakeoff( EventTime, Initiator )
   world.onEvent( Event )
 end
 
---- Creation of a `S_EVENT_PLAYER_ENTER_AIRCRAFT` event.
--- @param #BASE self
--- @param Wrapper.Unit#UNIT PlayerUnit The aircraft unit the player entered.
-function BASE:CreateEventPlayerEnterAircraft( PlayerUnit )
-  self:F( { PlayerUnit } )
-
-  local Event = {
-    id = EVENTS.PlayerEnterAircraft,
-    time = timer.getTime(),
-    initiator = PlayerUnit:GetDCSObject(),
-  }
-
-  world.onEvent( Event )
-end
-
--- TODO: Complete DCS#Event structure.
+  --- Creation of a `S_EVENT_PLAYER_ENTER_AIRCRAFT` event.
+  -- @param #BASE self
+  -- @param Wrapper.Unit#UNIT PlayerUnit The aircraft unit the player entered.
+  function BASE:CreateEventPlayerEnterAircraft( PlayerUnit )
+    self:F( { PlayerUnit } )
+  
+    local Event = {
+      id = EVENTS.PlayerEnterAircraft,
+      time = timer.getTime(),
+      initiator = PlayerUnit:GetDCSObject()
+      }
+  
+    world.onEvent(Event)
+  end  
+                  
 --- The main event handling function... This function captures all events generated for the class.
 -- @param #BASE self
 -- @param DCS#Event event
@@ -845,32 +901,38 @@ do -- Scheduling
   -- @param #number Start Specifies the amount of seconds that will be waited before the scheduling is started, and the event function is called.
   -- @param #function SchedulerFunction The event function to be called when a timer event occurs. The event function needs to accept the parameters specified in SchedulerArguments.
   -- @param #table ... Optional arguments that can be given as part of scheduler. The arguments need to be given as a table { param1, param 2, ... }.
-  -- @return #number The ScheduleID of the planned schedule.
+  -- @return #string The Schedule ID of the planned schedule.
   function BASE:ScheduleOnce( Start, SchedulerFunction, ... )
-    self:F2( { Start } )
-    self:T3( { ... } )
-
+  
+    -- Object name.
     local ObjectName = "-"
     ObjectName = self.ClassName .. self.ClassID
-
-    self:F3( { "ScheduleOnce: ", ObjectName, Start } )
-
+    
+    -- Debug info.
+    self:F3( { "ScheduleOnce: ", ObjectName,  Start } )
+    
     if not self.Scheduler then
       self.Scheduler = SCHEDULER:New( self )
     end
-
-    local ScheduleID = _SCHEDULEDISPATCHER:AddSchedule(
-                         self,
-                         SchedulerFunction,
-                         { ... },
-                         Start,
-                         nil,
-                         nil,
-                         nil
-                       )
-
-    self._.Schedules[#self._.Schedules + 1] = ScheduleID
-
+  
+    -- FF this was wrong!
+    --[[
+    local ScheduleID = _SCHEDULEDISPATCHER:AddSchedule( 
+      self, 
+      SchedulerFunction,
+      { ... },
+      Start,
+      nil,
+      nil,
+      nil
+    )
+    ]]
+    
+    -- NOTE: MasterObject (first parameter) needs to be nil or it will be the first argument passed to the SchedulerFunction!
+    local ScheduleID = self.Scheduler:Schedule(nil, SchedulerFunction, {...}, Start)
+    
+    self._.Schedules[#self._.Schedules+1] = ScheduleID
+  
     return self._.Schedules[#self._.Schedules]
   end
 
@@ -882,7 +944,7 @@ do -- Scheduling
   -- @param #number Stop Specifies the amount of seconds when the scheduler will be stopped.
   -- @param #function SchedulerFunction The event function to be called when a timer event occurs. The event function needs to accept the parameters specified in SchedulerArguments.
   -- @param #table ... Optional arguments that can be given as part of scheduler. The arguments need to be given as a table { param1, param 2, ... }.
-  -- @return #number The ScheduleID of the planned schedule.
+  -- @return #string The Schedule ID of the planned schedule.
   function BASE:ScheduleRepeat( Start, Repeat, RandomizeFactor, Stop, SchedulerFunction, ... )
     self:F2( { Start } )
     self:T3( { ... } )
@@ -895,32 +957,33 @@ do -- Scheduling
     if not self.Scheduler then
       self.Scheduler = SCHEDULER:New( self )
     end
-
+    
+    -- NOTE: MasterObject (first parameter) should(!) be nil as it will be the first argument passed to the SchedulerFunction!
     local ScheduleID = self.Scheduler:Schedule(
-                         self,
-                         SchedulerFunction,
-                         { ... },
-                         Start,
-                         Repeat,
-                         RandomizeFactor,
-                         Stop,
-                         4
-                       )
-
-    self._.Schedules[#self._.Schedules + 1] = ScheduleID
-
+      nil, 
+      SchedulerFunction,
+      { ... },
+      Start,
+      Repeat,
+      RandomizeFactor,
+      Stop,
+      4
+    )
+    
+    self._.Schedules[#self._.Schedules+1] = ScheduleID
+  
     return self._.Schedules[#self._.Schedules]
   end
 
   --- Stops the Schedule.
   -- @param #BASE self
-  -- @param #function SchedulerFunction The event function to be called when a timer event occurs. The event function needs to accept the parameters specified in SchedulerArguments.
-  function BASE:ScheduleStop( SchedulerFunction )
-
+  -- @param #string SchedulerID (Optional) Scheduler ID to be stopped. If nil, all pending schedules are stopped.
+  function BASE:ScheduleStop( SchedulerID )  
     self:F3( { "ScheduleStop:" } )
 
     if self.Scheduler then
-      _SCHEDULEDISPATCHER:Stop( self.Scheduler, self._.Schedules[SchedulerFunction] )
+      --_SCHEDULEDISPATCHER:Stop( self.Scheduler, self._.Schedules[SchedulerFunction] )
+      _SCHEDULEDISPATCHER:Stop(self.Scheduler, SchedulerID)
     end
   end
 
@@ -1061,7 +1124,7 @@ end
 
 --- Set tracing for a class
 -- @param #BASE self
--- @param #string Class
+-- @param #string Class Class name.
 function BASE:TraceClass( Class )
   _TraceClass[Class] = true
   _TraceClassMethod[Class] = {}
@@ -1070,8 +1133,8 @@ end
 
 --- Set tracing for a specific method of  class
 -- @param #BASE self
--- @param #string Class
--- @param #string Method
+-- @param #string Class Class name.
+-- @param #string Method Method.
 function BASE:TraceClassMethod( Class, Method )
   if not _TraceClassMethod[Class] then
     _TraceClassMethod[Class] = {}
@@ -1105,7 +1168,7 @@ function BASE:_F( Arguments, DebugInfoCurrentParam, DebugInfoFromParam )
       if DebugInfoFrom then
         LineFrom = DebugInfoFrom.currentline
       end
-      env.info( string.format( "%6d(%6d)/%1s:%30s%05d.%s(%s)", LineCurrent, LineFrom, "F", self.ClassName, self.ClassID, Function, routines.utils.oneLineSerialize( Arguments ) ) )
+      env.info( string.format( "%6d(%6d)/%1s:%30s%05d.%s(%s)", LineCurrent, LineFrom, "F", self.ClassName, self.ClassID, Function, UTILS.BasicSerialize( Arguments ) ) )
     end
   end
 end
@@ -1179,7 +1242,7 @@ function BASE:_T( Arguments, DebugInfoCurrentParam, DebugInfoFromParam )
       if DebugInfoFrom then
         LineFrom = DebugInfoFrom.currentline
       end
-      env.info( string.format( "%6d(%6d)/%1s:%30s%05d.%s", LineCurrent, LineFrom, "T", self.ClassName, self.ClassID, routines.utils.oneLineSerialize( Arguments ) ) )
+      env.info( string.format( "%6d(%6d)/%1s:%30s%05d.%s", LineCurrent, LineFrom, "T", self.ClassName, self.ClassID, UTILS.BasicSerialize( Arguments ) ) )
     end
   end
 end
@@ -1249,9 +1312,9 @@ function BASE:E( Arguments )
       LineFrom = DebugInfoFrom.currentline
     end
 
-    env.info( string.format( "%6d(%6d)/%1s:%30s%05d.%s(%s)", LineCurrent, LineFrom, "E", self.ClassName, self.ClassID, Function, routines.utils.oneLineSerialize( Arguments ) ) )
+    env.info( string.format( "%6d(%6d)/%1s:%30s%05d.%s(%s)", LineCurrent, LineFrom, "E", self.ClassName, self.ClassID, Function, UTILS.BasicSerialize( Arguments ) ) )
   else
-    env.info( string.format( "%1s:%30s%05d(%s)", "E", self.ClassName, self.ClassID, routines.utils.oneLineSerialize( Arguments ) ) )
+    env.info( string.format( "%1s:%30s%05d(%s)", "E", self.ClassName, self.ClassID, UTILS.BasicSerialize( Arguments ) ) )
   end
 
 end
@@ -1276,9 +1339,9 @@ function BASE:I( Arguments )
       LineFrom = DebugInfoFrom.currentline
     end
 
-    env.info( string.format( "%6d(%6d)/%1s:%30s%05d.%s(%s)", LineCurrent, LineFrom, "I", self.ClassName, self.ClassID, Function, routines.utils.oneLineSerialize( Arguments ) ) )
+    env.info( string.format( "%6d(%6d)/%1s:%30s%05d.%s(%s)", LineCurrent, LineFrom, "I", self.ClassName, self.ClassID, Function, UTILS.BasicSerialize( Arguments ) ) )
   else
-    env.info( string.format( "%1s:%30s%05d(%s)", "I", self.ClassName, self.ClassID, routines.utils.oneLineSerialize( Arguments ) ) )
+    env.info( string.format( "%1s:%30s%05d(%s)", "I", self.ClassName, self.ClassID, UTILS.BasicSerialize( Arguments ) ) )
   end
 
 end

@@ -34,8 +34,6 @@
 --
 -- ===
 --
--- ![Banner Image](..\Presentations\Timer\TIMER_Main.jpg)
---
 -- # The TIMER Concept
 -- 
 -- The TIMER class is the little sister of the @{Core.Scheduler#SCHEDULER} class. It does the same thing but is a bit easier to use and has less overhead. It should be sufficient in many cases.
@@ -107,19 +105,17 @@ TIMER = {
 --- Timer ID.
 _TIMERID=0
 
---- Timer data base.
---_TIMERDB={}
-
 --- TIMER class version.
 -- @field #string version
-TIMER.version="0.1.1"
+TIMER.version="0.2.0"
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- TODO list
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
--- TODO: A lot.
--- TODO: Write docs.
+-- TODO: Randomization.
+-- TODO: Pause/unpause.
+-- DONE: Write docs.
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Constructor
@@ -156,13 +152,10 @@ function TIMER:New(Function, ...)
   -- Log id.
   self.lid=string.format("TIMER UID=%d | ", self.uid)
   
-  -- Add to DB.
-  --_TIMERDB[self.uid]=self
-  
   return self
 end
 
---- Create a new TIMER object.
+--- Start TIMER object.
 -- @param #TIMER self
 -- @param #number Tstart Relative start time in seconds.
 -- @param #number dT Interval between function calls in seconds. If not specified `nil`, the function is called only once.
@@ -174,7 +167,7 @@ function TIMER:Start(Tstart, dT, Duration)
   local Tnow=timer.getTime()
 
   -- Start time in sec.
-  self.Tstart=Tstart and Tnow+Tstart or Tnow+0.001  -- one millisecond delay if Tstart=nil
+  self.Tstart=Tstart and Tnow+math.max(Tstart, 0.001) or Tnow+0.001  -- one millisecond delay if Tstart=nil
   
   -- Set time interval.
   self.dT=dT
@@ -199,6 +192,20 @@ function TIMER:Start(Tstart, dT, Duration)
   return self
 end
 
+--- Start TIMER object if a condition is met. Useful for e.g. debugging.
+-- @param #TIMER self
+-- @param #boolean Condition Must be true for the TIMER to start
+-- @param #number Tstart Relative start time in seconds.
+-- @param #number dT Interval between function calls in seconds. If not specified `nil`, the function is called only once.
+-- @param #number Duration Time in seconds for how long the timer is running. If not specified `nil`, the timer runs forever or until stopped manually by the `TIMER:Stop()` function.
+-- @return #TIMER self
+function TIMER:StartIf(Condition,Tstart, dT, Duration)
+  if Condition then
+    self:Start(Tstart, dT, Duration)
+  end
+  return self
+end
+
 --- Stop the timer by removing the timer function.
 -- @param #TIMER self
 -- @param #number Delay (Optional) Delay in seconds, before the timer is stopped.
@@ -215,14 +222,24 @@ function TIMER:Stop(Delay)
     
       -- Remove timer function.
       self:T(self.lid..string.format("Stopping timer by removing timer function after %d calls!", self.ncalls))
-      timer.removeFunction(self.tid)
+
+      -- We use a pcall here because if the DCS timer does not exist any more, it crashes the whole script!
+      local status=pcall(
+        function ()
+          timer.removeFunction(self.tid)
+        end 
+      )
+      
+      -- Debug messages.
+      if status then
+        self:T2(self.lid..string.format("Stopped timer!"))
+      else
+        self:E(self.lid..string.format("WARNING: Could not remove timer function! isrunning=%s", tostring(self.isrunning)))
+      end
       
       -- Not running any more.
       self.isrunning=false
-      
-      -- Remove DB entry.
-      --_TIMERDB[self.uid]=nil
-      
+
     end
     
   end
@@ -236,6 +253,15 @@ end
 -- @return #TIMER self
 function TIMER:SetMaxFunctionCalls(Nmax)
   self.ncallsMax=Nmax
+  return self
+end
+
+--- Set time interval. Can also be set when the timer is already running and is applied after the next function call.
+-- @param #TIMER self
+-- @param #number dT Time interval in seconds.
+-- @return #TIMER self
+function TIMER:SetTimeInterval(dT)
+  self.dT=dT
   return self
 end
 

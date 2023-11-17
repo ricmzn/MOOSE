@@ -1,4 +1,4 @@
---- **AI** -- (R2.5.1) - Models the intelligent transportation of infantry and other cargo.
+--- **AI** - Models the intelligent transportation of infantry and other cargo.
 --
 -- ===
 --
@@ -7,7 +7,7 @@
 -- ===
 --
 -- @module AI.AI_Cargo_Ship
--- @image AI_Cargo_Dispatching_For_Ship.JPG
+-- @image AI_Cargo_Dispatcher.JPG
 
 --- @type AI_CARGO_SHIP
 -- @extends AI.AI_Cargo#AI_CARGO
@@ -46,14 +46,19 @@
 --
 -- ## Cargo deployment.
 --
--- Using the @{AI_CARGO_SHIP.Deploy}() method, you are able to direct the Ship towards a Deploy zone to unboard/unload the cargo at the
+-- Using the @{#AI_CARGO_SHIP.Deploy}() method, you are able to direct the Ship towards a Deploy zone to unboard/unload the cargo at the
 -- specified coordinate. The Ship will follow the Shipping Lane to ensure consistent cargo transportation within the simulation environment.
 --
 -- ## Cargo pickup.
 --
--- Using the @{AI_CARGO_SHIP.Pickup}() method, you are able to direct the Ship towards a Pickup zone to board/load the cargo at the specified
+-- Using the @{#AI_CARGO_SHIP.Pickup}() method, you are able to direct the Ship towards a Pickup zone to board/load the cargo at the specified
 -- coordinate. The Ship will follow the Shipping Lane to ensure consistent cargo transportation within the simulation environment.
 --
+--
+-- # Developer Note
+-- 
+-- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+-- Therefore, this class is considered to be deprecated
 --
 -- @field #AI_CARGO_SHIP
 AI_CARGO_SHIP = {

@@ -11,7 +11,7 @@
 -- 
 -- ===       
 --
--- @module AI.AI_ESCORT_DISPATCHER_REQUEST
+-- @module AI.AI_Escort_Dispatcher_Request
 -- @image MOOSE.JPG
 
 
@@ -20,7 +20,12 @@
 
 
 --- Models the assignment of AI escorts to player flights upon request using the radio menu.
+--
+-- # Developer Note
 -- 
+-- Note while this class still works, it is no longer supported as the original author stopped active development of MOOSE
+-- Therefore, this class is considered to be deprecated
+--
 -- ===
 --   
 -- @field #AI_ESCORT_DISPATCHER_REQUEST
