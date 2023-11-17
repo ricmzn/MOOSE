@@ -118,7 +118,7 @@ function IDENTIFIABLE:GetCategory()
 
   local DCSObject = self:GetDCSObject()
   if DCSObject then
-    local ObjectCategory = DCSObject:getCategory()
+    local ObjectCategory = Object.getCategory(DCSObject)
     self:T3( ObjectCategory )
     return ObjectCategory
   end
