@@ -23,7 +23,7 @@
 --
 -- ## Missions:
 --
--- [AID-A2A - AI A2A Dispatching](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching)
+-- [AID-A2A - AI A2A Dispatching](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AI/AI_A2A_Dispatcher)
 --
 -- ===
 --
@@ -310,7 +310,7 @@ do -- AI_A2A_DISPATCHER
   -- Use the method @{#AI_A2A_DISPATCHER.SetEngageRadius}() to set a specific Engage Radius.
   -- **The Engage Radius is defined for ALL squadrons which are operational.**
   --
-  -- Demonstration Mission: [AID-019 - AI_A2A - Engage Range Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching/AID-A2A-019%20-%20Engage%20Range%20Test)
+  -- Demonstration Mission: [AID-019 - AI_A2A - Engage Range Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AI/AI_A2A_Dispatcher/AID-A2A-019%20-%20Engage%20Range%20Test)
   --
   -- In this example an Engage Radius is set to various values.
   --
@@ -333,7 +333,7 @@ do -- AI_A2A_DISPATCHER
   -- Use the method @{#AI_A2A_DISPATCHER.SetGciRadius}() to set a specific controlled ground intercept radius.
   -- **The Ground Controlled Intercept radius is defined for ALL squadrons which are operational.**
   --
-  -- Demonstration Mission: [AID-013 - AI_A2A - Intercept Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching/AID-A2A-013%20-%20Intercept%20Test)
+  -- Demonstration Mission: [AID-013 - AI_A2A - Intercept Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AI/AI_A2A_Dispatcher/AID-A2A-013%20-%20Intercept%20Test)
   --
   -- In these examples, the Gci Radius is set to various values:
   --
@@ -366,7 +366,7 @@ do -- AI_A2A_DISPATCHER
   -- it makes it easier sometimes for the mission maker to envisage where the red and blue territories roughly are.
   -- In a hot war the borders are effectively defined by the ground based radar coverage of a coalition.
   --
-  -- Demonstration Mission: [AID-009 - AI_A2A - Border Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching/AID-A2A-009%20-%20Border%20Test)
+  -- Demonstration Mission: [AID-009 - AI_A2A - Border Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AI/AI_A2A_Dispatcher/AID-A2A-009%20-%20Border%20Test)
   --
   -- In this example a border is set for the CCCP A2A dispatcher:
   --
@@ -1151,14 +1151,14 @@ do -- AI_A2A_DISPATCHER
 
     local AirbaseName = EventData.PlaceName -- The name of the airbase that was captured.
 
-    self:I( "Captured " .. AirbaseName )
+    self:T( "Captured " .. AirbaseName )
 
     -- Now search for all squadrons located at the airbase, and sanitize them.
     for SquadronName, Squadron in pairs( self.DefenderSquadrons ) do
       if Squadron.AirbaseName == AirbaseName then
         Squadron.ResourceCount = -999 -- The base has been captured, and the resources are eliminated. No more spawning.
         Squadron.Captured = true
-        self:I( "Squadron " .. SquadronName .. " captured." )
+        self:T( "Squadron " .. SquadronName .. " captured." )
       end
     end
   end
@@ -1233,7 +1233,7 @@ do -- AI_A2A_DISPATCHER
   --
   -- **Use the method @{#AI_A2A_DISPATCHER.SetEngageRadius}() to modify the default Engage Radius for ALL squadrons.**
   --
-  -- Demonstration Mission: [AID-019 - AI_A2A - Engage Range Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching/AID-A2A-019%20-%20Engage%20Range%20Test)
+  -- Demonstration Mission: [AID-019 - AI_A2A - Engage Range Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AI/AI_A2A_Dispatcher/AID-A2A-019%20-%20Engage%20Range%20Test)
   --
   -- @param #AI_A2A_DISPATCHER self
   -- @param #number EngageRadius (Optional, Default = 100000) The radius to report friendlies near the target.
@@ -1283,7 +1283,7 @@ do -- AI_A2A_DISPATCHER
   -- Use the method @{#AI_A2A_DISPATCHER.SetGciRadius}() to set a specific controlled ground intercept radius.
   -- **The Ground Controlled Intercept radius is defined for ALL squadrons which are operational.**
   --
-  -- Demonstration Mission: [AID-013 - AI_A2A - Intercept Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching/AID-A2A-013%20-%20Intercept%20Test)
+  -- Demonstration Mission: [AID-013 - AI_A2A - Intercept Test](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AI/AI_A2A_Dispatcher/AID-A2A-013%20-%20Intercept%20Test)
   --
   -- @param #AI_A2A_DISPATCHER self
   -- @param #number GciRadius (Optional, Default = 200000) The radius to ground control intercept detected targets from the nearest airbase.
@@ -1828,7 +1828,7 @@ do -- AI_A2A_DISPATCHER
 
     self:SetSquadronCapInterval( SquadronName, self.DefenderDefault.CapLimit, self.DefenderDefault.CapMinSeconds, self.DefenderDefault.CapMaxSeconds, 1 )
 
-    self:I( { CAP = { SquadronName, EngageMinSpeed, EngageMaxSpeed, EngageFloorAltitude, EngageCeilingAltitude, Zone, PatrolMinSpeed, PatrolMaxSpeed, PatrolFloorAltitude, PatrolCeilingAltitude, PatrolAltType, EngageAltType } } )
+    self:T( { CAP = { SquadronName, EngageMinSpeed, EngageMaxSpeed, EngageFloorAltitude, EngageCeilingAltitude, Zone, PatrolMinSpeed, PatrolMaxSpeed, PatrolFloorAltitude, PatrolCeilingAltitude, PatrolAltType, EngageAltType } } )
 
     self.Detection:SetFriendlyPrefixes( DefenderSquadron.TemplatePrefixes )
 
@@ -3051,17 +3051,17 @@ do -- AI_A2A_DISPATCHER
     for FriendlyDistance, AIFriendly in UTILS.spairs( DefenderFriendlies or {} ) do
       -- We only allow to ENGAGE targets as long as the Units on both sides are balanced.
       if AttackerCount > DefenderCount then
-    --self:I("***** AI_A2A_DISPATCHER:CountDefendersToBeEngaged() *****\nThis is supposed to be a UNIT:")
+    --self:T("***** AI_A2A_DISPATCHER:CountDefendersToBeEngaged() *****\nThis is supposed to be a UNIT:")
     if AIFriendly then
       local classname = AIFriendly.ClassName or "No Class Name"
       local unitname = AIFriendly.IdentifiableName or "No Unit Name"
-      --self:I("Class Name: " .. classname)
-      --self:I("Unit Name: " .. unitname)
-      --self:I({AIFriendly})
+      --self:T("Class Name: " .. classname)
+      --self:T("Unit Name: " .. unitname)
+      --self:T({AIFriendly})
     end
     local Friendly = nil
     if AIFriendly and AIFriendly:IsAlive() then
-      --self:I("AIFriendly alive, getting GROUP")
+      --self:T("AIFriendly alive, getting GROUP")
       Friendly = AIFriendly:GetGroup() -- Wrapper.Group#GROUP
     end
     
@@ -3321,7 +3321,8 @@ do -- AI_A2A_DISPATCHER
             end
           end
 
-          --- @param #AI_A2A_DISPATCHER self
+          --- AI_A2A_Fsm:onafterHome
+          -- @param #AI_A2A_DISPATCHER self
           function AI_A2A_Fsm:onafterHome( Defender, From, Event, To, Action )
             if Defender and Defender:IsAlive() then
               self:F( { "CAP Home", Defender:GetName() } )
@@ -4028,7 +4029,7 @@ end
 
 do
 
-  --- @type AI_A2A_GCICAP
+  -- @type AI_A2A_GCICAP
   -- @extends #AI_A2A_DISPATCHER
 
   --- Create an automatic air defence system for a coalition setting up GCI and CAP air defenses.
@@ -4038,7 +4039,7 @@ do
   --
   -- # Demo Missions
   --
-  -- ### [Demo Missions](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AID%20-%20AI%20Dispatching/AID-A2A%20-%20AI%20A2A%20Dispatching)
+  -- ### [Demo Missions](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AI/AI_A2A_Dispatcher)
   --
   -- ===
   --
@@ -4398,23 +4399,23 @@ do
 
     -- Setup squadrons
 
-    self:I( { Airbases = AirbaseNames } )
+    self:T( { Airbases = AirbaseNames } )
 
-    self:I( "Defining Templates for Airbases ..." )
+    self:T( "Defining Templates for Airbases ..." )
     for AirbaseID, AirbaseName in pairs( AirbaseNames ) do
       local Airbase = _DATABASE:FindAirbase( AirbaseName ) -- Wrapper.Airbase#AIRBASE
       local AirbaseName = Airbase:GetName()
       local AirbaseCoord = Airbase:GetCoordinate()
       local AirbaseZone = ZONE_RADIUS:New( "Airbase", AirbaseCoord:GetVec2(), 3000 )
       local Templates = nil
-      self:I( { Airbase = AirbaseName } )
+      self:T( { Airbase = AirbaseName } )
       for TemplateID, Template in pairs( self.Templates:GetSet() ) do
         local Template = Template -- Wrapper.Group#GROUP
         local TemplateCoord = Template:GetCoordinate()
         if AirbaseZone:IsVec2InZone( TemplateCoord:GetVec2() ) then
           Templates = Templates or {}
           table.insert( Templates, Template:GetName() )
-          self:I( { Template = Template:GetName() } )
+          self:T( { Template = Template:GetName() } )
         end
       end
       if Templates then
@@ -4430,13 +4431,13 @@ do
     self.CAPTemplates:FilterPrefixes( CapPrefixes )
     self.CAPTemplates:FilterOnce()
 
-    self:I( "Setting up CAP ..." )
+    self:T( "Setting up CAP ..." )
     for CAPID, CAPTemplate in pairs( self.CAPTemplates:GetSet() ) do
       local CAPZone = ZONE_POLYGON:New( CAPTemplate:GetName(), CAPTemplate )
       -- Now find the closest airbase from the ZONE (start or center)
       local AirbaseDistance = 99999999
       local AirbaseClosest = nil -- Wrapper.Airbase#AIRBASE
-      self:I( { CAPZoneGroup = CAPID } )
+      self:T( { CAPZoneGroup = CAPID } )
       for AirbaseID, AirbaseName in pairs( AirbaseNames ) do
         local Airbase = _DATABASE:FindAirbase( AirbaseName ) -- Wrapper.Airbase#AIRBASE
         local AirbaseName = Airbase:GetName()
@@ -4444,7 +4445,7 @@ do
         local Squadron = self.DefenderSquadrons[AirbaseName]
         if Squadron then
           local Distance = AirbaseCoord:Get2DDistance( CAPZone:GetCoordinate() )
-          self:I( { AirbaseDistance = Distance } )
+          self:T( { AirbaseDistance = Distance } )
           if Distance < AirbaseDistance then
             AirbaseDistance = Distance
             AirbaseClosest = Airbase
@@ -4452,7 +4453,7 @@ do
         end
       end
       if AirbaseClosest then
-        self:I( { CAPAirbase = AirbaseClosest:GetName() } )
+        self:T( { CAPAirbase = AirbaseClosest:GetName() } )
         self:SetSquadronCap( AirbaseClosest:GetName(), CAPZone, 6000, 10000, 500, 800, 800, 1200, "RADIO" )
         self:SetSquadronCapInterval( AirbaseClosest:GetName(), CapLimit, 300, 600, 1 )
       end
@@ -4460,14 +4461,14 @@ do
 
     -- Setup GCI.
     -- GCI is setup for all Squadrons.
-    self:I( "Setting up GCI ..." )
+    self:T( "Setting up GCI ..." )
     for AirbaseID, AirbaseName in pairs( AirbaseNames ) do
       local Airbase = _DATABASE:FindAirbase( AirbaseName ) -- Wrapper.Airbase#AIRBASE
       local AirbaseName = Airbase:GetName()
       local Squadron = self.DefenderSquadrons[AirbaseName]
       self:F( { Airbase = AirbaseName } )
       if Squadron then
-        self:I( { GCIAirbase = AirbaseName } )
+        self:T( { GCIAirbase = AirbaseName } )
         self:SetSquadronGci( AirbaseName, 800, 1200 )
       end
     end

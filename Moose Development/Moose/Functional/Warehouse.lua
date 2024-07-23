@@ -87,7 +87,7 @@
 -- @field #number respawndelay Delay before respawn in seconds.
 -- @field #number runwaydestroyed Time stamp timer.getAbsTime() when the runway was destroyed.
 -- @field #number runwayrepairtime Time in seconds until runway will be repaired after it was destroyed. Default is 3600 sec (one hour).
--- @field Ops.FlightControl#FLIGHTCONTROL flightcontrol Flight control of this warehouse.
+-- @field OPS.FlightControl#FLIGHTCONTROL flightcontrol Flight control of this warehouse.
 -- @extends Core.Fsm#FSM
 
 --- Have your assets at the right place at the right time - or not!
@@ -3414,7 +3414,7 @@ end
 -- FSM states
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
---- On after Start event. Starts the warehouse. Addes event handlers and schedules status updates of reqests and queue.
+--- On after Start event. Starts the warehouse. Adds event handlers and schedules status updates of reqests and queue.
 -- @param #WAREHOUSE self
 -- @param #string From From state.
 -- @param #string Event Event.
@@ -3595,6 +3595,7 @@ function WAREHOUSE:onafterStatus(From, Event, To)
     local Trepair=self:GetRunwayRepairtime()
     self:I(self.lid..string.format("Runway destroyed! Will be repaired in %d sec", Trepair))
     if Trepair==0 then
+      self.runwaydestroyed = nil
       self:RunwayRepaired()
     end
   end
@@ -5392,7 +5393,8 @@ function WAREHOUSE:onafterRunwayDestroyed(From, Event, To)
   self:_InfoMessage(text)
 
   self.runwaydestroyed=timer.getAbsTime()
-
+  
+  return self
 end
 
 --- On after "RunwayRepaired" event.
@@ -5407,7 +5409,8 @@ function WAREHOUSE:onafterRunwayRepaired(From, Event, To)
   self:_InfoMessage(text)
 
   self.runwaydestroyed=nil
-
+  
+  return self
 end
 
 
@@ -7404,6 +7407,8 @@ function WAREHOUSE:_CheckRequestNow(request)
 
   -- Check if at least one (cargo) asset is available.
   if _nassets>0 then
+  
+    local asset=_assets[1] --#WAREHOUSE.Assetitem
 
     -- Get the attibute of the requested asset.
     _assetattribute=_assets[1].attribute
@@ -7414,11 +7419,24 @@ function WAREHOUSE:_CheckRequestNow(request)
     if _assetcategory==Group.Category.AIRPLANE or _assetcategory==Group.Category.HELICOPTER then
     
       if self.airbase and self.airbase:GetCoalition()==self:GetCoalition() then
+      
+        -- Check if DCS warehouse of airbase has enough assets        
+        if self.airbase.storage then
+          local nS=self.airbase.storage:GetAmount(asset.unittype)
+          local nA=asset.nunits*request.nasset  -- Number of units requested
+          if nS<nA then
+            local text=string.format("Warehouse %s: Request denied! DCS Warehouse has only %d assets of type %s ==> NOT enough to spawn the requested %d asset units (%d groups)", 
+            self.alias, nS, asset.unittype, nA, request.nasset)
+            self:_InfoMessage(text, 5)            
+            return false
+          end
+        end
+        
     
         if self:IsRunwayOperational() or _assetairstart then
   
           if _assetairstart then
-            -- Airstart no need to check parking            
+            -- Airstart no need to check parking
           else
           
             -- Check parking.
@@ -7530,6 +7548,9 @@ function WAREHOUSE:_CheckRequestNow(request)
         self:_InfoMessage(text, 5)
         return false
       end
+      
+    elseif _assetcategory==Group.Category.AIRPLANE or _assetcategory==Group.Category.HELICOPTER then
+
 
     end
 
@@ -7925,10 +7946,12 @@ function WAREHOUSE:_FindParkingForAssets(airbase, assets)
       local clients=_DATABASE.CLIENTS
       for clientname, client in pairs(clients) do
         local template=_DATABASE:GetGroupTemplateFromUnitName(clientname)
-        local units=template.units
-        for i,unit in pairs(units) do
-          local coord=COORDINATE:New(unit.x, unit.alt, unit.y)
-          coords[unit.name]=coord
+        if template then
+          local units=template.units
+          for i,unit in pairs(units) do
+            local coord=COORDINATE:New(unit.x, unit.alt, unit.y)
+            coords[unit.name]=coord
+          end
         end
       end
     end

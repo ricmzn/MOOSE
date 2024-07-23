@@ -55,6 +55,7 @@ BIGSMOKEPRESET = {
 -- @field #string MarianaIslands Mariana Islands map.
 -- @field #string Falklands South Atlantic map.
 -- @field #string Sinai Sinai map.
+-- @field #string Kola Kola map.
 DCSMAP = {
   Caucasus="Caucasus",
   NTTR="Nevada",
@@ -64,7 +65,9 @@ DCSMAP = {
   Syria="Syria",
   MarianaIslands="MarianaIslands",
   Falklands="Falklands",
-  Sinai="SinaiMap"
+  Sinai="SinaiMap",
+  Kola="Kola",
+  Afghanistan="Afghanistan",
 }
 
 
@@ -102,7 +105,7 @@ CALLSIGN={
     Shell=3,
     Navy_One=4,
     Mauler=5,
-    Bloodhound=6,  
+    Bloodhound=6,
     },
   -- JTAC
   JTAC={
@@ -195,6 +198,45 @@ CALLSIGN={
     Cargo=11,
     Ascot=12,
   },
+  AH64={
+    Army_Air = 9,
+    Apache = 10,
+    Crow = 11,
+    Sioux = 12,
+    Gatling = 13,
+    Gunslinger = 14,
+    Hammerhead = 15,
+    Bootleg = 16,
+    Palehorse = 17,
+    Carnivor = 18,
+    Saber = 19,
+  },
+  Kiowa = {
+    Anvil = 1,
+    Azrael = 2,
+    BamBam = 3,
+    Blackjack = 4,
+    Bootleg = 5,
+    BurninStogie = 6,
+    Chaos = 7,
+    CrazyHorse = 8,
+    Crusader = 9,
+    Darkhorse = 10,
+    Eagle = 11,
+    Lighthorse = 12,
+    Mustang = 13,
+    Outcast = 14,
+    Palehorse = 15,
+    Pegasus = 16,
+    Pistol = 17,
+    Roughneck = 18,
+    Saber = 19,
+    Shamus = 20,
+    Spur = 21,
+    Stetson = 22,
+    Wrath = 23,
+  },
+  
 } --#CALLSIGN
 
 --- Utilities static class.
@@ -416,7 +458,7 @@ function UTILS._OneLineSerialize(tbl)
       end
 
     end
-    
+
       tbl_str[#tbl_str + 1] = '}'
       return table.concat(tbl_str)
     else
@@ -433,7 +475,7 @@ UTILS.BasicSerialize = function(s)
     if ((type(s) == 'number') or (type(s) == 'boolean') or (type(s) == 'function') or (type(s) == 'userdata') ) then
       return tostring(s)
     elseif type(s) == "table" then
-      return UTILS._OneLineSerialize(s) 
+      return UTILS._OneLineSerialize(s)
     elseif type(s) == 'string' then
       s = string.format('(%s)', s)
       return s
@@ -441,21 +483,54 @@ UTILS.BasicSerialize = function(s)
   end
 end
 
-function UTILS.PrintTableToLog(table, indent)
-  if not table then
-    BASE:E("No table passed!")
-    return 
+--- Counts the number of elements in a table.
+-- @param #table T Table to count
+-- @return #int Number of elements in the table
+function UTILS.TableLength(T)
+  local count = 0
+  for _ in pairs(T or {}) do count = count + 1 end
+  return count
+end
+
+--- Print a table to log in a nice format
+-- @param #table table The table to print
+-- @param #number indent Number of indents
+-- @param #boolean noprint Don't log but return text
+-- @return #string text Text created on the fly of the log output
+function UTILS.PrintTableToLog(table, indent, noprint)
+  local text = "\n"
+  if not table or type(table) ~= "table" then
+    env.warning("No table passed!")
+    return nil
   end
   if not indent then indent = 0 end
   for k, v in pairs(table) do
-    if type(v) == "table" then
-      BASE:I(string.rep("  ", indent) .. tostring(k) .. " = {")
-      UTILS.PrintTableToLog(v, indent + 1)
-      BASE:I(string.rep("  ", indent) .. "}")
+    if string.find(k," ") then k='"'..k..'"'end
+    if type(v) == "table" and UTILS.TableLength(v) > 0 then
+      if not noprint then
+        env.info(string.rep("  ", indent) .. tostring(k) .. " = {")
+      end
+      text = text ..string.rep("  ", indent) .. tostring(k) .. " = {\n"
+      text = text .. tostring(UTILS.PrintTableToLog(v, indent + 1)).."\n"
+      if not noprint then
+        env.info(string.rep("  ", indent) .. "},")
+      end
+      text = text .. string.rep("  ", indent) .. "},\n"
+    elseif type(v) == "function" then
     else
-      BASE:I(string.rep("  ", indent) .. tostring(k) .. " = " .. tostring(v))
+      local value
+      if tostring(v) == "true" or tostring(v) == "false" or tonumber(v) ~= nil then
+        value=v
+      else
+        value = '"'..tostring(v)..'"'
+      end
+      if not noprint then
+        env.info(string.rep("  ", indent) .. tostring(k) .. " = " .. tostring(value)..",\n")
+      end
+      text = text .. string.rep("  ", indent) .. tostring(k) .. " = " .. tostring(value)..",\n"
     end
   end
+  return text
 end
 
 --- Returns table in a easy readable string representation.
@@ -538,15 +613,15 @@ end
 -- @param #string fname File name.
 function UTILS.Gdump(fname)
   if lfs and io then
-  
+
     local fdir = lfs.writedir() .. [[Logs\]] .. fname
-    
+
     local f = io.open(fdir, 'w')
-    
+
     f:write(UTILS.TableShow(_G))
-    
+
     f:close()
-    
+
     env.info(string.format('Wrote debug data to $1', fdir))
   else
     env.error("WARNING: lfs and/or io not de-sanitized - cannot dump _G!")
@@ -809,15 +884,73 @@ UTILS.tostringLL = function( lat, lon, acc, DMS)
   end
 end
 
+--[[acc:
+in DM: decimal point of minutes.
+In DMS: decimal point of seconds.
+position after the decimal of the least significant digit:
+So:
+42.32 - acc of 2.
+]]
+UTILS.tostringLLM2KData = function( lat, lon, acc)
+
+  local latHemi, lonHemi
+  if lat > 0 then
+    latHemi = 'N'
+  else
+    latHemi = 'S'
+  end
+
+  if lon > 0 then
+    lonHemi = 'E'
+  else
+    lonHemi = 'W'
+  end
+
+  lat = math.abs(lat)
+  lon = math.abs(lon)
+
+  local latDeg = math.floor(lat)
+  local latMin = (lat - latDeg)*60
+
+  local lonDeg = math.floor(lon)
+  local lonMin = (lon - lonDeg)*60
+
+  -- degrees, decimal minutes.
+  latMin = UTILS.Round(latMin, acc)
+  lonMin = UTILS.Round(lonMin, acc)
+
+  if latMin == 60 then
+    latMin = 0
+    latDeg = latDeg + 1
+  end
+
+  if lonMin == 60 then
+    lonMin = 0
+    lonDeg = lonDeg + 1
+  end
+
+  local minFrmtStr -- create the formatting string for the minutes place
+  if acc <= 0 then  -- no decimal place.
+    minFrmtStr = '%02d'
+  else
+    local width = 3 + acc  -- 01.310 - that's a width of 6, for example.
+    minFrmtStr = '%0' .. width .. '.' .. acc .. 'f'
+  end
+
+  -- 024 23'N or 024 23.123'N
+  return latHemi..string.format('%02d:', latDeg) .. string.format(minFrmtStr, latMin), lonHemi..string.format('%02d:', lonDeg) .. string.format(minFrmtStr, lonMin)
+
+end
+
 -- acc- the accuracy of each easting/northing.  0, 1, 2, 3, 4, or 5.
 UTILS.tostringMGRS = function(MGRS, acc) --R2.1
 
   if acc <= 0 then
     return MGRS.UTMZone .. ' ' .. MGRS.MGRSDigraph
   else
-    
+
     if acc > 5 then acc = 5 end
-    
+
     -- Test if Easting/Northing have less than 4 digits.
     --MGRS.Easting=123    -- should be 00123
     --MGRS.Northing=5432  -- should be 05432
@@ -1048,9 +1181,9 @@ function UTILS.BeaufortScale(speed)
   return bn,bd
 end
 
---- Split string at seperators. C.f. [split-string-in-lua](http://stackoverflow.com/questions/1426954/split-string-in-lua).
+--- Split string at separators. C.f. [split-string-in-lua](http://stackoverflow.com/questions/1426954/split-string-in-lua).
 -- @param #string str Sting to split.
--- @param #string sep Speparator for split.
+-- @param #string sep Separator for split.
 -- @return #table Split text.
 function UTILS.Split(str, sep)
   local result = {}
@@ -1300,7 +1433,7 @@ end
 function UTILS.VecDist2D(a, b)
 
   local d = math.huge
-  
+
   if (not a) or (not b) then return d end
 
   local c={x=b.x-a.x, y=b.y-a.y}
@@ -1316,12 +1449,12 @@ end
 -- @param DCS#Vec3 b Vector in 3D with x, y, z components.
 -- @return #number Distance between the vectors.
 function UTILS.VecDist3D(a, b)
-  
-    
+
+
   local d = math.huge
-  
+
   if (not a) or (not b) then return d end
-  
+
   local c={x=b.x-a.x, y=b.y-a.y, z=b.z-a.z}
 
   d=math.sqrt(UTILS.VecDot(c, c))
@@ -1345,12 +1478,22 @@ function UTILS.VecSubstract(a, b)
   return {x=a.x-b.x, y=a.y-b.y, z=a.z-b.z}
 end
 
+--- Substract is not a word, don't want to rename the original function because it's been around since forever
+function UTILS.VecSubtract(a, b)
+  return UTILS.VecSubstract(a, b)
+end
+
 --- Calculate the difference between two 2D vectors by substracting the x,y components from each other.
 -- @param DCS#Vec2 a Vector in 2D with x, y components.
 -- @param DCS#Vec2 b Vector in 2D with x, y components.
 -- @return DCS#Vec2 Vector c=a-b with c(i)=a(i)-b(i), i=x,y.
 function UTILS.Vec2Substract(a, b)
   return {x=a.x-b.x, y=a.y-b.y}
+end
+
+--- Substract is not a word, don't want to rename the original function because it's been around since forever
+function UTILS.Vec2Subtract(a, b)
+  return UTILS.Vec2Substract(a, b)
 end
 
 --- Calculate the total vector of two 3D vectors by adding the x,y,z components of each other.
@@ -1611,6 +1754,8 @@ end
 -- * Mariana Islands +2 (East)
 -- * Falklands +12 (East) - note there's a LOT of deviation across the map, as we're closer to the South Pole
 -- * Sinai +4.8 (East)
+-- * Kola +15 (East) - note there is a lot of deviation across the map (-1° to +24°), as we are close to the North pole
+-- * Afghanistan +3 (East) - actually +3.6 (NW) to +2.3 (SE)
 -- @param #string map (Optional) Map for which the declination is returned. Default is from env.mission.theatre
 -- @return #number Declination in degrees.
 function UTILS.GetMagneticDeclination(map)
@@ -1637,6 +1782,10 @@ function UTILS.GetMagneticDeclination(map)
     declination=12
   elseif map==DCSMAP.Sinai then
     declination=4.8
+  elseif map==DCSMAP.Kola then
+    declination=15
+  elseif map==DCSMAP.Afghanistan then
+    declination=3
   else
     declination=0
   end
@@ -1704,7 +1853,7 @@ function UTILS.GetCoalitionEnemy(Coalition, Neutral)
 
   local Coalitions={}
   if Coalition then
-    if Coalition==coalition.side.RED then      
+    if Coalition==coalition.side.RED then
       Coalitions={coalition.side.BLUE}
     elseif Coalition==coalition.side.BLUE then
       Coalitions={coalition.side.RED}
@@ -1712,7 +1861,7 @@ function UTILS.GetCoalitionEnemy(Coalition, Neutral)
       Coalitions={coalition.side.RED, coalition.side.BLUE}
     end
   end
-  
+
   if Neutral then
     table.insert(Coalitions, coalition.side.NEUTRAL)
   end
@@ -1743,17 +1892,17 @@ end
 -- @param #number Typename The type name.
 -- @return #string The Reporting name or "Bogey".
 function UTILS.GetReportingName(Typename)
-  
+
   local typename = string.lower(Typename)
-  
+
   for name, value in pairs(ENUMS.ReportingName.NATO) do
     local svalue = string.lower(value)
     if string.find(typename,svalue,1,true) then
       return name
     end
   end
-  
-  return "Bogey"  
+
+  return "Bogey"
 end
 
 --- Get the callsign name from its enumerator value
@@ -1784,44 +1933,56 @@ function UTILS.GetCallsignName(Callsign)
       return name
     end
   end
-  
+
   for name, value in pairs(CALLSIGN.B1B) do
     if value==Callsign then
       return name
     end
   end
-  
+
   for name, value in pairs(CALLSIGN.B52) do
     if value==Callsign then
       return name
     end
   end
-  
+
   for name, value in pairs(CALLSIGN.F15E) do
     if value==Callsign then
       return name
     end
   end
-  
+
   for name, value in pairs(CALLSIGN.F16) do
     if value==Callsign then
       return name
     end
   end
-  
+
   for name, value in pairs(CALLSIGN.F18) do
     if value==Callsign then
       return name
     end
   end
-  
+
   for name, value in pairs(CALLSIGN.FARP) do
     if value==Callsign then
       return name
     end
   end
-  
+
   for name, value in pairs(CALLSIGN.TransportAircraft) do
+    if value==Callsign then
+      return name
+    end
+  end
+  
+  for name, value in pairs(CALLSIGN.AH64) do
+    if value==Callsign then
+      return name
+    end
+  end
+  
+  for name, value in pairs(CALLSIGN.Kiowa) do
     if value==Callsign then
       return name
     end
@@ -1853,7 +2014,11 @@ function UTILS.GMTToLocalTimeDifference()
   elseif theatre==DCSMAP.Falklands then
     return -3  -- Fireland is UTC-3 hours.
   elseif theatre==DCSMAP.Sinai then
-    return 2   -- Currently map is +2 but should be +3 (DCS bug?)    
+    return 2   -- Currently map is +2 but should be +3 (DCS bug?)
+  elseif theatre==DCSMAP.Kola then
+    return 3   -- Currently map is +2 but should be +3 (DCS bug?)
+  elseif theatre==DCSMAP.Afghanistan then
+    return 4.5   -- UTC +4:30
   else
     BASE:E(string.format("ERROR: Unknown Map %s in UTILS.GMTToLocal function. Returning 0", tostring(theatre)))
     return 0
@@ -2058,19 +2223,19 @@ function UTILS.GetRandomTableElement(t, replace)
     BASE:I("Error in ShuffleTable: Missing or wrong type of Argument")
     return
   end
-  
+
   math.random()
   math.random()
   math.random()
-  
+
   local r=math.random(#t)
-  
+
   local element=t[r]
-  
+
   if not replace then
     table.remove(t, r)
   end
-  
+
   return element
 end
 
@@ -2099,7 +2264,7 @@ function UTILS.IsLoadingDoorOpen( unit_name )
           BASE:T(unit_name .. " a side door is open ")
           return true
       end
-    
+
       if string.find(type_name, "SA342" ) and (unit:getDrawArgumentValue(34) == 1) then
           BASE:T(unit_name .. " front door(s) are open or doors removed")
           return true
@@ -2120,31 +2285,41 @@ function UTILS.IsLoadingDoorOpen( unit_name )
           return true
       end
 
-      if string.find(type_name, "Bell-47") then -- bell aint got no doors so always ready to load injured soldiers
+      if type_name == "Bell-47" then -- bell aint got no doors so always ready to load injured soldiers
           BASE:T(unit_name .. " door is open")
           return true
       end
-      
-      if string.find(type_name, "UH-60L") and (unit:getDrawArgumentValue(401) == 1 or unit:getDrawArgumentValue(402) == 1) then
+
+      if type_name == "UH-60L" and (unit:getDrawArgumentValue(401) == 1 or unit:getDrawArgumentValue(402) == 1) then
           BASE:T(unit_name .. " cargo door is open")
           return true
       end
 
-      if string.find(type_name, "UH-60L" ) and (unit:getDrawArgumentValue(38) == 1 or unit:getDrawArgumentValue(400) == 1 ) then
+      if type_name ==  "UH-60L" and (unit:getDrawArgumentValue(38) > 0 or unit:getDrawArgumentValue(400) == 1 ) then
           BASE:T(unit_name .. " front door(s) are open")
           return true
       end
-      
+
       if type_name == "AH-64D_BLK_II" then
          BASE:T(unit_name .. " front door(s) are open")
          return true -- no doors on this one ;)
       end
-      
+
       if type_name == "Bronco-OV-10A" then
          BASE:T(unit_name .. " front door(s) are open")
          return true -- no doors on this one ;)
       end
-      
+
+      if type_name == "MH-60R" and (unit:getDrawArgumentValue(403) > 0 or unit:getDrawArgumentValue(403) == -1) then
+        BASE:T(unit_name .. " cargo door is open")
+        return true
+      end
+
+      if type_name == " OH-58D" and (unit:getDrawArgumentValue(35) > 0 or unit:getDrawArgumentValue(421) == -1) then
+        BASE:T(unit_name .. " cargo door is open")
+        return true
+      end
+
       return false
 
   end -- nil
@@ -2245,19 +2420,36 @@ function UTILS.GenerateVHFrequencies()
   return FreeVHFFrequencies
 end
 
---- Function to generate valid UHF Frequencies in mHz (AM).
+--- Function to generate valid UHF Frequencies in mHz (AM). Can be between 220 and 399 mHz. 243 is auto-excluded.
+-- @param Start (Optional) Avoid frequencies between Start and End in mHz, e.g. 244
+-- @param End (Optional) Avoid frequencies between Start and End in mHz, e.g. 320
 -- @return #table UHF Frequencies
-function UTILS.GenerateUHFrequencies()
+function UTILS.GenerateUHFrequencies(Start,End)
 
     local FreeUHFFrequencies = {}
     local _start = 220000000
 
-    while _start < 399000000 do
-    if _start ~= 243000000 then
-      table.insert(FreeUHFFrequencies, _start)
+    if not Start then
+      while _start < 399000000 do
+      if _start ~= 243000000 then
+        table.insert(FreeUHFFrequencies, _start)
+      end
+          _start = _start + 500000
+      end
+    else
+      local myend = End*1000000 or 399000000
+      local mystart = Start*1000000 or 220000000
+
+      while _start < 399000000 do
+      if _start ~= 243000000 and (_start < mystart or _start > myend) then
+        print(_start)
+        table.insert(FreeUHFFrequencies, _start)
+      end
+          _start = _start + 500000
+      end
+
     end
-        _start = _start + 500000
-    end
+
 
     return FreeUHFFrequencies
 end
@@ -2299,7 +2491,7 @@ function UTILS.GenerateLaserCodes()
     return jtacGeneratedLaserCodes
 end
 
---- Ensure the passed object is a table. 
+--- Ensure the passed object is a table.
 -- @param #table Object The object that should be a table.
 -- @param #boolean ReturnNil If `true`, return `#nil` if `Object` is nil. Otherwise an empty table `{}` is returned.
 -- @return #table The object that now certainly *is* a table.
@@ -2311,11 +2503,11 @@ function UTILS.EnsureTable(Object, ReturnNil)
     end
   else
     if ReturnNil then
-      return nil      
+      return nil
     else
-      Object={}   
+      Object={}
     end
-    
+
   end
 
   return Object
@@ -2327,30 +2519,30 @@ end
 -- @param #table Data The LUA data structure to save. This will be e.g. a table of text lines with an \\n at the end of each line.
 -- @return #boolean outcome True if saving is possible, else false.
 function UTILS.SaveToFile(Path,Filename,Data)
-  -- Thanks to @FunkyFranky 
+  -- Thanks to @FunkyFranky
   -- Check io module is available.
   if not io then
     BASE:E("ERROR: io not desanitized. Can't save current file.")
     return false
   end
-  
+
   -- Check default path.
   if Path==nil and not lfs then
     BASE:E("WARNING: lfs not desanitized. File will be saved in DCS installation root directory rather than your \"Saved Games\\DCS\" folder.")
   end
-  
+
   -- Set path or default.
   local path = nil
   if lfs then
     path=Path or lfs.writedir()
   end
-  
+
   -- Set file name.
   local filename=Filename
   if path~=nil then
     filename=path.."\\"..filename
   end
-  
+
   -- write
   local f = assert(io.open(filename, "wb"))
   f:write(Data)
@@ -2358,43 +2550,43 @@ function UTILS.SaveToFile(Path,Filename,Data)
   return true
 end
 
---- Function to save an object to a file
+--- Function to load an object from a file.
 -- @param #string Path The path to use. Use double backslashes \\\\ on Windows filesystems.
 -- @param #string Filename The name of the file.
 -- @return #boolean outcome True if reading is possible and successful, else false.
 -- @return #table data The data read from the filesystem (table of lines of text). Each line is one single #string!
 function UTILS.LoadFromFile(Path,Filename)
-  -- Thanks to @FunkyFranky    
+  -- Thanks to @FunkyFranky
   -- Check io module is available.
   if not io then
     BASE:E("ERROR: io not desanitized. Can't save current state.")
     return false
   end
-  
+
   -- Check default path.
   if Path==nil and not lfs then
     BASE:E("WARNING: lfs not desanitized. Loading will look into your DCS installation root directory rather than your \"Saved Games\\DCS\" folder.")
   end
-  
+
   -- Set path or default.
   local path = nil
   if lfs then
     path=Path or lfs.writedir()
   end
-  
+
   -- Set file name.
   local filename=Filename
   if path~=nil then
     filename=path.."\\"..filename
   end
-  
+
   -- Check if file exists.
   local exists=UTILS.CheckFileExists(Path,Filename)
   if not exists then
-    BASE:E(string.format("ERROR: File %s does not exist!",filename))
+    BASE:I(string.format("ERROR: File %s does not exist!",filename))
     return false
   end
-    
+
   -- read
   local file=assert(io.open(filename, "rb"))
   local loadeddata = {}
@@ -2421,30 +2613,30 @@ function UTILS.CheckFileExists(Path,Filename)
       return false
     end
   end
-     
+
   -- Check io module is available.
   if not io then
     BASE:E("ERROR: io not desanitized.")
     return false
   end
-  
+
   -- Check default path.
   if Path==nil and not lfs then
     BASE:E("WARNING: lfs not desanitized. Loading will look into your DCS installation root directory rather than your \"Saved Games\\DCS\" folder.")
   end
-  
+
   -- Set path or default.
   local path = nil
   if lfs then
     path=Path or lfs.writedir()
   end
-  
+
   -- Set file name.
   local filename=Filename
   if path~=nil then
     filename=path.."\\"..filename
   end
-  
+
   -- Check if file exists.
   local exists=_fileexists(filename)
   if not exists then
@@ -2481,7 +2673,7 @@ end
 -- @return #boolean outcome True if saving is successful, else false.
 -- @usage
 -- We will go through the list and find the corresponding group and save the current group size (0 when dead).
--- These groups are supposed to be put on the map in the ME and have *not* moved (e.g. stationary SAM sites). 
+-- These groups are supposed to be put on the map in the ME and have *not* moved (e.g. stationary SAM sites).
 -- Position is still saved for your usage.
 -- The idea is to reduce the number of units when reloading the data again to restart the saved mission.
 -- The data will be a simple comma separated list of groupname and size, with one header line.
@@ -2520,12 +2712,12 @@ end
 -- @return #boolean outcome True if saving is successful, else false.
 -- @usage
 -- We will go through the set and find the corresponding group and save the current group size and current position.
--- The idea is to respawn the groups **spawned during an earlier run of the mission** at the given location and reduce 
--- the number of units in the group when reloading the data again to restart the saved mission. Note that *dead* groups 
+-- The idea is to respawn the groups **spawned during an earlier run of the mission** at the given location and reduce
+-- the number of units in the group when reloading the data again to restart the saved mission. Note that *dead* groups
 -- cannot be covered with this.
 -- **Note** Do NOT use dashes or hashes in group template names (-,#)!
 -- The data will be a simple comma separated list of groupname and size, with one header line.
--- The current task/waypoint/etc cannot be restored. 
+-- The current task/waypoint/etc cannot be restored.
 function UTILS.SaveSetOfGroups(Set,Path,Filename,Structured)
   local filename = Filename or "SetOfGroups"
   local data = "--Save SET of groups: "..Filename .."\n"
@@ -2535,9 +2727,12 @@ function UTILS.SaveSetOfGroups(Set,Path,Filename,Structured)
     if group and group:IsAlive() then
       local name = group:GetName()
       local template = string.gsub(name,"-(.+)$","")
+      if string.find(name,"AID") then
+        template = string.gsub(name,"(.AID.%d+$","")
+      end
       if string.find(template,"#") then
        template = string.gsub(name,"#(%d+)$","")
-      end 
+      end
       local units = group:CountAliveUnits()
       local position = group:GetVec3()
       if Structured then
@@ -2549,7 +2744,7 @@ function UTILS.SaveSetOfGroups(Set,Path,Filename,Structured)
         data = string.format("%s%s,%s,%d,%d,%d,%d,%s\n",data,name,template,units,position.x,position.y,position.z,strucdata)
       else
         data = string.format("%s%s,%s,%d,%d,%d,%d\n",data,name,template,units,position.x,position.y,position.z)
-      end     
+      end
     end
   end
   -- save the data
@@ -2620,16 +2815,16 @@ end
 -- @return #table Table of data objects (tables) containing groupname, coordinate and group object. Returns nil when file cannot be read.
 -- @return #table When using Cinematic: table of names of smoke and fire objects, so they can be extinguished with `COORDINATE.StopBigSmokeAndFire( name )`
 function UTILS.LoadStationaryListOfGroups(Path,Filename,Reduce,Structured,Cinematic,Effect,Density)
-  
+
   local fires = {}
-  
+
   local function Smokers(name,coord,effect,density)
     local eff = math.random(8)
     if type(effect) == "number" then eff = effect end
     coord:BigSmokeAndFire(eff,density,name)
     table.insert(fires,name)
   end
-  
+
   local function Cruncher(group,typename,anzahl)
     local units = group:GetUnits()
     local reduced = 0
@@ -2647,7 +2842,7 @@ function UTILS.LoadStationaryListOfGroups(Path,Filename,Reduce,Structured,Cinema
       end
     end
   end
-  
+
   local reduce = true
   if Reduce == false then reduce = false end
   local filename = Filename or "StateListofGroups"
@@ -2689,13 +2884,13 @@ function UTILS.LoadStationaryListOfGroups(Path,Filename,Reduce,Structured,Cinema
               end
               local reduce = false
               if loadednumber < _number then reduce = true end
-              
-              --BASE:I(string.format("Looking at: %s | Original number: %d | Loaded number: %d | Reduce: %s",_name,_number,loadednumber,tostring(reduce))) 
-              
+
+              --BASE:I(string.format("Looking at: %s | Original number: %d | Loaded number: %d | Reduce: %s",_name,_number,loadednumber,tostring(reduce)))
+
               if reduce then
-                Cruncher(actualgroup,_name,_number-loadednumber)  
+                Cruncher(actualgroup,_name,_number-loadednumber)
               end
-                         
+
             end
           else
             local reduction = actualgroup:CountAliveUnits() - size
@@ -2710,7 +2905,7 @@ function UTILS.LoadStationaryListOfGroups(Path,Filename,Reduce,Structured,Cinema
         end
       end
       table.insert(datatable,data)
-    end 
+    end
   else
     return nil
   end
@@ -2725,11 +2920,11 @@ end
 -- @param #boolean Cinematic (Optional, needs Structured=true) If true, place a fire/smoke effect on the dead static position.
 -- @param #number Effect (Optional for Cinematic) What effect to use. Defaults to a random effect. Smoke presets are: 1=small smoke and fire, 2=medium smoke and fire, 3=large smoke and fire, 4=huge smoke and fire, 5=small smoke, 6=medium smoke, 7=large smoke, 8=huge smoke.
 -- @param #number Density (Optional for Cinematic) What smoke density to use, can be 0 to 1. Defaults to 0.5.
--- @return Core.Set#SET_GROUP Set of GROUP objects. 
+-- @return Core.Set#SET_GROUP Set of GROUP objects.
 -- Returns nil when file cannot be read. Returns a table of data entries if Spawn is false: `{ groupname=groupname, size=size, coordinate=coordinate, template=template }`
 -- @return #table When using Cinematic: table of names of smoke and fire objects, so they can be extinguished with `COORDINATE.StopBigSmokeAndFire( name )`
 function UTILS.LoadSetOfGroups(Path,Filename,Spawn,Structured,Cinematic,Effect,Density)
-  
+
   local fires = {}
   local usedtemplates = {}
   local spawn = true
@@ -2737,14 +2932,14 @@ function UTILS.LoadSetOfGroups(Path,Filename,Spawn,Structured,Cinematic,Effect,D
   local filename = Filename or "SetOfGroups"
   local setdata = SET_GROUP:New()
   local datatable = {}
-  
+
   local function Smokers(name,coord,effect,density)
     local eff = math.random(8)
     if type(effect) == "number" then eff = effect end
     coord:BigSmokeAndFire(eff,density,name)
     table.insert(fires,name)
   end
-  
+
   local function Cruncher(group,typename,anzahl)
     local units = group:GetUnits()
     local reduced = 0
@@ -2762,7 +2957,7 @@ function UTILS.LoadSetOfGroups(Path,Filename,Spawn,Structured,Cinematic,Effect,D
       end
     end
   end
-  
+
   local function PostSpawn(args)
     local spwndgrp = args[1]
     local size = args[2]
@@ -2772,16 +2967,16 @@ function UTILS.LoadSetOfGroups(Path,Filename,Spawn,Structured,Cinematic,Effect,D
     local actualsize = spwndgrp:CountAliveUnits()
     if actualsize > size then
       if Structured and structure then
-  
+
         local loadedstructure = {}
         local strcset = UTILS.Split(structure,";")
         for _,_data in pairs(strcset) do
           local datasplit = UTILS.Split(_data,"==")
           loadedstructure[datasplit[1]] = tonumber(datasplit[2])
         end
-  
+
         local originalstructure = UTILS.GetCountPerTypeName(spwndgrp)
-  
+
         for _name,_number in pairs(originalstructure) do
           local loadednumber = 0
           if loadedstructure[_name] then
@@ -2789,11 +2984,11 @@ function UTILS.LoadSetOfGroups(Path,Filename,Spawn,Structured,Cinematic,Effect,D
           end
           local reduce = false
           if loadednumber < _number then reduce = true end
-          
+
           if reduce then
-            Cruncher(spwndgrp,_name,_number-loadednumber)  
+            Cruncher(spwndgrp,_name,_number-loadednumber)
           end
-                     
+
         end
       else
         local reduction = actualsize-size
@@ -2806,16 +3001,16 @@ function UTILS.LoadSetOfGroups(Path,Filename,Spawn,Structured,Cinematic,Effect,D
       end
     end
   end
-            
+
   local function MultiUse(Data)
-    local template = Data.template 
+    local template = Data.template
     if template and usedtemplates[template] and usedtemplates[template].used and usedtemplates[template].used > 1 then
       -- multispawn
       if not usedtemplates[template].done then
         local spwnd = 0
         local spawngrp = SPAWN:New(template)
         spawngrp:InitLimit(0,usedtemplates[template].used)
-        for _,_entry in pairs(usedtemplates[template].data) do       
+        for _,_entry in pairs(usedtemplates[template].data) do
           spwnd = spwnd + 1
           local sgrp=spawngrp:SpawnFromCoordinate(_entry.coordinate,spwnd)
           BASE:ScheduleOnce(0.5,PostSpawn,{sgrp,_entry.size,_entry.structure})
@@ -2827,7 +3022,7 @@ function UTILS.LoadSetOfGroups(Path,Filename,Spawn,Structured,Cinematic,Effect,D
       return false
     end
   end
-  
+
   --BASE:I("Spawn = "..tostring(spawn))
   if UTILS.CheckFileExists(Path,filename) then
     local outcome,loadeddata = UTILS.LoadFromFile(Path,Filename)
@@ -2861,13 +3056,13 @@ function UTILS.LoadSetOfGroups(Path,Filename,Spawn,Structured,Cinematic,Effect,D
         end
       end
     end
-    for _id,_entry in pairs (datatable) do  
+    for _id,_entry in pairs (datatable) do
       if spawn and not MultiUse(_entry) and _entry.size > 0 then
         local group = SPAWN:New(_entry.template)
         local sgrp=group:SpawnFromCoordinate(_entry.coordinate)
         BASE:ScheduleOnce(0.5,PostSpawn,{sgrp,_entry.size,_entry.structure})
       end
-    end 
+    end
   else
     return nil
   end
@@ -2896,7 +3091,7 @@ function UTILS.LoadSetOfStatics(Path,Filename)
       if StaticObject then
         datatable:AddObject(StaticObject)
       end
-    end 
+    end
   else
     return nil
   end
@@ -2912,7 +3107,7 @@ end
 -- @param #number Effect (Optional for Cinematic) What effect to use. Defaults to a random effect. Smoke presets are: 1=small smoke and fire, 2=medium smoke and fire, 3=large smoke and fire, 4=huge smoke and fire, 5=small smoke, 6=medium smoke, 7=large smoke, 8=huge smoke.
 -- @param #number Density (Optional for Cinematic) What smoke density to use, can be 0 to 1. Defaults to 0.5.
 -- @return #table Table of data objects (tables) containing staticname, size (0=dead else 1), coordinate and the static object. Dead objects will have coordinate points `{x=0,y=0,z=0}`
--- @return #table When using Cinematic: table of names of smoke and fire objects, so they can be extinguished with `COORDINATE.StopBigSmokeAndFire( name )` 
+-- @return #table When using Cinematic: table of names of smoke and fire objects, so they can be extinguished with `COORDINATE.StopBigSmokeAndFire( name )`
 -- Returns nil when file cannot be read.
 function UTILS.LoadStationaryListOfStatics(Path,Filename,Reduce,Dead,Cinematic,Effect,Density)
   local fires = {}
@@ -2948,7 +3143,7 @@ function UTILS.LoadStationaryListOfStatics(Path,Filename,Reduce,Dead,Cinematic,E
             if Cinematic then
               local effect = math.random(8)
               if type(Effect) == "number" then
-                effect = Effect 
+                effect = Effect
               end
               coord:BigSmokeAndFire(effect,Density,staticname)
               table.insert(fires,staticname)
@@ -2958,7 +3153,7 @@ function UTILS.LoadStationaryListOfStatics(Path,Filename,Reduce,Dead,Cinematic,E
           end
         end
       end
-    end 
+    end
   else
     return nil
   end
@@ -3006,17 +3201,17 @@ function UTILS.ToStringBRAANATO(FromGrp,ToGrp)
       if aspect == "" then
         BRAANATO = string.format("%s, BRA, %03d, %d miles, Angels %d, Track %s",GroupWords,bearing, rangeNM, alt, track)
       else
-        BRAANATO = string.format("%s, BRAA, %03d, %d miles, Angels %d, %s, Track %s",GroupWords, bearing, rangeNM, alt, aspect, track)      
+        BRAANATO = string.format("%s, BRAA, %03d, %d miles, Angels %d, %s, Track %s",GroupWords, bearing, rangeNM, alt, aspect, track)
       end
   end
-  return BRAANATO 
+  return BRAANATO
 end
 
 --- Check if an object is contained in a table.
 -- @param #table Table The table.
 -- @param #table Object The object to check.
 -- @param #string Key (Optional) Key to check. By default, the object itself is checked.
--- @return #booolen Returns `true` if object is in table.
+-- @return #boolean Returns `true` if object is in table.
 function UTILS.IsInTable(Table, Object, Key)
 
   for key, object in pairs(Table) do
@@ -3038,7 +3233,7 @@ end
 -- @param #table Table The table.
 -- @param #table Objects The objects to check.
 -- @param #string Key (Optional) Key to check.
--- @return #booolen Returns `true` if object is in table.
+-- @return #boolean Returns `true` if object is in table.
 function UTILS.IsAnyInTable(Table, Objects, Key)
 
   for _,Object in pairs(UTILS.EnsureTable(Objects)) do
@@ -3054,7 +3249,7 @@ function UTILS.IsAnyInTable(Table, Objects, Key)
         end
       end
     end
-    
+
   end
 
   return false
@@ -3070,34 +3265,823 @@ end
 -- @param #table Color Color of the line in RGB, e.g. {1,0,0} for red
 -- @param #number Alpha Transparency factor, between 0.1 and 1
 -- @param #number LineType Line type to be used, line type: 0=No line, 1=Solid, 2=Dashed, 3=Dotted, 4=Dot dash, 5=Long dash, 6=Two dash. Default 1=Solid.
--- @param #boolean ReadOnly 
+-- @param #boolean ReadOnly
 function UTILS.PlotRacetrack(Coordinate, Altitude, Speed, Heading, Leg, Coalition, Color, Alpha, LineType, ReadOnly)
     local fix_coordinate = Coordinate
     local altitude = Altitude
     local speed = Speed or 350
     local heading = Heading or 270
     local leg_distance = Leg or 10
-    
+
     local coalition = Coalition or -1
     local color = Color or {1,0,0}
     local alpha = Alpha or 1
     local lineType = LineType or 1
-    
-    
+
+
     speed = UTILS.IasToTas(speed, UTILS.FeetToMeters(altitude), oatcorr)
-      
+
     local turn_radius = 0.0211 * speed -3.01
-    
+
     local point_two = fix_coordinate:Translate(UTILS.NMToMeters(leg_distance), heading, true, false)
     local point_three = point_two:Translate(UTILS.NMToMeters(turn_radius)*2, heading - 90, true, false)
     local point_four = fix_coordinate:Translate(UTILS.NMToMeters(turn_radius)*2, heading - 90, true, false)
     local circle_center_fix_four = point_two:Translate(UTILS.NMToMeters(turn_radius), heading - 90, true, false)
     local circle_center_two_three = fix_coordinate:Translate(UTILS.NMToMeters(turn_radius), heading - 90, true, false)
-    
+
 
     fix_coordinate:LineToAll(point_two, coalition, color, alpha, lineType)
     point_four:LineToAll(point_three, coalition, color, alpha, lineType)
     circle_center_fix_four:CircleToAll(UTILS.NMToMeters(turn_radius), coalition, color, alpha, nil, 0, lineType)--, ReadOnly, Text)
     circle_center_two_three:CircleToAll(UTILS.NMToMeters(turn_radius), coalition, color, alpha, nil, 0, lineType)--, ReadOnly, Text)
 
+end
+
+--- Get the current time in a "nice" format like 21:01:15
+-- @return #string Returns string with the current time
+function UTILS.TimeNow()
+    return UTILS.SecondsToClock(timer.getAbsTime(), false, false)
+end
+
+
+--- Given 2 "nice" time string, returns the difference between the two in seconds
+-- @param #string start_time Time string like "07:15:22"
+-- @param #string end_time Time string like "08:11:27"
+-- @return #number Seconds between start_time and end_time
+function UTILS.TimeDifferenceInSeconds(start_time, end_time)
+    return UTILS.ClockToSeconds(end_time) - UTILS.ClockToSeconds(start_time)
+end
+
+--- Check if the current time is later than time_string.
+-- @param #string start_time Time string like "07:15:22"
+-- @return #boolean True if later, False if before
+function UTILS.TimeLaterThan(time_string)
+    if timer.getAbsTime() > UTILS.ClockToSeconds(time_string) then
+        return true
+    end
+    return false
+end
+
+--- Check if the current time is before time_string.
+-- @param #string start_time Time string like "07:15:22"
+-- @return #boolean False if later, True if before
+function UTILS.TimeBefore(time_string)
+    if timer.getAbsTime() < UTILS.ClockToSeconds(time_string) then
+        return true
+    end
+    return false
+end
+
+
+--- Combines two time strings to give you a new time. For example "15:16:32" and "02:06:24" would return "17:22:56"
+-- @param #string time_string_01 Time string like "07:15:22"
+-- @param #string time_string_02 Time string like "08:11:27"
+-- @return #string Result of the two time string combined
+function UTILS.CombineTimeStrings(time_string_01, time_string_02)
+    local hours1, minutes1, seconds1 = time_string_01:match("(%d+):(%d+):(%d+)")
+    local hours2, minutes2, seconds2 = time_string_02:match("(%d+):(%d+):(%d+)")
+    local total_seconds = tonumber(seconds1) + tonumber(seconds2) + tonumber(minutes1) * 60 + tonumber(minutes2) * 60 + tonumber(hours1) * 3600 + tonumber(hours2) * 3600
+
+    total_seconds = total_seconds % (24 * 3600)
+    if total_seconds < 0 then
+        total_seconds = total_seconds + 24 * 3600
+    end
+
+    local hours = math.floor(total_seconds / 3600)
+    total_seconds = total_seconds - hours * 3600
+    local minutes = math.floor(total_seconds / 60)
+    local seconds = total_seconds % 60
+
+    return string.format("%02d:%02d:%02d", hours, minutes, seconds)
+end
+
+
+--- Subtracts two time string to give you a new time. For example "15:16:32" and "02:06:24" would return "13:10:08"
+-- @param #string time_string_01 Time string like "07:15:22"
+-- @param #string time_string_02 Time string like "08:11:27"
+-- @return #string Result of the two time string subtracted
+function UTILS.SubtractTimeStrings(time_string_01, time_string_02)
+    local hours1, minutes1, seconds1 = time_string_01:match("(%d+):(%d+):(%d+)")
+    local hours2, minutes2, seconds2 = time_string_02:match("(%d+):(%d+):(%d+)")
+    local total_seconds = tonumber(seconds1) - tonumber(seconds2) + tonumber(minutes1) * 60 - tonumber(minutes2) * 60 + tonumber(hours1) * 3600 - tonumber(hours2) * 3600
+
+    total_seconds = total_seconds % (24 * 3600)
+    if total_seconds < 0 then
+        total_seconds = total_seconds + 24 * 3600
+    end
+
+    local hours = math.floor(total_seconds / 3600)
+    total_seconds = total_seconds - hours * 3600
+    local minutes = math.floor(total_seconds / 60)
+    local seconds = total_seconds % 60
+
+    return string.format("%02d:%02d:%02d", hours, minutes, seconds)
+end
+
+--- Checks if the current time is in between start_time and end_time
+-- @param #string time_string_01 Time string like "07:15:22"
+-- @param #string time_string_02 Time string like "08:11:27"
+-- @return #boolean True if it is, False if it's not
+function UTILS.TimeBetween(start_time, end_time)
+    return UTILS.TimeLaterThan(start_time) and UTILS.TimeBefore(end_time)
+end
+
+--- Easy to read one line to roll the dice on something. 1% is very unlikely to happen, 99% is very likely to happen
+-- @param #number chance (optional) Percentage chance you want something to happen. Defaults to a random number if not given
+-- @return #boolean True if the dice roll was within the given percentage chance of happening
+function UTILS.PercentageChance(chance)
+    chance = chance or math.random(0, 100)
+    chance = UTILS.Clamp(chance, 0, 100)
+    local percentage = math.random(0, 100)
+    if percentage < chance then
+        return true
+    end
+    return false
+end
+
+--- Easy to read one liner to clamp a value
+-- @param #number value Input value
+-- @param #number min Minimal value that should be respected
+-- @param #number max Maximal value that should be respected
+-- @return #number Clamped value
+function UTILS.Clamp(value, min, max)
+    if value < min then value = min end
+    if value > max then value = max end
+
+    return value
+end
+
+--- Clamp an angle so that it's always between 0 and 360 while still being correct
+-- @param #number value Input value
+-- @return #number Clamped value
+function UTILS.ClampAngle(value)
+    if value > 360 then return value - 360 end
+    if value < 0 then return value + 360 end
+    return value
+end
+
+--- Remap an input to a new value in a given range. For example:
+--- UTILS.RemapValue(20, 10, 30, 0, 200) would return 100
+--- 20 is 50% between 10 and 30
+--- 50% between 0 and 200 is 100
+-- @param #number value Input value
+-- @param #number old_min Min value to remap from
+-- @param #number old_max Max value to remap from
+-- @param #number new_min Min value to remap to
+-- @param #number new_max Max value to remap to
+-- @return #number Remapped value
+function UTILS.RemapValue(value, old_min, old_max, new_min, new_max)
+    new_min = new_min or 0
+    new_max = new_max or 100
+
+    local old_range = old_max - old_min
+    local new_range = new_max - new_min
+    local percentage = (value - old_min) / old_range
+    return (new_range * percentage) + new_min
+end
+
+--- Given a triangle made out of 3 vector 2s, return a vec2 that is a random number in this triangle
+-- @param DCS#Vec2 pt1 Min value to remap from
+-- @param DCS#Vec2 pt2 Max value to remap from
+-- @param DCS#Vec2 pt3 Max value to remap from
+-- @return DCS#Vec2 Random point in triangle
+function UTILS.RandomPointInTriangle(pt1, pt2, pt3)
+    local pt = {math.random(), math.random()}
+    table.sort(pt)
+    local s = pt[1]
+    local t = pt[2] - pt[1]
+    local u = 1 - pt[2]
+
+    return {x = s * pt1.x + t * pt2.x + u * pt3.x,
+            y = s * pt1.y + t * pt2.y + u * pt3.y}
+end
+
+--- Checks if a given angle (heading) is between 2 other angles. Min and max have to be given in clockwise order For example:
+--- UTILS.AngleBetween(350, 270, 15) would return True
+--- UTILS.AngleBetween(22, 95, 20) would return False
+-- @param #number angle Min value to remap from
+-- @param #number min Max value to remap from
+-- @param #number max Max value to remap from
+-- @return #boolean 
+function UTILS.AngleBetween(angle, min, max)
+    angle = (360 + (angle % 360)) % 360
+    min = (360 + min % 360) % 360
+    max = (360 + max % 360) % 360
+
+    if min < max then return min <= angle and angle <= max end
+    return min <= angle or angle <= max
+end
+
+--- Easy to read one liner to write a JSON file. Everything in @data should be serializable
+--- json.lua exists in the DCS install Scripts folder
+-- @param #table data table to write
+-- @param #string file_path File path
+function UTILS.WriteJSON(data, file_path)
+    package.path  = package.path ..  ";.\\Scripts\\?.lua"
+    local JSON = require("json")
+    local pretty_json_text = JSON:encode_pretty(data)
+    local write_file = io.open(file_path, "w")
+    write_file:write(pretty_json_text)
+    write_file:close()
+end
+
+--- Easy to read one liner to read a JSON file.
+--- json.lua exists in the DCS install Scripts folder
+-- @param #string file_path File path
+-- @return #table
+function UTILS.ReadJSON(file_path)
+    package.path  = package.path ..  ";.\\Scripts\\?.lua"
+    local JSON = require("json")
+    local read_file = io.open(file_path, "r")
+    local contents = read_file:read( "*a" )
+    io.close(read_file)
+    return JSON:decode(contents)
+end
+
+--- Get the properties names and values of properties set up on a Zone in the Mission Editor.
+--- This doesn't work for any zones created in MOOSE
+-- @param #string zone_name Name of the zone as set up in the Mission Editor
+-- @return #table with all the properties on a zone
+function UTILS.GetZoneProperties(zone_name)
+    local return_table = {}
+    for _, zone in pairs(env.mission.triggers.zones) do
+        if zone["name"] == zone_name then
+            if table.length(zone["properties"]) > 0 then
+                for _, property in pairs(zone["properties"]) do
+                    return_table[property["key"]] = property["value"]
+                end
+              return return_table
+            else
+                BASE:I(string.format("%s doesn't have any properties", zone_name))
+                return {}
+            end
+        end
+    end
+end
+
+--- Rotates a point around another point with a given angle. Useful if you're loading in groups or
+--- statics but you want to rotate them all as a collection. You can get the center point of everything
+--- and then rotate all the positions of every object around this center point.
+-- @param DCS#Vec2 point Point that you want to rotate
+-- @param DCS#Vec2 pivot Pivot point of the rotation
+-- @param #number angle How many degrees the point should be rotated
+-- @return DCS#Vec2 Rotated point
+function UTILS.RotatePointAroundPivot(point, pivot, angle)
+    local radians = math.rad(angle)
+
+    local x = point.x - pivot.x
+    local y = point.y - pivot.y
+
+    local rotated_x = x * math.cos(radians) - y * math.sin(radians)
+    local rotatex_y = x * math.sin(radians) + y * math.cos(radians)
+
+    local original_x = rotated_x + pivot.x
+    local original_y = rotatex_y + pivot.y
+
+    return { x = original_x, y = original_y }
+end
+
+--- Makes a string semi-unique by attaching a random number between 0 and 1 million to it
+-- @param #string base String you want to unique-fy
+-- @return #string Unique string
+function UTILS.UniqueName(base)
+    base = base or ""
+    local ran = tostring(math.random(0, 1000000))
+
+    if base == "" then
+        return ran
+    end
+    return base .. "_" .. ran
+end
+
+--- Check if a string starts with something
+-- @param #string str String to check
+-- @param #string value
+-- @return #boolean True if str starts with value
+function string.startswith(str, value)
+   return string.sub(str,1,string.len(value)) == value
+end
+
+
+--- Check if a string ends with something
+-- @param #string str String to check
+-- @param #string value
+-- @return #boolean True if str ends with value
+function string.endswith(str, value)
+    return value == "" or str:sub(-#value) == value
+end
+
+--- Splits a string on a separator. For example:
+--- string.split("hello_dcs_world", "-") would return {"hello", "dcs", "world"}
+-- @param #string input String to split
+-- @param #string separator What to split on
+-- @return #table individual strings
+function string.split(input, separator)
+    local parts = {}
+    for part in input:gmatch("[^" .. separator .. "]+") do
+        table.insert(parts, part)
+    end
+    return parts
+end
+
+
+--- Checks if a string contains a substring. Easier to remember for Python people :)
+--- string.split("hello_dcs_world", "-") would return {"hello", "dcs", "world"}
+-- @param #string str
+-- @param #string value
+-- @return #boolean True if str contains value
+function string.contains(str, value)
+    return string.match(str, value)
+end
+
+
+--- Moves an object from one table to another
+-- @param #table obj object to move
+-- @param #table from_table table to move from
+-- @param #table to_table table to move to
+function table.move_object(obj, from_table, to_table)
+    local index
+    for i, v in pairs(from_table) do
+        if v == obj then
+            index = i
+        end
+    end
+
+    if index then
+        local moved = table.remove(from_table, index)
+        table.insert_unique(to_table, moved)
+    end
+end
+
+--- Given tbl is a indexed table ({"hello", "dcs", "world"}), checks if element exists in the table.
+--- The table can be made up out of complex tables or values as well
+-- @param #table tbl
+-- @param #string element
+-- @return #boolean True if tbl contains element
+function table.contains(tbl, element)
+    if element == nil or tbl == nil then return false end
+
+    local index = 1
+    while tbl[index] do
+        if tbl[index] == element then
+            return true
+        end
+        index = index + 1
+    end
+    return false
+end
+
+--- Checks if a table contains a specific key.
+-- @param #table tbl Table to check
+-- @param #string key Key to look for
+-- @return #boolean True if tbl contains key
+function table.contains_key(tbl, key)
+    if tbl[key] ~= nil then return true else return false end
+end
+
+--- Inserts a unique element into a table.
+-- @param #table tbl Table to insert into
+-- @param #string element Element to insert
+function table.insert_unique(tbl, element)
+    if element == nil or tbl == nil then return end
+
+    if not table.contains(tbl, element) then
+        table.insert(tbl, element)
+    end
+end
+
+--- Removes an element from a table by its value.
+-- @param #table tbl Table to remove from
+-- @param #string element Element to remove
+function table.remove_by_value(tbl, element)
+    local indices_to_remove = {}
+    local index = 1
+    for _, value in pairs(tbl) do
+        if value == element then
+            table.insert(indices_to_remove, index)
+        end
+        index = index + 1
+    end
+
+    for _, idx in pairs(indices_to_remove) do
+        table.remove(tbl, idx)
+    end
+end
+
+--- Removes an element from a table by its key.
+-- @param #table table Table to remove from
+-- @param #string key Key of the element to remove
+-- @return #string Removed element
+function table.remove_key(table, key)
+    local element = table[key]
+    table[key] = nil
+    return element
+end
+
+--- Finds the index of an element in a table.
+-- @param #table table Table to search
+-- @param #string element Element to find
+-- @return #number Index of the element, or nil if not found
+function table.index_of(table, element)
+    for i, v in ipairs(table) do
+        if v == element then
+            return i
+        end
+    end
+    return nil
+end
+
+--- Counts the number of elements in a table.
+-- @param #table T Table to count
+-- @return #number Number of elements in the table
+function table.length(T)
+  local count = 0
+  for _ in pairs(T) do count = count + 1 end
+  return count
+end
+
+--- Slices a table between two indices, much like Python's my_list[2:-1]
+-- @param #table tbl Table to slice
+-- @param #number first Starting index
+-- @param #number last Ending index
+-- @return #table Sliced table
+function table.slice(tbl, first, last)
+  local sliced = {}
+  local start = first or 1
+  local stop = last or table.length(tbl)
+  local count = 1
+
+  for key, value in pairs(tbl) do
+      if count >= start and count <= stop then
+          sliced[key] = value
+      end
+      count = count + 1
+  end
+
+  return sliced
+end
+
+--- Counts the number of occurrences of a value in a table.
+-- @param #table tbl Table to search
+-- @param #string value Value to count
+-- @return #number Number of occurrences of the value
+function table.count_value(tbl, value)
+    local count = 0
+    for _, item in pairs(tbl) do
+        if item == value then count = count + 1 end
+    end
+    return count
+end
+
+--- Add 2 table together, t2 gets added to t1
+-- @param #table t1 First table
+-- @param #table t2 Second table
+-- @return #table Combined table
+function table.combine(t1, t2)
+    if t1 == nil and t2 == nil then
+        BASE:E("Both tables were empty!")
+    end
+
+    if t1 == nil then return t2 end
+    if t2 == nil then return t1 end
+    for i=1,#t2 do
+        t1[#t1+1] = t2[i]
+    end
+    return t1
+end
+
+--- Merges two tables into one. If a key exists in both t1 and t2, the value of t1 with be overwritten by the value of t2
+-- @param #table t1 First table
+-- @param #table t2 Second table
+-- @return #table Merged table
+function table.merge(t1, t2)
+    for k, v in pairs(t2) do
+        if (type(v) == "table") and (type(t1[k] or false) == "table") then
+            table.merge(t1[k], t2[k])
+        else
+            t1[k] = v
+        end
+    end
+    return t1
+end
+
+--- Adds an item to the end of a table.
+-- @param #table tbl Table to add to
+-- @param #string item Item to add
+function table.add(tbl, item)
+    tbl[#tbl + 1] = item
+end
+
+--- Shuffles the elements of a table.
+-- @param #table tbl Table to shuffle
+-- @return #table Shuffled table
+function table.shuffle(tbl)
+    local new_table = {}
+    for _, value in ipairs(tbl) do
+        local pos = math.random(1, #new_table +1)
+        table.insert(new_table, pos, value)
+    end
+    return new_table
+end
+
+--- Finds a key-value pair in a table.
+-- @param #table tbl Table to search
+-- @param #string key Key to find
+-- @param #string value Value to find
+-- @return #table Table containing the key-value pair, or nil if not found
+function table.find_key_value_pair(tbl, key, value)
+    for k, v in pairs(tbl) do
+        if type(v) == "table" then
+            local result = table.find_key_value_pair(v, key, value)
+            if result ~= nil then
+                return result
+            end
+        elseif k == key and v == value then
+            return tbl
+        end
+    end
+    return nil
+end
+
+--- Convert a decimal to octal
+-- @param #number Number the number to convert
+-- @return #number Octal
+function UTILS.DecimalToOctal(Number)
+  if Number < 8 then return Number end
+  local number = tonumber(Number)
+  local octal = ""
+  local n=1
+  while number > 7 do
+    local number1 = number%8
+    octal = string.format("%d",number1)..octal
+    local number2 = math.abs(number/8)
+    if number2 < 8 then
+      octal = string.format("%d",number2)..octal
+    end
+    number = number2
+    n=n+1
+  end
+  return tonumber(octal)
+end
+
+--- Convert an octal to decimal
+-- @param #number Number the number to convert
+-- @return #number Decimal
+function UTILS.OctalToDecimal(Number)
+  return tonumber(Number,8)
+end
+
+
+--- HexToRGBA
+-- @param hex_string table
+-- @return #table R, G, B, A
+function UTILS.HexToRGBA(hex_string)
+    local hexNumber = tonumber(string.sub(hex_string, 3), 16) -- convert the string to a number
+    -- extract RGBA components
+    local alpha = hexNumber % 256
+    hexNumber = (hexNumber - alpha) / 256
+    local blue = hexNumber % 256
+    hexNumber = (hexNumber - blue) / 256
+    local green = hexNumber % 256
+    hexNumber = (hexNumber - green) / 256
+    local red = hexNumber % 256
+
+    return {R = red, G = green, B = blue, A = alpha}
+end
+
+
+--- Function to save the position of a set of #OPSGROUP (ARMYGROUP) objects.
+-- @param Core.Set#SET_OPSGROUP Set of ops objects to save
+-- @param #string Path The path to use. Use double backslashes \\\\ on Windows filesystems.
+-- @param #string Filename The name of the file.
+-- @param #boolean Structured Append the data with a list of typenames in the group plus their count.
+-- @return #boolean outcome True if saving is successful, else false.
+function UTILS.SaveSetOfOpsGroups(Set,Path,Filename,Structured)
+  local filename = Filename or "SetOfGroups"
+  local data = "--Save SET of groups: (name,legion,template,alttemplate,units,position.x,position.y,position.z,strucdata) "..Filename .."\n"
+  local List = Set:GetSetObjects()
+  for _,_group in pairs (List) do
+    local group = _group:GetGroup() -- Wrapper.Group#GROUP
+    if group and group:IsAlive() then
+      local name = group:GetName()
+      local template = string.gsub(name,"(.AID.%d+$","")
+      if string.find(template,"#") then
+       template = string.gsub(name,"#(%d+)$","")
+      end
+      local alttemplate = _group.templatename or "none"
+      local legiono = _group.legion -- Ops.Legion#LEGION
+      local legion = "none"
+      if legiono and type(legiono) == "table" and legiono.ClassName then
+        legion = legiono:GetName()
+        local asset = legiono:GetAssetByName(name) -- Functional.Warehouse#WAREHOUSE.Assetitem
+        alttemplate=asset.templatename
+      end
+      local units = group:CountAliveUnits()
+      local position = group:GetVec3()
+      if Structured then
+        local structure = UTILS.GetCountPerTypeName(group)
+        local strucdata =  ""
+        for typen,anzahl in pairs (structure) do
+          strucdata = strucdata .. typen .. "=="..anzahl..";"
+        end
+        data = string.format("%s%s,%s,%s,%s,%d,%d,%d,%d,%s\n",data,name,legion,template,alttemplate,units,position.x,position.y,position.z,strucdata)
+      else
+        data = string.format("%s%s,%s,%s,%s,%d,%d,%d,%d\n",data,name,legion,template,alttemplate,units,position.x,position.y,position.z)
+      end
+    end
+  end
+  -- save the data
+  local outcome = UTILS.SaveToFile(Path,Filename,data)
+  return outcome
+end
+
+--- Load back a #OPSGROUP (ARMYGROUP) data from file for use with @{Ops.Brigade#BRIGADE.LoadBackAssetInPosition}()
+-- @param #string Path The path to use. Use double backslashes \\\\ on Windows filesystems.
+-- @param #string Filename The name of the file.
+-- @return #table Returns a table of data entries: `{ groupname=groupname, size=size, coordinate=coordinate, template=template, structure=structure, legion=legion, alttemplate=alttemplate }`
+-- Returns nil when the file cannot be read.
+function UTILS.LoadSetOfOpsGroups(Path,Filename)
+
+  local filename = Filename or "SetOfGroups"
+  local datatable = {}
+
+  if UTILS.CheckFileExists(Path,filename) then
+    local outcome,loadeddata = UTILS.LoadFromFile(Path,Filename)
+    -- remove header
+    table.remove(loadeddata, 1)
+    for _id,_entry in pairs (loadeddata) do
+      local dataset = UTILS.Split(_entry,",")
+      -- 1name,2legion,3template,4alttemplate,5units,6position.x,7position.y,8position.z,9strucdata
+      local groupname = dataset[1]
+      local legion = dataset[2]
+      local template = dataset[3]
+      local alttemplate = dataset[4]
+      local size = tonumber(dataset[5])
+      local posx = tonumber(dataset[6])
+      local posy = tonumber(dataset[7])
+      local posz = tonumber(dataset[8])
+      local structure = dataset[9]
+      local coordinate = COORDINATE:NewFromVec3({x=posx, y=posy, z=posz})
+      if size > 0 then
+        local data = { groupname=groupname, size=size, coordinate=coordinate, template=template, structure=structure, legion=legion, alttemplate=alttemplate }
+        table.insert(datatable,data)
+      end
+    end
+  else
+    return nil
+  end
+
+  return datatable
+end
+
+--- Get the clock position from a relative heading
+-- @param #number refHdg The heading of the reference object (such as a Wrapper.UNIT) in 0-360
+-- @param #number tgtHdg The absolute heading from the reference object to the target object/point in 0-360
+-- @return #string text Text in clock heading such as "4 O'CLOCK"
+-- @usage Display the range and clock distance of a BTR in relation to REAPER 1-1's heading:
+--
+--          myUnit = UNIT:FindByName( "REAPER 1-1" )
+--          myTarget = GROUP:FindByName( "BTR-1" )
+--
+--          coordUnit = myUnit:GetCoordinate()
+--          coordTarget = myTarget:GetCoordinate()
+--
+--          hdgUnit = myUnit:GetHeading()
+--          hdgTarget = coordUnit:HeadingTo( coordTarget )
+--          distTarget = coordUnit:Get3DDistance( coordTarget )
+--
+--          clockString = UTILS.ClockHeadingString( hdgUnit, hdgTarget )
+--
+--          -- Will show this message to REAPER 1-1 in-game: Contact BTR at 3 o'clock for 1134m!
+--          MESSAGE:New("Contact BTR at " .. clockString .. " for " .. distTarget  .. "m!):ToUnit( myUnit )
+function UTILS.ClockHeadingString(refHdg,tgtHdg)
+    local relativeAngle = tgtHdg - refHdg
+    if relativeAngle < 0 then
+        relativeAngle = relativeAngle + 360
+    end
+    local clockPos = math.ceil((relativeAngle % 360) / 30)
+    return clockPos.." o'clock"
+end
+
+--- Get a NATO abbreviated MGRS text for SRS use, optionally with prosody slow tag
+-- @param #string Text The input string, e.g. "MGRS 4Q FJ 12345 67890"
+-- @param #boolean Slow Optional - add slow tags
+-- @return #string Output for (Slow) spelling in SRS TTS e.g. "MGRS;<prosody rate="slow">4;Quebec;Foxtrot;Juliett;1;2;3;4;5;6;7;8;niner;zero;</prosody>"
+function UTILS.MGRSStringToSRSFriendly(Text,Slow)
+    local Text = string.gsub(Text,"MGRS ","")
+    Text = string.gsub(Text,"%s+","")
+    Text = string.gsub(Text,"([%a%d])","%1;") -- "0;5;1;"
+    Text = string.gsub(Text,"A","Alpha")
+    Text = string.gsub(Text,"B","Bravo")
+    Text = string.gsub(Text,"C","Charlie")
+    Text = string.gsub(Text,"D","Delta")
+    Text = string.gsub(Text,"E","Echo")
+    Text = string.gsub(Text,"F","Foxtrot")
+    Text = string.gsub(Text,"G","Golf")
+    Text = string.gsub(Text,"H","Hotel")
+    Text = string.gsub(Text,"I","India")
+    Text = string.gsub(Text,"J","Juliett")
+    Text = string.gsub(Text,"K","Kilo")
+    Text = string.gsub(Text,"L","Lima")
+    Text = string.gsub(Text,"M","Mike")
+    Text = string.gsub(Text,"N","November")
+    Text = string.gsub(Text,"O","Oscar")
+    Text = string.gsub(Text,"P","Papa")
+    Text = string.gsub(Text,"Q","Quebec")
+    Text = string.gsub(Text,"R","Romeo")
+    Text = string.gsub(Text,"S","Sierra")
+    Text = string.gsub(Text,"T","Tango")
+    Text = string.gsub(Text,"U","Uniform")
+    Text = string.gsub(Text,"V","Victor")
+    Text = string.gsub(Text,"W","Whiskey")
+    Text = string.gsub(Text,"X","Xray")
+    Text = string.gsub(Text,"Y","Yankee")
+    Text = string.gsub(Text,"Z","Zulu")
+    Text = string.gsub(Text,"0","zero")
+    Text = string.gsub(Text,"9","niner")
+    if Slow then
+      Text = '<prosody rate="slow">'..Text..'</prosody>'
+    end
+    Text = "MGRS;"..Text
+    return Text
+end
+
+
+--- Read csv file and convert it to a lua table.
+-- The csv must have a header specifing the names of the columns. The column names are used as table keys.
+-- @param #string filename File name including full path on local disk.
+-- @return #table The table filled with data from the csv file.
+function UTILS.ReadCSV(filename)
+
+  if not UTILS.FileExists(filename) then  
+    env.error("File does not exist")
+    return nil  
+  end
+  
+  --- Function that load data from a file.
+  local function _loadfile( filename )
+    local f = io.open( filename, "rb" )
+    if f then
+      local data = f:read( "*all" )
+      f:close()
+      return data
+    else
+      BASE:E(string.format( "WARNING: Could read data from file %s!", tostring( filename ) ) )
+      return nil
+    end
+  end
+  
+  -- Load asset data from file.
+  local data = _loadfile( filename )
+  
+  local lines=UTILS.Split(data, "\n" )
+  
+  -- Remove carriage returns from end of lines
+  for _,line in pairs(lines) do
+    line=string.gsub(line, "[\n\r]","")
+  end
+  
+  local sep=";"
+  
+  local columns=UTILS.Split(lines[1], sep)
+
+  -- Remove header line.
+  table.remove(lines, 1)
+  
+  local csvdata={}  
+  for i, line in pairs(lines) do
+    line=string.gsub(line, "[\n\r]","")
+  
+    local row={}
+    for j, value in pairs(UTILS.Split(line, sep)) do
+    
+      local key=string.gsub(columns[j], "[\n\r]","")
+      row[key]=value    
+    end
+    table.insert(csvdata, row)
+  
+  end
+
+  return csvdata
+end
+
+--- Seed the LCG random number generator.
+-- @param #number seed Seed value. Default is a random number using math.random()
+function UTILS.LCGRandomSeed(seed)
+  UTILS.lcg = {
+    seed = seed or math.random(1, 2^32 - 1),
+    a = 1664525,
+    c = 1013904223,
+    m = 2^32
+  }
+end
+
+--- Return a pseudo-random number using the LCG algorithm.
+-- @return #number Random number between 0 and 1.
+function UTILS.LCGRandom()
+  if UTILS.lcg == nil then
+    UTILS.LCGRandomSeed()
+  end
+  UTILS.lcg.seed = (UTILS.lcg.a * UTILS.lcg.seed + UTILS.lcg.c) % UTILS.lcg.m
+  return UTILS.lcg.seed / UTILS.lcg.m
 end

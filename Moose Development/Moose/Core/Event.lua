@@ -261,7 +261,23 @@ EVENTS = {
   SimulationStart           = world.event.S_EVENT_SIMULATION_START or -1,
   WeaponRearm               = world.event.S_EVENT_WEAPON_REARM or -1,
   WeaponDrop                = world.event.S_EVENT_WEAPON_DROP or -1,
+  -- Added with DCS 2.9.x
+  --UnitTaskTimeout           = world.event.S_EVENT_UNIT_TASK_TIMEOUT or -1,
+  UnitTaskComplete          = world.event.S_EVENT_UNIT_TASK_COMPLETE or -1,
+  UnitTaskStage             = world.event.S_EVENT_UNIT_TASK_STAGE or -1,
+  --MacSubtaskScore           = world.event.S_EVENT_MAC_SUBTASK_SCORE or -1, 
+  MacExtraScore             = world.event.S_EVENT_MAC_EXTRA_SCORE or -1,
+  MissionRestart            = world.event.S_EVENT_MISSION_RESTART or -1,
+  MissionWinner             = world.event.S_EVENT_MISSION_WINNER or -1, 
+  RunwayTakeoff             = world.event.S_EVENT_RUNWAY_TAKEOFF or -1, 
+  RunwayTouch               = world.event.S_EVENT_RUNWAY_TOUCH or -1,
+  MacLMSRestart             = world.event.S_EVENT_MAC_LMS_RESTART or -1,
+  SimulationFreeze          = world.event.S_EVENT_SIMULATION_FREEZE or -1, 
+  SimulationUnfreeze        = world.event.S_EVENT_SIMULATION_UNFREEZE or -1, 
+  HumanAircraftRepairStart  = world.event.S_EVENT_HUMAN_AIRCRAFT_REPAIR_START or -1, 
+  HumanAircraftRepairFinish = world.event.S_EVENT_HUMAN_AIRCRAFT_REPAIR_FINISH or -1, 
 }
+
 
 --- The Event structure
 -- Note that at the beginning of each field description, there is an indication which field will be populated depending on the object type involved in the Event:
@@ -636,7 +652,87 @@ local _EVENTMETA = {
      Event = "OnEventWeaponDrop",
      Text = "S_EVENT_WEAPON_DROP"
    },
+   -- DCS 2.9
+  --[EVENTS.UnitTaskTimeout] = {
+    -- Order = 1,
+    -- Side = "I",
+    -- Event = "OnEventUnitTaskTimeout",
+    -- Text = "S_EVENT_UNIT_TASK_TIMEOUT "
+   --},
+  [EVENTS.UnitTaskStage] = {
+     Order = 1,
+     Side = "I",
+     Event = "OnEventUnitTaskStage",
+     Text = "S_EVENT_UNIT_TASK_STAGE "
+   },
+  --[EVENTS.MacSubtaskScore] = {
+    -- Order = 1,
+     --Side = "I",
+     --Event = "OnEventMacSubtaskScore",
+     --Text = "S_EVENT_MAC_SUBTASK_SCORE"
+   --},
+  [EVENTS.MacExtraScore] = {
+     Order = 1,
+     Side = "I",
+     Event = "OnEventMacExtraScore",
+     Text = "S_EVENT_MAC_EXTRA_SCOREP"
+   },
+  [EVENTS.MissionRestart] = {
+     Order = 1,
+     Side = "I",
+     Event = "OnEventMissionRestart",
+     Text = "S_EVENT_MISSION_RESTART"
+   },
+  [EVENTS.MissionWinner] = {
+     Order = 1,
+     Side = "I",
+     Event = "OnEventMissionWinner",
+     Text = "S_EVENT_MISSION_WINNER"
+   },
+  [EVENTS.RunwayTakeoff] = {
+     Order = 1,
+     Side = "I",
+     Event = "OnEventRunwayTakeoff",
+     Text = "S_EVENT_RUNWAY_TAKEOFF"
+   },
+  [EVENTS.RunwayTouch] = {
+     Order = 1,
+     Side = "I",
+     Event = "OnEventRunwayTouch",
+     Text = "S_EVENT_RUNWAY_TOUCH"
+   }, 
+     [EVENTS.MacLMSRestart] = {
+     Order = 1,
+     Side = "I",
+     Event = "OnEventMacLMSRestart",
+     Text = "S_EVENT_MAC_LMS_RESTART"
+   }, 
+     [EVENTS.SimulationFreeze] = {
+     Order = 1,
+     Side = "I",
+     Event = "OnEventSimulationFreeze",
+     Text = "S_EVENT_SIMULATION_FREEZE"
+   }, 
+     [EVENTS.SimulationUnfreeze] = {
+     Order = 1,
+     Side = "I",
+     Event = "OnEventSimulationUnfreeze",
+     Text = "S_EVENT_SIMULATION_UNFREEZE"
+   }, 
+     [EVENTS.HumanAircraftRepairStart] = {
+     Order = 1,
+     Side = "I",
+     Event = "OnEventHumanAircraftRepairStart",
+     Text = "S_EVENT_HUMAN_AIRCRAFT_REPAIR_START"
+   }, 
+     [EVENTS.HumanAircraftRepairFinish] = {
+     Order = 1,
+     Side = "I",
+     Event = "OnEventHumanAircraftRepairFinish",
+     Text = "S_EVENT_HUMAN_AIRCRAFT_REPAIR_FINISH"
+   }, 
 }
+
 
 --- The Events structure
 -- @type EVENT.Events
@@ -1243,13 +1339,16 @@ function EVENT:onEvent( Event )
           -- STATIC
           ---
           Event.TgtDCSUnit = Event.target
-          if Event.target:isExist() and Event.id ~= 33 then -- leave out ejected seat object
+          if Event.target.isExist and Event.target:isExist() and Event.id ~= 33 then -- leave out ejected seat object, check that isExist exists (Kiowa Hellfire issue, Special K)
             Event.TgtDCSUnitName = Event.TgtDCSUnit:getName()
-            Event.TgtUnitName = Event.TgtDCSUnitName
-            Event.TgtUnit = STATIC:FindByName( Event.TgtDCSUnitName, false )
-            Event.TgtCoalition = Event.TgtDCSUnit:getCoalition()
-            Event.TgtCategory = Event.TgtDCSUnit:getDesc().category
-            Event.TgtTypeName = Event.TgtDCSUnit:getTypeName()
+            -- Workaround for borked target info on cruise missiles
+            if Event.TgtDCSUnitName and Event.TgtDCSUnitName ~= "" then
+              Event.TgtUnitName = Event.TgtDCSUnitName
+              Event.TgtUnit = STATIC:FindByName( Event.TgtDCSUnitName, false )
+              Event.TgtCoalition = Event.TgtDCSUnit:getCoalition()
+              Event.TgtCategory = Event.TgtDCSUnit:getDesc().category
+              Event.TgtTypeName = Event.TgtDCSUnit:getTypeName()
+            end
           else
             Event.TgtDCSUnitName = string.format("No target object for Event ID %s", tostring(Event.id))
             Event.TgtUnitName = Event.TgtDCSUnitName
@@ -1283,11 +1382,12 @@ function EVENT:onEvent( Event )
       end
 
       -- Weapon.
-      if Event.weapon then
+      if Event.weapon and type(Event.weapon) == "table" then
         Event.Weapon = Event.weapon
-        Event.WeaponName = Event.Weapon:getTypeName()
+        Event.WeaponName = Event.weapon:isExist() and Event.weapon:getTypeName() or "Unknown Weapon"
         Event.WeaponUNIT = CLIENT:Find( Event.Weapon, '', true ) -- Sometimes, the weapon is a player unit!
-        Event.WeaponPlayerName = Event.WeaponUNIT and Event.Weapon:getPlayerName()
+        Event.WeaponPlayerName = Event.WeaponUNIT and Event.Weapon.getPlayerName and Event.Weapon:getPlayerName()
+        --Event.WeaponPlayerName = Event.WeaponUNIT and Event.Weapon:getPlayerName()
         Event.WeaponCoalition = Event.WeaponUNIT and Event.Weapon:getCoalition()
         Event.WeaponCategory = Event.WeaponUNIT and Event.Weapon:getDesc().category
         Event.WeaponTypeName = Event.WeaponUNIT and Event.Weapon:getTypeName()
@@ -1316,6 +1416,7 @@ function EVENT:onEvent( Event )
         Event.MarkCoordinate=COORDINATE:NewFromVec3(Event.pos)
         Event.MarkText=Event.text
         Event.MarkCoalition=Event.coalition
+        Event.IniCoalition=Event.coalition
         Event.MarkGroupID = Event.groupID
       end
 

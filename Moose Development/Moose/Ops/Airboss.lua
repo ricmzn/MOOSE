@@ -70,7 +70,7 @@
 --
 -- ## Example Missions
 --
--- Example missions can be found [here](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/develop/OPS%20-%20Airboss).
+-- Example missions can be found [here](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/Ops/Airboss).
 -- They contain the latest development Moose.lua file.
 --
 -- ## IMPORTANT
@@ -255,6 +255,7 @@
 -- @field #boolean skipperUturn U-turn on/off via menu.
 -- @field #number skipperOffset Holding offset angle in degrees for Case II/III manual recoveries.
 -- @field #number skipperTime Recovery time in min for manual recovery.
+-- @field #boolean intowindold If true, use old into wind calculation.
 -- @extends Core.Fsm#FSM
 
 --- Be the boss!
@@ -1746,7 +1747,7 @@ AIRBOSS.MenuF10Root = nil
 
 --- Airboss class version.
 -- @field #string version
-AIRBOSS.version = "1.3.2"
+AIRBOSS.version = "1.3.3"
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- TODO list
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2724,6 +2725,18 @@ function AIRBOSS:SetLSOCallInterval( TimeInterval )
   return self
 end
 
+--- Set if old into wind calculation is used when carrier turns into the wind for a recovery.
+-- @param #AIRBOSS self
+-- @param #boolean SwitchOn If `true` or `nil`, use old into wind calculation.
+-- @return #AIRBOSS self
+function AIRBOSS:SetIntoWindLegacy( SwitchOn )
+  if SwitchOn==nil then
+    SwitchOn=true
+  end
+  self.intowindold=SwitchOn
+  return self
+end
+
 --- Airboss is a rather nice guy and not strictly following the rules. Fore example, he does allow you into the landing pattern if you are not coming from the Marshal stack.
 -- @param #AIRBOSS self
 -- @param #boolean Switch If true or nil, Airboss bends the rules a bit.
@@ -3062,7 +3075,7 @@ function AIRBOSS:EnableSRS(PathToSRS,Port,Culture,Gender,Voice,GoogleCreds,Volum
   -- SRS
   local Frequency = self.AirbossRadio.frequency
   local Modulation = self.AirbossRadio.modulation
-  self.SRS = MSRS:New(PathToSRS,Frequency,Modulation,Volume,AltBackend)
+  self.SRS = MSRS:New(PathToSRS,Frequency,Modulation,AltBackend)
   self.SRS:SetCoalition(self:GetCoalition())
   self.SRS:SetCoordinate(self:GetCoordinate())
   self.SRS:SetCulture(Culture or "en-US")
@@ -3071,6 +3084,8 @@ function AIRBOSS:EnableSRS(PathToSRS,Port,Culture,Gender,Voice,GoogleCreds,Volum
   self.SRS:SetPath(PathToSRS)
   self.SRS:SetPort(Port or 5002)
   self.SRS:SetLabel(self.AirbossRadio.alias or "AIRBOSS")
+  self.SRS:SetCoordinate(self.carrier:GetCoordinate())
+  self.SRS:SetVolume(Volume or 1)
   --self.SRS:SetModulations(Modulations)
   if GoogleCreds then
     self.SRS:SetGoogle(GoogleCreds)
@@ -3638,6 +3653,12 @@ function AIRBOSS:onafterStatus( From, Event, To )
     local hdg = self:GetHeading()
     local pos = self:GetCoordinate()
     local speed = self.carrier:GetVelocityKNOTS()
+
+    -- Update magnetic variation if we can get it from DCS.
+    if require then
+      self.magvar=pos:GetMagneticDeclination()
+      --env.info(string.format("FF magvar=%.1f", self.magvar))
+    end
 
     -- Check water is ahead.
     local collision = false -- self:_CheckCollisionCoord(pos:Translate(self.collisiondist, hdg))
@@ -5198,6 +5219,7 @@ function AIRBOSS:_InitVoiceOvers()
     TOMCAT = { file = "PILOT-Tomcat", suffix = "ogg", loud = false, subtitle = "", duration = 0.66, subduration = 5 },
     HORNET = { file = "PILOT-Hornet", suffix = "ogg", loud = false, subtitle = "", duration = 0.56, subduration = 5 },
     VIKING = { file = "PILOT-Viking", suffix = "ogg", loud = false, subtitle = "", duration = 0.61, subduration = 5 },
+    GREYHOUND = { file = "PILOT-Greyhound", suffix = "ogg", loud = false, subtitle = "", duration = 0.61, subduration = 5 },
     BALL = { file = "PILOT-Ball", suffix = "ogg", loud = false, subtitle = "", duration = 0.50, subduration = 5 },
     BINGOFUEL = { file = "PILOT-BingoFuel", suffix = "ogg", loud = false, subtitle = "", duration = 0.80 },
     GASATDIVERT = { file = "PILOT-GasAtDivert", suffix = "ogg", loud = false, subtitle = "", duration = 1.80 },
@@ -6472,7 +6494,7 @@ function AIRBOSS:_LandAI( flight )
     or flight.actype == AIRBOSS.AircraftCarrier.RHINOF
     or flight.actype == AIRBOSS.AircraftCarrier.GROWLER then
     Speed = UTILS.KnotsToKmph( 200 )
-  elseif flight.actype == AIRBOSS.AircraftCarrier.E2D then
+  elseif flight.actype == AIRBOSS.AircraftCarrier.E2D or flight.actype == AIRBOSS.AircraftCarrier.C2A then
     Speed = UTILS.KnotsToKmph( 150 )
   elseif flight.actype == AIRBOSS.AircraftCarrier.F14A_AI or flight.actype == AIRBOSS.AircraftCarrier.F14A or flight.actype == AIRBOSS.AircraftCarrier.F14B then
     Speed = UTILS.KnotsToKmph( 175 )
@@ -8211,7 +8233,7 @@ function AIRBOSS:OnEventBirth( EventData )
     self:E( EventData )
     return
   end
-  if EventData.IniUnit == nil then
+  if EventData.IniUnit == nil and (not EventData.IniObjectCategory == Object.Category.STATIC) then
     self:E( self.lid .. "ERROR: EventData.IniUnit=nil in event BIRTH!" )
     self:E( EventData )
     return
@@ -9752,7 +9774,7 @@ function AIRBOSS:_Groove( playerData )
   local glideslopeError = groovedata.GSE
   local AoA = groovedata.AoA
 
-  if rho <= RXX and playerData.step == AIRBOSS.PatternStep.GROOVE_XX and (math.abs( groovedata.Roll ) <= 4.0 or playerData.unit:IsInZone( self:_GetZoneLineup() )) then
+  if rho <= RXX and playerData.step == AIRBOSS.PatternStep.GROOVE_XX and (math.abs( groovedata.Roll ) <= 4.0 and playerData.unit:IsInZone( self:_GetZoneLineup() )) then
 
     -- Start time in groove
     playerData.TIG0 = timer.getTime()
@@ -10266,7 +10288,7 @@ function AIRBOSS:_GetSternCoord()
     elseif case==2 or case==1 then
     -- V/Stol: Translate 8 meters port.
     self.sterncoord:Translate(self.carrierparam.sterndist, hdg, true, true):Translate(8, FB-90, true, true)
-	end
+  end
   elseif self.carriertype==AIRBOSS.CarrierType.STENNIS then
     -- Stennis: translate 7 meters starboard wrt Final bearing.
     self.sterncoord:Translate( self.carrierparam.sterndist, hdg, true, true ):Translate( 7, FB + 90, true, true )
@@ -11196,7 +11218,7 @@ function AIRBOSS:_AttitudeMonitor( playerData )
   end
   text = text .. string.format( "\nPitch=%.1f° | Roll=%.1f° | Yaw=%.1f°", pitch, roll, yaw )
   text = text .. string.format( "\nClimb Angle=%.1f° | Rate=%d ft/min", unit:GetClimbAngle(), velo.y * 196.85 )
-  local dist = self:_GetOptLandingCoordinate():Get3DDistance( playerData.unit )
+  local dist = self:_GetOptLandingCoordinate():Get3DDistance( playerData.unit:GetVec3() )
   -- Get player velocity in km/h.
   local vplayer = playerData.unit:GetVelocityKMH()
   -- Get carrier velocity in km/h.
@@ -11473,7 +11495,7 @@ end
 
 --- Get wind direction and speed at carrier position.
 -- @param #AIRBOSS self
--- @param #number alt Altitude ASL in meters. Default 15 m.
+-- @param #number alt Altitude ASL in meters. Default 18 m.
 -- @param #boolean magnetic Direction including magnetic declination.
 -- @param Core.Point#COORDINATE coord (Optional) Coordinate at which to get the wind. Default is current carrier position.
 -- @return #number Direction the wind is blowing **from** in degrees.
@@ -11545,10 +11567,31 @@ end
 
 --- Get true (or magnetic) heading of carrier into the wind. This accounts for the angled runway.
 -- @param #AIRBOSS self
+-- @param #number vdeck Desired wind velocity over deck in knots.
 -- @param #boolean magnetic If true, calculate magnetic heading. By default true heading is returned.
 -- @param Core.Point#COORDINATE coord (Optional) Coordinate from which heading is calculated. Default is current carrier position.
 -- @return #number Carrier heading in degrees.
-function AIRBOSS:GetHeadingIntoWind_old( magnetic, coord )
+-- @return #number Carrier speed in knots to reach desired wind speed on deck.
+function AIRBOSS:GetHeadingIntoWind(vdeck, magnetic, coord )
+
+  if self.intowindold then
+    --env.info("FF use OLD into wind")
+    return self:GetHeadingIntoWind_old(vdeck, magnetic, coord)
+  else
+    --env.info("FF use NEW into wind")
+    return self:GetHeadingIntoWind_new(vdeck, magnetic, coord)
+  end
+
+end
+
+
+--- Get true (or magnetic) heading of carrier into the wind. This accounts for the angled runway.
+-- @param #AIRBOSS self
+-- @param #number vdeck Desired wind velocity over deck in knots.
+-- @param #boolean magnetic If true, calculate magnetic heading. By default true heading is returned.
+-- @param Core.Point#COORDINATE coord (Optional) Coordinate from which heading is calculated. Default is current carrier position.
+-- @return #number Carrier heading in degrees.
+function AIRBOSS:GetHeadingIntoWind_old( vdeck, magnetic, coord )
 
   local function adjustDegreesForWindSpeed(windSpeed)
     local degreesAdjustment = 0
@@ -11605,7 +11648,13 @@ function AIRBOSS:GetHeadingIntoWind_old( magnetic, coord )
     intowind = intowind + 360
   end
 
-  return intowind
+  -- Wind speed.
+  --local _, vwind = self:GetWind()
+
+  -- Speed of carrier in m/s but at least 4 knots.
+  local vtot = math.max(vdeck-UTILS.MpsToKnots(vwind), 4)
+
+  return intowind, vtot
 end
 
 --- Get true (or magnetic) heading of carrier into the wind. This accounts for the angled runway.
@@ -11616,7 +11665,7 @@ end
 -- @param Core.Point#COORDINATE coord (Optional) Coordinate from which heading is calculated. Default is current carrier position.
 -- @return #number Carrier heading in degrees.
 -- @return #number Carrier speed in knots to reach desired wind speed on deck.
-function AIRBOSS:GetHeadingIntoWind( vdeck, magnetic, coord )
+function AIRBOSS:GetHeadingIntoWind_new( vdeck, magnetic, coord )
 
   -- Default offset angle.
   local Offset=self.carrierparam.rwyangle or 0
@@ -12120,16 +12169,18 @@ function AIRBOSS:_LSOgrade( playerData )
   local GIC, nIC = self:_Flightdata2Text( playerData, AIRBOSS.GroovePos.IC )
   local GAR, nAR = self:_Flightdata2Text( playerData, AIRBOSS.GroovePos.AR )
 
+  -- VTOL approach, which is graded differently (currently only Harrier).
+  local vtol=playerData.actype==AIRBOSS.AircraftCarrier.AV8B
+
   -- Put everything together.
   local G = GXX .. " " .. GIM .. " " .. " " .. GIC .. " " .. GAR
 
-  -- Count number of minor, normal and major deviations.
+  -- Count number of minor/small nS, normal nN and major/large deviations nL.
   local N=nXX+nIM+nIC+nAR
-  local Nv=nXX+nIM
   local nL=count(G, '_')/2
   local nS=count(G, '%(')
   local nN=N-nS-nL
-  local nNv=Nv-nS-nL
+
 
   -- Groove time 15-18.99 sec for a unicorn. Or 60-65 for V/STOL unicorn.
   local Tgroove=playerData.Tgroove
@@ -12145,34 +12196,64 @@ function AIRBOSS:_LSOgrade( playerData )
     G = "Unicorn"
   else
 
-    -- Add AV-8B Harrier devation allowances due to lower groundspeed and 3x conventional groove time, this allows to maintain LSO tolerances while respecting the deviations are not unsafe.--Pene testing
-      -- Large devaitions still result in a No Grade, A Unicorn still requires a clean pass with no deviation.
-  if nL > 1 and playerData.actype==AIRBOSS.AircraftCarrier.AV8B then
-      -- Larger deviations ==> "No grade" 2.0 points.
-      grade="--"
-      points=2.0
-  elseif nNv >= 1 and playerData.actype==AIRBOSS.AircraftCarrier.AV8B then
-      -- Only average deviations ==>  "Fair Pass" Pass with average deviations and corrections.
-      grade="(OK)"
-      points=3.0
-  elseif nNv < 1 and playerData.actype==AIRBOSS.AircraftCarrier.AV8B then
-      -- Only minor average deviations ==>  "OK" Pass with minor deviations and corrections. (test nNv<=1 and)
-      grade="OK"
-      points=4.0
-  elseif nL > 0 then
-      -- Larger deviations ==> "No grade" 2.0 points.
-      grade="--"
-      points=2.0
-  elseif nN> 0 then
-      -- No larger but average deviations ==>  "Fair Pass" Pass with average deviations and corrections.
-      grade="(OK)"
-      points=3.0
-  else
-      -- Only minor corrections
-      grade="OK"
-      points=4.0
-  end
+    if vtol then
 
+      -- Add AV-8B Harrier devation allowances due to lower groundspeed and 3x conventional groove time, this allows to maintain LSO tolerances while respecting the deviations are not unsafe.--Pene testing
+      -- Large devaitions still result in a No Grade, A Unicorn still requires a clean pass with no deviation.
+
+      -- Normal laning part at the beginning
+      local Gb = GXX .. " " .. GIM
+
+      -- Number of deviations that occurred at the the beginning of the landing (XX or IM). These are graded like in non-VTOL landings, i.e. on deviations is 
+      local N=nXX+nIM
+      local nL=count(Gb, '_')/2
+      local nS=count(Gb, '%(')
+      local nN=N-nS-nL
+
+
+      -- VTOL part of the landing
+      local Gv = GIC .. " " .. GAR
+
+      -- Number of deviations that occurred at the the end (VTOL part) of the landing (IC or AR).
+      local Nv=nIC+nAR
+      local nLv=count(Gv, '_')/2
+      local nSv=count(Gv, '%(')
+      local nNv=Nv-nSv-nLv
+
+      if nL>0 or nLv>1 then
+          -- Larger deviations at XX or IM or at least one larger deviation IC or AR==> "No grade" 2.0 points.
+          -- In other words, we allow one larger deviation at IC+AR 
+          grade="--"
+          points=2.0
+      elseif nN>0 or nNv>1 or nLv==1 then
+          -- Average deviations at XX+IM or more than one normal deviation IC or AR ==>  "Fair Pass" Pass with average deviations and corrections.
+          grade="(OK)"
+          points=3.0
+      else
+          -- Only minor corrections
+          grade="OK"
+          points=4.0
+      end
+
+    else
+
+      -- This is a normal (non-VTOL) landing.
+
+      if nL > 0 then
+          -- Larger deviations ==> "No grade" 2.0 points.
+          grade="--"
+          points=2.0
+      elseif nN> 0 then
+          -- No larger but average/normal deviations ==>  "Fair Pass" Pass with average deviations and corrections.
+          grade="(OK)"
+          points=3.0
+      else
+          -- Only minor corrections ==> "Okay pass" 4.0 points.
+          grade="OK"
+          points=4.0
+      end
+
+    end
   end
 
   -- Replace" )"( and "__"
@@ -14245,6 +14326,8 @@ function AIRBOSS:_GetACNickname( actype )
     nickname = "Harrier"
   elseif actype == AIRBOSS.AircraftCarrier.E2D then
     nickname = "Hawkeye"
+  elseif actype == AIRBOSS.AircraftCarrier.C2A then
+    nickname = "Greyhound"
   elseif actype == AIRBOSS.AircraftCarrier.F14A_AI or actype == AIRBOSS.AircraftCarrier.F14A or actype == AIRBOSS.AircraftCarrier.F14B then
     nickname = "Tomcat"
   elseif actype == AIRBOSS.AircraftCarrier.FA18C or actype == AIRBOSS.AircraftCarrier.HORNET then
@@ -14282,32 +14365,55 @@ function AIRBOSS:_GetOnboardNumbers( group, playeronly )
   -- Debug text.
   local text = string.format( "Onboard numbers of group %s:", groupname )
 
-  -- Units of template group.
-  local units = group:GetTemplate().units
+  local template=group:GetTemplate()
 
-  -- Get numbers.
   local numbers = {}
-  for _, unit in pairs( units ) do
+  if template then
 
-    -- Onboard number and unit name.
-    local n = tostring( unit.onboard_num )
-    local name = unit.name
-    local skill = unit.skill or "Unknown"
+    -- Units of template group.
+    local units = template.units
 
-    -- Debug text.
-    text = text .. string.format( "\n- unit %s: onboard #=%s  skill=%s", name, n, tostring( skill ) )
+    -- Get numbers.
+    for _, unit in pairs( units ) do
 
-    if playeronly and skill == "Client" or skill == "Player" then
-      -- There can be only one player in the group, so we skip everything else.
-      return n
+      -- Onboard number and unit name.
+      local n = tostring( unit.onboard_num )
+      local name = unit.name
+      local skill = unit.skill or "Unknown"
+
+      -- Debug text.
+      text = text .. string.format( "\n- unit %s: onboard #=%s  skill=%s", name, n, tostring( skill ) )
+
+      if playeronly and skill == "Client" or skill == "Player" then
+        -- There can be only one player in the group, so we skip everything else.
+        return n
+      end
+
+      -- Table entry.
+      numbers[name] = n
     end
 
-    -- Table entry.
-    numbers[name] = n
-  end
+    -- Debug info.
+    self:T2( self.lid .. text )
 
-  -- Debug info.
-  self:T2( self.lid .. text )
+  else
+
+    if playeronly then
+      return 101
+    else
+
+      local units=group:GetUnits()
+
+      for i,_unit in pairs(units) do
+        local name=_unit:GetName()
+
+        numbers[name]=100+i
+
+      end
+
+    end
+
+  end
 
   return numbers
 end
@@ -14881,6 +14987,7 @@ function AIRBOSS:RadioTransmission( radio, call, loud, delay, interval, click, p
     end
   
   else
+
     -- SRS transmission
     if call.subtitle ~= nil and string.len(call.subtitle) > 1  then
 
@@ -14955,7 +15062,7 @@ function AIRBOSS:SetSRSPilotVoice( Voice, Gender, Culture )
   self.PilotRadio.gender = Gender or "male"
   self.PilotRadio.culture = Culture or "en-US"
   
-  if (not Voice) and self.SRS and self.SRS.google then
+  if (not Voice) and self.SRS and self.SRS:GetProvider() == MSRS.Provider.GOOGLE then
     self.PilotRadio.voice = MSRS.Voices.Google.Standard.en_US_Standard_J
   end
   
@@ -15602,6 +15709,11 @@ function AIRBOSS:_Number2Radio( radio, number, delay, interval, pilotcall )
 
   if pilotcall then
     Sender = "PilotCall"
+  end
+
+  if Sender=="" then
+    self:E( self.lid .. string.format( "ERROR: Sender unknown!") )
+    return
   end
 
   -- Split string into characters.

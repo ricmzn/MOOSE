@@ -8,22 +8,6 @@
 --
 -- ===
 --
--- # Demo Missions
---
--- ### [POINT_VEC Demo Missions source code]()
---
--- ### [POINT_VEC Demo Missions, only for beta testers]()
---
--- ### [ALL Demo Missions pack of the last release](https://github.com/FlightControl-Master/MOOSE_MISSIONS/releases)
---
--- ===
---
--- # YouTube Channel
---
--- ### [POINT_VEC YouTube Channel]()
---
--- ===
---
 -- ### Authors:
 --
 --   * FlightControl (Design & Programming)
@@ -40,8 +24,9 @@
 
 
 do -- COORDINATE
-
-  --- @type COORDINATE
+  
+  ---
+  -- @type COORDINATE
   -- @field #string ClassName Name of the class
   -- @field #number x Component of the 3D vector.
   -- @field #number y Component of the 3D vector.
@@ -196,7 +181,7 @@ do -- COORDINATE
   --   * @{#COORDINATE.ToStringBR}(): Generates a Bearing & Range text in the format of DDD for DI where DDD is degrees and DI is distance.
   --   * @{#COORDINATE.ToStringBRA}(): Generates a Bearing, Range & Altitude text.
   --   * @{#COORDINATE.ToStringBRAANATO}(): Generates a Generates a Bearing, Range, Aspect & Altitude text in NATOPS.
-  --   * @{#COORDINATE.ToStringLL}(): Generates a Latutide & Longitude text.
+  --   * @{#COORDINATE.ToStringLL}(): Generates a Latitude & Longitude text.
   --   * @{#COORDINATE.ToStringLLDMS}(): Generates a Lat, Lon, Degree, Minute, Second text.
   --   * @{#COORDINATE.ToStringLLDDM}(): Generates a Lat, Lon, Degree, decimal Minute text.
   --   * @{#COORDINATE.ToStringMGRS}(): Generates a MGRS grid coordinate text.
@@ -717,8 +702,9 @@ do -- COORDINATE
   -- @param #COORDINATE PointVec2Reference The reference @{#COORDINATE}.
   -- @return DCS#Distance The distance from the reference @{#COORDINATE} in meters.
   function COORDINATE:DistanceFromPointVec2( PointVec2Reference )
-    self:F2( PointVec2Reference )
-
+    self:F2( PointVec2Reference )  
+    if not PointVec2Reference then return math.huge end
+    
     local Distance = ( ( PointVec2Reference.x - self.x ) ^ 2 + ( PointVec2Reference.z - self.z ) ^2 ) ^ 0.5
 
     self:T2( Distance )
@@ -920,7 +906,7 @@ do -- COORDINATE
   end
 
 
-  --- Return an angle in radians from the COORDINATE using a direction vector in Vec3 format.
+  --- Return an angle in radians from the COORDINATE using a **direction vector in Vec3 format**.
   -- @param #COORDINATE self
   -- @param DCS#Vec3 DirectionVec3 The direction vector in Vec3 format.
   -- @return #number DirectionRadians The angle in radians.
@@ -933,10 +919,12 @@ do -- COORDINATE
     return DirectionRadians
   end
 
-  --- Return an angle in degrees from the COORDINATE using a direction vector in Vec3 format.
+  --- Return an angle in degrees from the COORDINATE using a **direction vector in Vec3 format**.
   -- @param #COORDINATE self
   -- @param DCS#Vec3 DirectionVec3 The direction vector in Vec3 format.
   -- @return #number DirectionRadians The angle in degrees.
+  -- @usage
+  --         local directionAngle = currentCoordinate:GetAngleDegrees(currentCoordinate:GetDirectionVec3(sourceCoordinate:GetVec3()))
   function COORDINATE:GetAngleDegrees( DirectionVec3 )
     local AngleRadians = self:GetAngleRadians( DirectionVec3 )
     local Angle = UTILS.ToDegree( AngleRadians )
@@ -2245,7 +2233,7 @@ do -- COORDINATE
     --   local MarkGroup = GROUP:FindByName( "AttackGroup" )
     --   local MarkID = TargetCoord:MarkToGroup( "This is a target for the attack group", AttackGroup )
     --   <<< logic >>>
-    --   RemoveMark( MarkID ) -- The mark is now removed
+    --   TargetCoord:RemoveMark( MarkID ) -- The mark is now removed
     function COORDINATE:RemoveMark( MarkID )
       trigger.action.removeMark( MarkID )
     end
@@ -2469,14 +2457,17 @@ do -- COORDINATE
         -- Write command as string and execute that. Idea by Grimes https://forum.dcs.world/topic/324201-mark-to-all-function/#comment-5273793
         local s=string.format("trigger.action.markupToAll(7, %d, %d,", Coalition, MarkID)
         for _,vec in pairs(vecs) do
-          s=s..string.format("%s,", UTILS._OneLineSerialize(vec))
+          --s=s..string.format("%s,", UTILS._OneLineSerialize(vec))
+          s=s..string.format("{x=%.1f, y=%.1f, z=%.1f},", vec.x, vec.y, vec.z)
         end
-        s=s..string.format("%s, %s, %s, %s", UTILS._OneLineSerialize(Color), UTILS._OneLineSerialize(FillColor), tostring(LineType), tostring(ReadOnly))
-        if Text and Text~="" then
-          s=s..string.format(", \"%s\"", Text)
+        s=s..string.format("{%.3f, %.3f, %.3f, %.3f},", Color[1], Color[2], Color[3], Color[4])
+        s=s..string.format("{%.3f, %.3f, %.3f, %.3f},", FillColor[1], FillColor[2], FillColor[3], FillColor[4])
+        s=s..string.format("%d,", LineType or 1)
+        s=s..string.format("%s", tostring(ReadOnly))
+        if Text and type(Text)=="string" and string.len(Text)>0 then
+          s=s..string.format(", \"%s\"", tostring(Text))
         end
         s=s..")"
-        
         
         -- Execute string command
         local success=UTILS.DoString(s)
@@ -2565,7 +2556,7 @@ do -- COORDINATE
 
     Offset=Offset or 2
 
-    -- Measurement of visibility should not be from the ground, so Adding a hypotethical 2 meters to each Coordinate.
+    -- Measurement of visibility should not be from the ground, so Adding a hypothetical 2 meters to each Coordinate.
     local FromVec3 = self:GetVec3()
     FromVec3.y = FromVec3.y + Offset
 
@@ -2756,7 +2747,10 @@ do -- COORDINATE
 
       local sunrise=UTILS.GetSunRiseAndSet(DayOfYear, Latitude, Longitude, true, Tdiff)
       local sunset=UTILS.GetSunRiseAndSet(DayOfYear, Latitude, Longitude, false, Tdiff)
-
+      
+      if sunrise == "N/R" then return false end
+      if sunrise == "N/S" then return true end
+      
       local time=UTILS.ClockToSeconds(clock)
 
       -- Check if time is between sunrise and sunset.
@@ -2966,10 +2960,10 @@ do -- COORDINATE
     end
 
     -- corrected Track to be direction of travel of bogey (self in this case)
-   	local track = "Maneuver"
-	
-	if self.Heading then
-		track = UTILS.BearingToCardinal(self.Heading) or "North"
+    local track = "Maneuver"
+  
+  if self.Heading then
+    track = UTILS.BearingToCardinal(self.Heading) or "North"
     end
     
     if rangeNM > 3 then
@@ -3019,6 +3013,16 @@ do -- COORDINATE
     end
       
     return BRAANATO 
+  end
+  
+  --- Return the BULLSEYE as COORDINATE Object
+  -- @param #number Coalition Coalition of the bulls eye to return, e.g. coalition.side.BLUE
+  -- @return #COORDINATE self
+  -- @usage
+  --          -- note the dot (.) here,not using the colon (:)
+  --          local redbulls = COORDINATE.GetBullseyeCoordinate(coalition.side.RED)
+  function COORDINATE.GetBullseyeCoordinate(Coalition)
+    return COORDINATE:NewFromVec3( coalition.getMainRefPoint( Coalition ) )
   end
   
   --- Return a BULLS string out of the BULLS of the coalition to the COORDINATE.
@@ -3071,6 +3075,18 @@ do -- COORDINATE
     return coord.LOtoLL( self:GetVec3() )
   end
 
+  --- Get Latitude & Longitude text.
+  -- @param #COORDINATE self
+  -- @param Core.Settings#SETTINGS Settings (optional) The settings. Can be nil, and in this case the default settings are used. If you want to specify your own settings, use the _SETTINGS object.
+  -- @return #string LLText
+  function COORDINATE:ToStringLL( Settings )
+  
+    local LL_Accuracy = Settings and Settings.LL_Accuracy or _SETTINGS.LL_Accuracy
+    local lat, lon = coord.LOtoLL( self:GetVec3() )
+    return string.format('%f', lat) .. ' ' .. string.format('%f', lon)
+  end
+
+  
   --- Provides a Lat Lon string in Degree Minute Second format.
   -- @param #COORDINATE self
   -- @param Core.Settings#SETTINGS Settings (optional) The settings. Can be nil, and in this case the default settings are used. If you want to specify your own settings, use the _SETTINGS object.
@@ -3103,6 +3119,50 @@ do -- COORDINATE
     local lat, lon = coord.LOtoLL( self:GetVec3() )
     local MGRS = coord.LLtoMGRS( lat, lon )
     return "MGRS " .. UTILS.tostringMGRS( MGRS, MGRS_Accuracy )
+  end
+  
+  --- Provides a COORDINATE from an MGRS String
+  -- @param #COORDINATE self
+  -- @param #string MGRSString MGRS String, e.g. "MGRS 37T DK 12345 12345"
+  -- @return #COORDINATE self
+  function COORDINATE:NewFromMGRSString( MGRSString )
+    local myparts = UTILS.Split(MGRSString," ")
+    local northing = tostring(myparts[5]) or ""
+    local easting = tostring(myparts[4]) or ""
+    if string.len(easting) < 5 then easting = easting..string.rep("0",5-string.len(easting)) end  
+    if string.len(northing) < 5 then northing = northing..string.rep("0",5-string.len(northing)) end
+    local MGRS = {
+            UTMZone = myparts[2],
+            MGRSDigraph = myparts[3],
+            Easting = easting,
+            Northing = northing,
+          } 
+    local lat, lon = coord.MGRStoLL(MGRS)
+    local point = coord.LLtoLO(lat, lon, 0)
+    local coord = COORDINATE:NewFromVec2({x=point.x,y=point.z})
+    return coord
+  end
+  
+  --- Provides a COORDINATE from an MGRS Coordinate
+  -- @param #COORDINATE self
+  -- @param #string UTMZone UTM Zone, e.g. "37T"
+  -- @param #string MGRSDigraph Digraph, e.g. "DK"
+  -- @param #string Easting Meters easting - string in order to allow for leading zeros, e.g. "01234". Should be 5 digits.
+  -- @param #string Northing Meters northing - string in order to allow for leading zeros, e.g. "12340". Should be 5 digits.
+  -- @return #COORDINATE self
+  function COORDINATE:NewFromMGRS( UTMZone, MGRSDigraph, Easting, Northing )
+    if string.len(Easting) < 5 then Easting = tostring(Easting..string.rep("0",5-string.len(Easting) )) end  
+    if string.len(Northing) < 5 then Northing = tostring(Northing..string.rep("0",5-string.len(Northing) )) end
+    local MGRS = {
+            UTMZone = UTMZone,
+            MGRSDigraph = MGRSDigraph,
+            Easting = tostring(Easting),
+            Northing = tostring(Northing),
+          }
+    local lat, lon = coord.MGRStoLL(MGRS)
+    local point = coord.LLtoLO(lat, lon, 0)
+    local coord = COORDINATE:NewFromVec2({x=point.x,y=point.z})
+    return coord
   end
 
   --- Provides a coordinate string of the point, based on a coordinate format system:
@@ -3354,7 +3414,7 @@ do -- COORDINATE
   -- @param #COORDINATE self
   -- @param #number Radius (Optional) Radius to check around the coordinate, defaults to 50m (100m diameter)
   -- @param #number Minelevation (Optional) Elevation from which on a area is defined as steep, defaults to 8% (8m height gain across 100 meters)
-  -- @return #boolen IsSteep If true, area is steep
+  -- @return #boolean IsSteep If true, area is steep
   -- @return #number MaxElevation Elevation in meters measured over 100m
   function COORDINATE:IsInSteepArea(Radius,Minelevation)
     local steep = false
@@ -3386,7 +3446,7 @@ do -- COORDINATE
   -- @param #COORDINATE self
   -- @param #number Radius (Optional) Radius to check around the coordinate, defaults to 50m (100m diameter)
   -- @param #number Minelevation (Optional) Elevation from which on a area is defined as steep, defaults to 8% (8m height gain across 100 meters)
-  -- @return #boolen IsFlat If true, area is flat
+  -- @return #boolean IsFlat If true, area is flat
   -- @return #number MaxElevation Elevation in meters measured over 100m
   function COORDINATE:IsInFlatArea(Radius,Minelevation)
     local steep, elev = self:IsInSteepArea(Radius,Minelevation)
@@ -3617,7 +3677,7 @@ end
 
 do -- POINT_VEC2
 
-  --- @type POINT_VEC2
+  -- @type POINT_VEC2
   -- @field DCS#Distance x The x coordinate in meters.
   -- @field DCS#Distance y the y coordinate in meters.
   -- @extends Core.Point#COORDINATE

@@ -8,7 +8,7 @@
 -- 
 -- ## Missions:
 --
--- ### [CTLD - Combat Troop & Logistics Deployment](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/develop/OPS%20-%20CTLD)
+-- ### [CTLD - Combat Troop & Logistics Deployment](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/develop/Ops/CTLD)
 -- 
 -- ===
 -- 
@@ -24,7 +24,7 @@
 -- @module Ops.CTLD
 -- @image OPS_CTLD.jpg
 
--- Last Update October 2023
+-- Last Update July 2024
 
 do 
 
@@ -44,6 +44,8 @@ do
 -- @field #number PerCrateMass Mass in kg.
 -- @field #number Stock Number of builds available, -1 for unlimited.
 -- @field #string Subcategory Sub-category name.
+-- @field #boolean DontShowInMenu Show this item in menu or not.
+-- @field Core.Zone#ZONE Location Location (if set) where to get this cargo item.
 -- @extends Core.Base#BASE
 
 ---
@@ -62,6 +64,8 @@ CTLD_CARGO = {
   PerCrateMass = 0,
   Stock = nil,
   Mark = nil,
+  DontShowInMenu = false,
+  Location = nil,
   }
   
   --- Define cargo types.
@@ -97,8 +101,10 @@ CTLD_CARGO = {
   -- @param #number PerCrateMass Mass in kg
   -- @param #number Stock Number of builds available, nil for unlimited
   -- @param #string Subcategory Name of subcategory, handy if using > 10 types to load.
+  -- @param #boolean DontShowInMenu Show this item in menu or not (default: false == show it).
+  -- @param Core.Zone#ZONE Location (optional) Where the cargo is available (one location only).
   -- @return #CTLD_CARGO self
-  function CTLD_CARGO:New(ID, Name, Templates, Sorte, HasBeenMoved, LoadDirectly, CratesNeeded, Positionable, Dropped, PerCrateMass, Stock, Subcategory)
+  function CTLD_CARGO:New(ID, Name, Templates, Sorte, HasBeenMoved, LoadDirectly, CratesNeeded, Positionable, Dropped, PerCrateMass, Stock, Subcategory, DontShowInMenu, Location)
     -- Inherit everything from BASE class.
     local self=BASE:Inherit(self, BASE:New()) -- #CTLD_CARGO
     self:T({ID, Name, Templates, Sorte, HasBeenMoved, LoadDirectly, CratesNeeded, Positionable, Dropped})
@@ -115,7 +121,19 @@ CTLD_CARGO = {
     self.Stock = Stock or nil --#number
     self.Mark = nil
     self.Subcategory = Subcategory or "Other"
+    self.DontShowInMenu = DontShowInMenu or false
+    if type(Location) == "string" then
+      Location = ZONE:New(Location)
+    end
+    self.Location = Location
     return self
+  end
+
+ --- Query Location.
+  -- @param #CTLD_CARGO self
+  -- @return Core.Zone#ZONE location or `nil` if not set
+  function CTLD_CARGO:GetLocation()
+    return self.Location
   end
   
   --- Query ID.
@@ -656,6 +674,8 @@ do
 --        my_ctld:AddCratesCargo("Humvee",{"Humvee"},CTLD_CARGO.Enum.VEHICLE,2,2775)
 --        -- if you want to limit your stock, add a number (here: 10) as parameter after weight. No parameter / nil means unlimited stock.
 --        my_ctld:AddCratesCargo("Humvee",{"Humvee"},CTLD_CARGO.Enum.VEHICLE,2,2775,10)
+--        -- additionally, you can limit **where** the stock is available (one location only!) - this one is available in a zone called "Vehicle Store".
+--        my_ctld:AddCratesCargo("Humvee",{"Humvee"},CTLD_CARGO.Enum.VEHICLE,2,2775,10,nil,nil,"Vehicle Store")
 --        
 --        -- add infantry unit called "Forward Ops Base" using template "FOB", of type FOB, size 4, i.e. needs four crates to be build:
 --        my_ctld:AddCratesCargo("Forward Ops Base",{"FOB"},CTLD_CARGO.Enum.FOB,4)
@@ -741,7 +761,7 @@ do
 -- 
 --        -- E.g. update unit capabilities for testing. Please stay realistic in your mission design.
 --        -- Make a Gazelle into a heavy truck, this type can load both crates and troops and eight of each type, up to 4000 kgs:
---        my_ctld:UnitCapabilities("SA342L", true, true, 8, 8, 12, 4000)
+--        my_ctld:SetUnitCapabilities("SA342L", true, true, 8, 8, 12, 4000)
 --        
 --        -- Default unit type capabilities are: 
 --        ["SA342Mistral"] = {type="SA342Mistral", crates=false, troops=true, cratelimit = 0, trooplimit = 4, length = 12, cargoweightlimit = 400},
@@ -757,6 +777,9 @@ do
 --        ["Hercules"] = {type="Hercules", crates=true, troops=true, cratelimit = 7, trooplimit = 64, length = 25, cargoweightlimit = 19000},
 --        ["UH-60L"] = {type="UH-60L", crates=true, troops=true, cratelimit = 2, trooplimit = 20, length = 16, cargoweightlimit = 3500},
 --        ["AH-64D_BLK_II"] = {type="AH-64D_BLK_II", crates=false, troops=true, cratelimit = 0, trooplimit = 2, length = 17, cargoweightlimit = 200}, 
+--        ["MH-60R"] = {type="MH-60R", crates=true, troops=true, cratelimit = 2, trooplimit = 20, length = 16, cargoweightlimit = 3500}, -- 4t cargo, 20 (unsec) seats
+--        ["SH-60B"] = {type="SH-60B", crates=true, troops=true, cratelimit = 2, trooplimit = 20, length = 16, cargoweightlimit = 3500}, -- 4t cargo, 20 (unsec) seats
+--        ["Bronco-OV-10A"] = {type="Bronco-OV-10A", crates= false, troops=true, cratelimit = 0, trooplimit = 5, length = 13, cargoweightlimit = 1450},
 --        
 -- ### 2.1.2 Activate and deactivate zones
 -- 
@@ -1200,14 +1223,14 @@ CTLD.CargoZoneType = {
 -- @field #CTLD_CARGO.Enum Type Type enumerator (for moves).
 
 --- Unit capabilities.
--- @type CTLD.UnitCapabilities
+-- @type CTLD.UnitTypeCapabilities
 -- @field #string type Unit type.
 -- @field #boolean crates Can transport crate.
 -- @field #boolean troops Can transport troops.
 -- @field #number cratelimit Number of crates transportable.
 -- @field #number trooplimit Number of troop units transportable.
 -- @field #number cargoweightlimit Max loadable kgs of cargo.
-CTLD.UnitTypes = {
+CTLD.UnitTypeCapabilities = {
     ["SA342Mistral"] = {type="SA342Mistral", crates=false, troops=true, cratelimit = 0, trooplimit = 4, length = 12, cargoweightlimit = 400},
     ["SA342L"] = {type="SA342L", crates=false, troops=true, cratelimit = 0, trooplimit = 2, length = 12, cargoweightlimit = 400},
     ["SA342M"] = {type="SA342M", crates=false, troops=true, cratelimit = 0, trooplimit = 4, length = 12, cargoweightlimit = 400},
@@ -1222,13 +1245,17 @@ CTLD.UnitTypes = {
     ["Hercules"] = {type="Hercules", crates=true, troops=true, cratelimit = 7, trooplimit = 64, length = 25, cargoweightlimit = 19000}, -- 19t cargo, 64 paratroopers. 
     --Actually it's longer, but the center coord is off-center of the model.
     ["UH-60L"] = {type="UH-60L", crates=true, troops=true, cratelimit = 2, trooplimit = 20, length = 16, cargoweightlimit = 3500}, -- 4t cargo, 20 (unsec) seats
+    ["MH-60R"] = {type="MH-60R", crates=true, troops=true, cratelimit = 2, trooplimit = 20, length = 16, cargoweightlimit = 3500}, -- 4t cargo, 20 (unsec) seats
+    ["SH-60B"] = {type="SH-60B", crates=true, troops=true, cratelimit = 2, trooplimit = 20, length = 16, cargoweightlimit = 3500}, -- 4t cargo, 20 (unsec) seats
     ["AH-64D_BLK_II"] = {type="AH-64D_BLK_II", crates=false, troops=true, cratelimit = 0, trooplimit = 2, length = 17, cargoweightlimit = 200}, -- 2 ppl **outside** the helo
     ["Bronco-OV-10A"] = {type="Bronco-OV-10A", crates= false, troops=true, cratelimit = 0, trooplimit = 5, length = 13, cargoweightlimit = 1450},
+    ["OH-6A"] = {type="OH-6A", crates=false, troops=true, cratelimit = 0, trooplimit = 4, length = 7, cargoweightlimit = 550},
+    ["OH58D"] = {type="OH58D", crates=false, troops=false, cratelimit = 0, trooplimit = 0, length = 14, cargoweightlimit = 400},
 }
 
 --- CTLD class version.
 -- @field #string version
-CTLD.version="1.0.41"
+CTLD.version="1.0.55"
 
 --- Instantiate a new CTLD.
 -- @param #CTLD self
@@ -1293,6 +1320,8 @@ function CTLD:New(Coalition, Prefixes, Alias)
   self:AddTransition("*",             "CratesDropped",       "*")           -- CTLD deploy  event.  
   self:AddTransition("*",             "CratesBuild",         "*")           -- CTLD build  event.
   self:AddTransition("*",             "CratesRepaired",      "*")           -- CTLD repair  event.
+  self:AddTransition("*",             "CratesBuildStarted",  "*")           -- CTLD build  event.
+  self:AddTransition("*",             "CratesRepairStarted", "*")           -- CTLD repair  event.
   self:AddTransition("*",             "Load",                "*")           -- CTLD load  event.  
   self:AddTransition("*",             "Save",                "*")           -- CTLD save  event.      
   self:AddTransition("*",             "Stop",                "Stopped")     -- Stop FSM.
@@ -1431,7 +1460,7 @@ function CTLD:New(Coalition, Prefixes, Alias)
   --- Pseudo Functions ---
   ------------------------
   
-    --- Triggers the FSM event "Start". Starts the CTLD. Initializes parameters and starts event handlers.
+  --- Triggers the FSM event "Start". Starts the CTLD. Initializes parameters and starts event handlers.
   -- @function [parent=#CTLD] Start
   -- @param #CTLD self
 
@@ -1441,6 +1470,7 @@ function CTLD:New(Coalition, Prefixes, Alias)
   -- @param #number delay Delay in seconds.
 
   --- Triggers the FSM event "Stop". Stops the CTLD and all its event handlers.
+  -- @function [parent=#CTLD] Stop
   -- @param #CTLD self
 
   --- Triggers the FSM event "Stop" after a delay. Stops the CTLD and all its event handlers.
@@ -1475,7 +1505,7 @@ function CTLD:New(Coalition, Prefixes, Alias)
   -- @param #CTLD self
   -- @param #number delay Delay in seconds.
   
-    --- FSM Function OnBeforeTroopsPickedUp.
+  --- FSM Function OnBeforeTroopsPickedUp.
   -- @function [parent=#CTLD] OnBeforeTroopsPickedUp
   -- @param #CTLD self
   -- @param #string From State.
@@ -1627,6 +1657,46 @@ function CTLD:New(Coalition, Prefixes, Alias)
   -- @param Wrapper.Group#GROUP Vehicle The #GROUP object of the vehicle or FOB build.
   -- @return #CTLD self
 
+  --- FSM Function OnAfterCratesBuildStarted. Info event that a build has been started.
+  -- @function [parent=#CTLD] OnAfterCratesBuildStarted
+  -- @param #CTLD self
+  -- @param #string From State.
+  -- @param #string Event Trigger.
+  -- @param #string To State.
+  -- @param Wrapper.Group#GROUP Group Group Object.
+  -- @param Wrapper.Unit#UNIT Unit Unit Object.
+  -- @return #CTLD self
+
+  --- FSM Function OnAfterCratesRepairStarted. Info event that a repair has been started.
+  -- @function [parent=#CTLD] OnAfterCratesRepairStarted
+  -- @param #CTLD self
+  -- @param #string From State.
+  -- @param #string Event Trigger.
+  -- @param #string To State.
+  -- @param Wrapper.Group#GROUP Group Group Object.
+  -- @param Wrapper.Unit#UNIT Unit Unit Object.
+  -- @return #CTLD self
+
+  --- FSM Function OnBeforeCratesBuildStarted. Info event that a build has been started.
+  -- @function [parent=#CTLD] OnBeforeCratesBuildStarted
+  -- @param #CTLD self
+  -- @param #string From State.
+  -- @param #string Event Trigger.
+  -- @param #string To State.
+  -- @param Wrapper.Group#GROUP Group Group Object.
+  -- @param Wrapper.Unit#UNIT Unit Unit Object.
+  -- @return #CTLD self
+
+  --- FSM Function OnBeforeCratesRepairStarted. Info event that a repair has been started.
+  -- @function [parent=#CTLD] OnBeforeCratesRepairStarted
+  -- @param #CTLD self
+  -- @param #string From State.
+  -- @param #string Event Trigger.
+  -- @param #string To State.
+  -- @param Wrapper.Group#GROUP Group Group Object.
+  -- @param Wrapper.Unit#UNIT Unit Unit Object.
+  -- @return #CTLD self
+
   --- FSM Function OnAfterCratesRepaired.
   -- @function [parent=#CTLD] OnAfterCratesRepaired
   -- @param #CTLD self
@@ -1680,7 +1750,7 @@ function CTLD:_GetUnitCapabilities(Unit)
   self:T(self.lid .. " _GetUnitCapabilities")
   local _unit = Unit -- Wrapper.Unit#UNIT
   local unittype = _unit:GetTypeName()
-  local capabilities = self.UnitTypes[unittype] -- #CTLD.UnitCapabilities
+  local capabilities = self.UnitTypeCapabilities[unittype] -- #CTLD.UnitTypeCapabilities
   if not capabilities or capabilities == {} then
     -- e.g. ["Ka-50"] = {type="Ka-50", crates=false, troops=false, cratelimit = 0, trooplimit = 0},
     capabilities = {}
@@ -1701,7 +1771,7 @@ end
 function CTLD:_GenerateUHFrequencies()
   self:T(self.lid .. " _GenerateUHFrequencies")
     self.FreeUHFFrequencies = {}
-    self.FreeUHFFrequencies = UTILS.GenerateUHFrequencies()    
+    self.FreeUHFFrequencies = UTILS.GenerateUHFrequencies(243,320)    
     return self
 end
 
@@ -1871,7 +1941,7 @@ function CTLD:_PreloadCrates(Group, Unit, Cargo, NumberOfCrates)
   local unitname = unit:GetName()
   -- see if this heli can load crates
   local unittype = unit:GetTypeName()
-  local capabilities = self:_GetUnitCapabilities(Unit) -- #CTLD.UnitCapabilities
+  local capabilities = self:_GetUnitCapabilities(Unit) -- #CTLD.UnitTypeCapabilities
   local cancrates = capabilities.crates -- #boolean
   local cratelimit = capabilities.cratelimit -- #number
   if not cancrates then
@@ -2124,6 +2194,7 @@ function CTLD:_RepairObjectFromCrates(Group,Unit,Crates,Build,Number,Engineering
     desttimer:Start(self.repairtime - 1)
     local buildtimer = TIMER:New(self._BuildObjectFromCrates,self,Group,Unit,object,true,NearestGroup:GetCoordinate())
     buildtimer:Start(self.repairtime)
+    self:__CratesRepairStarted(1,Group,Unit)
   else
     if not Engineering then
       self:_SendMessage("Can't repair this unit with " .. build.Name, 10, false, Group)
@@ -2171,7 +2242,9 @@ end
     local extractdistance = self.CrateDistance * self.ExtractFactor
     for k,v in pairs(self.DroppedTroops) do
       local distance = self:_GetDistance(v:GetCoordinate(),unitcoord)
-      if distance <= extractdistance and distance ~= -1 then
+      local TNow = timer.getTime()
+      local vtime = v.ExtractTime or TNow-310
+      if distance <= extractdistance and distance ~= -1 and (TNow - vtime > 300) then
         nearestGroup = v
         nearestGroupIndex = k
         nearestDistance = distance
@@ -2191,7 +2264,7 @@ end
     local secondarygroups = {}
     
     for i=1,#distancekeys do
-      local nearestGroup = nearestList[distancekeys[i]]
+      local nearestGroup = nearestList[distancekeys[i]] -- Wrapper.Group#GROUP
           -- find matching cargo type
       local groupType = string.match(nearestGroup:GetName(), "(.+)-(.+)$")
       local Cargotype = nil
@@ -2222,25 +2295,38 @@ end
         end
         if troopsize + numberonboard > trooplimit then
           self:_SendMessage("Sorry, we\'re crammed already!", 10, false, Group)
+          nearestGroup.ExtractTime = 0
           --return self
         else
           self.CargoCounter = self.CargoCounter + 1
+          nearestGroup.ExtractTime = timer.getTime()
           local loadcargotype = CTLD_CARGO:New(self.CargoCounter, Cargotype.Name, Cargotype.Templates, Cargotype.CargoType, true, true, Cargotype.CratesNeeded,nil,nil,Cargotype.PerCrateMass)
           self:T({cargotype=loadcargotype})
+          local running = math.floor(nearestDistance / 4)+10 -- time run to helo plus boarding
           loaded.Troopsloaded = loaded.Troopsloaded + troopsize
           table.insert(loaded.Cargo,loadcargotype)
           self.Loaded_Cargo[unitname] = loaded
-          self:_SendMessage("Troops boarded!", 10, false, Group)
+          self:ScheduleOnce(running,self._SendMessage,self,"Troops boarded!", 10, false, Group)
+          self:_SendMessage("Troops boarding!", 10, false, Group)
           self:_UpdateUnitCargoMass(Unit)
-          self:__TroopsExtracted(1,Group, Unit, nearestGroup)
-      
+          self:__TroopsExtracted(running,Group, Unit, nearestGroup)
+          local coord = Unit:GetCoordinate() or Group:GetCoordinate() -- Core.Point#COORDINATE
+          local Point
+          if coord then
+            local heading = unit:GetHeading() or 0
+            local Angle = math.floor((heading+160)%360)
+            Point = coord:Translate(8,Angle):GetVec2()
+            if Point then
+              nearestGroup:RouteToVec2(Point,4)
+            end
+          end
           -- clean up:
           if type(Cargotype.Templates) == "table" and  Cargotype.Templates[2] then
             for _,_key in pairs (Cargotype.Templates) do
               table.insert(secondarygroups,_key)
             end
           end
-          nearestGroup:Destroy(false)
+          nearestGroup:Destroy(false,running)
         end
       end
     end
@@ -2250,7 +2336,7 @@ end
         if _group and _group:IsAlive() then
           local groupname = string.match(_group:GetName(), "(.+)-(.+)$")
           if _name == groupname then
-            _group:Destroy(false)
+            _group:Destroy(false,15)
           end
         end
       end
@@ -2306,9 +2392,23 @@ function CTLD:_GetCrates(Group, Unit, Cargo, number, drop, pack)
     self:_SendMessage("You are not close enough to a logistics zone!", 10, false, Group)
     if not self.debug then return self end
   end
-
+  
+  -- Check cargo location if available
+  local location = Cargo:GetLocation()
+  
+  if location then
+    local unitcoord = Unit:GetCoordinate() or Group:GetCoordinate()
+    if unitcoord then
+      if not location:IsCoordinateInZone(unitcoord) then
+        -- no we're not at the right spot
+        self:_SendMessage("The requested cargo is not available in this zone!", 10, false, Group)
+        if not self.debug then return self end
+      end
+    end
+  end
+  
   -- avoid crate spam
-  local capabilities = self:_GetUnitCapabilities(Unit) -- #CTLD.UnitCapabilities
+  local capabilities = self:_GetUnitCapabilities(Unit) -- #CTLD.UnitTypeCapabilities
   local canloadcratesno = capabilities.cratelimit
   local loaddist = self.CrateDistance or 35
   local nearcrates, numbernearby = self:_FindCratesNearby(Group,Unit,loaddist,true)
@@ -2411,10 +2511,12 @@ function CTLD:_GetCrates(Group, Unit, Cargo, number, drop, pack)
       realcargo = CTLD_CARGO:New(self.CargoCounter,cratename,templ,sorte,true,false,cratesneeded,self.Spawned_Crates[self.CrateCounter],true,cargotype.PerCrateMass,nil,subcat)
       table.insert(droppedcargo,realcargo)
     else
-      realcargo = CTLD_CARGO:New(self.CargoCounter,cratename,templ,sorte,false,false,cratesneeded,self.Spawned_Crates[self.CrateCounter],false,cargotype.PerCrateMass,nil,subcat)
-      Cargo:RemoveStock()
+      realcargo = CTLD_CARGO:New(self.CargoCounter,cratename,templ,sorte,false,false,cratesneeded,self.Spawned_Crates[self.CrateCounter],false,cargotype.PerCrateMass,nil,subcat)    
     end
     table.insert(self.Spawned_Cargo, realcargo)
+  end
+  if not (drop or pack) then
+    Cargo:RemoveStock()
   end
   local text = string.format("Crates for %s have been positioned near you!",cratename)
   if drop then
@@ -2518,6 +2620,40 @@ function CTLD:_ListCratesNearby( _group, _unit)
   return self
 end
 
+-- (Internal) Function to find and Remove nearby crates.
+-- @param #CTLD self
+-- @param Wrapper.Group#GROUP Group
+-- @param Wrapper.Unit#UNIT Unit
+-- @return #CTLD self
+function CTLD:_RemoveCratesNearby( _group, _unit)
+  self:T(self.lid .. " _RemoveCratesNearby")
+  local finddist = self.CrateDistance or 35
+  local crates,number = self:_FindCratesNearby(_group,_unit, finddist,true) -- #table
+  if number > 0 then
+    local text = REPORT:New("Removing Crates Found Nearby:")
+    text:Add("------------------------------------------------------------")
+    for _,_entry in pairs (crates) do
+      local entry = _entry -- #CTLD_CARGO
+      local name = entry:GetName() --#string
+      local dropped = entry:WasDropped()
+      if dropped then
+        text:Add(string.format("Crate for %s, %dkg removed",name, entry.PerCrateMass))
+      else
+        text:Add(string.format("Crate for %s, %dkg removed",name, entry.PerCrateMass))
+      end
+      entry:GetPositionable():Destroy(false)
+    end
+    if text:GetCount() == 1 then
+    text:Add("        N O N E")
+    end
+    text:Add("------------------------------------------------------------")
+    self:_SendMessage(text:Text(), 30, true, _group) 
+  else
+    self:_SendMessage(string.format("No (loadable) crates within %d meters!",finddist), 10, false, _group) 
+  end
+  return self
+end
+
 --- (Internal) Return distance in meters between two coordinates.
 -- @param #CTLD self
 -- @param Core.Point#COORDINATE _point1 Coordinate one
@@ -2601,8 +2737,8 @@ function CTLD:_LoadCratesNearby(Group, Unit)
   local unitname = unit:GetName()
   -- see if this heli can load crates
   local unittype = unit:GetTypeName()
-  local capabilities = self:_GetUnitCapabilities(Unit) -- #CTLD.UnitCapabilities
-  --local capabilities = self.UnitTypes[unittype] -- #CTLD.UnitCapabilities
+  local capabilities = self:_GetUnitCapabilities(Unit) -- #CTLD.UnitTypeCapabilities
+  --local capabilities = self.UnitTypeCapabilities[unittype] -- #CTLD.UnitTypeCapabilities
   local cancrates = capabilities.crates -- #boolean
   local cratelimit = capabilities.cratelimit -- #number
   local grounded = not self:IsUnitInAir(Unit)
@@ -2753,7 +2889,7 @@ function CTLD:_GetMaxLoadableMass(Unit)
   if not Unit then return 0 end
   local loadable = 0
   local loadedmass = self:_GetUnitCargoMass(Unit)
-  local capabilities = self:_GetUnitCapabilities(Unit) -- #CTLD.UnitCapabilities
+  local capabilities = self:_GetUnitCapabilities(Unit) -- #CTLD.UnitTypeCapabilities
   local maxmass = capabilities.cargoweightlimit or 2000 -- max 2 tons
   loadable = maxmass - loadedmass
   return loadable
@@ -2778,7 +2914,7 @@ function CTLD:_ListCargo(Group, Unit)
   self:T(self.lid .. " _ListCargo")
   local unitname = Unit:GetName()
   local unittype = Unit:GetTypeName()
-  local capabilities = self:_GetUnitCapabilities(Unit) -- #CTLD.UnitCapabilities
+  local capabilities = self:_GetUnitCapabilities(Unit) -- #CTLD.UnitTypeCapabilities
   local trooplimit = capabilities.trooplimit -- #boolean
   local cratelimit = capabilities.cratelimit -- #number
   local loadedcargo = self.Loaded_Cargo[unitname] or {} -- #CTLD.LoadedCargo
@@ -2933,6 +3069,36 @@ function CTLD:IsHercules(Unit)
   end
 end
 
+
+--- (Internal) Function to set troops positions of a template to a nice circle
+-- @param #CTLD self
+-- @param Core.Point#COORDINATE Coordinate Start coordinate to use
+-- @param #number Radius Radius to be used
+-- @param #number Heading Heading starting with
+-- @param #string Template The group template name
+-- @return #table Positions The positions table
+function CTLD:_GetUnitPositions(Coordinate,Radius,Heading,Template)
+  local Positions = {}
+  local template = _DATABASE:GetGroupTemplate(Template)
+  --UTILS.PrintTableToLog(template)
+  local numbertroops = #template.units
+  local slightshift = math.abs(math.random(0,200)/100)
+  local newcenter = Coordinate:Translate(Radius+slightshift,((Heading+270)%360))
+  for i=1,360,math.floor(360/numbertroops) do
+    local phead = ((Heading+270+i)%360)
+    local post = newcenter:Translate(Radius,phead)
+    local pos1 = post:GetVec2()
+    local p1t = {
+    x = pos1.x,
+    y = pos1.y,
+    heading = phead,
+    }
+    table.insert(Positions,p1t)
+  end
+  --UTILS.PrintTableToLog(Positions)
+  return Positions
+end
+
 --- (Internal) Function to unload troops from heli.
 -- @param #CTLD self
 -- @param Wrapper.Group#GROUP Group
@@ -2984,14 +3150,29 @@ function CTLD:_UnloadTroops(Group, Unit)
             zoneradius = Unit:GetVelocityMPS() or 100
           end
           local zone = ZONE_GROUP:New(string.format("Unload zone-%s",unitname),Group,zoneradius*factor)
-          local randomcoord = zone:GetRandomCoordinate(10,30*factor):GetVec2()
+          local randomcoord = zone:GetRandomCoordinate(10,30*factor) --:GetVec2()
+          local heading = Group:GetHeading() or 0
+          -- Spawn troops left from us, closer when hovering, further off when landed
+          if hoverunload or grounded then
+            randomcoord = Group:GetCoordinate()
+            -- slightly left from us           
+            local Angle = (heading+270)%360
+            local offset = hoverunload and 1.5 or 5
+            randomcoord:Translate(offset,Angle,nil,true)
+          end
+          local tempcount = 0
           for _,_template in pairs(temptable) do
             self.TroopCounter = self.TroopCounter + 1
+            tempcount = tempcount+1
             local alias = string.format("%s-%d", _template, math.random(1,100000))
+            local rad = 2.5+tempcount
+            local Positions = self:_GetUnitPositions(randomcoord,rad,heading,_template)
             self.DroppedTroops[self.TroopCounter] = SPAWN:NewWithAlias(_template,alias)
-              :InitRandomizeUnits(true,20,2)
+              --:InitRandomizeUnits(true,20,2)
+              --:InitHeading(heading)
               :InitDelayOff()
-              :SpawnFromVec2(randomcoord)
+              :InitSetUnitAbsolutePositions(Positions)
+              :SpawnFromVec2(randomcoord:GetVec2())
             self:__TroopsDeployed(1, Group, Unit, self.DroppedTroops[self.TroopCounter],type)
           end -- template loop
           cargo:SetWasDropped(true)
@@ -3226,6 +3407,7 @@ function CTLD:_BuildCrates(Group, Unit,Engineering)
               local buildtimer = TIMER:New(self._BuildObjectFromCrates,self,Group,Unit,build,false,Group:GetCoordinate())
               buildtimer:Start(self.buildtime)
               self:_SendMessage(string.format("Build started, ready in %d seconds!",self.buildtime),15,false,Group)
+              self:__CratesBuildStarted(1,Group,Unit)
           else
             self:_BuildObjectFromCrates(Group,Unit,build)
           end
@@ -3427,7 +3609,7 @@ function CTLD:_MoveGroupToZone(Group)
   local groupcoord = Group:GetCoordinate()
   -- Get closest zone of type
   local outcome, name, zone, distance  = self:IsUnitInZone(Group,CTLD.CargoZoneType.MOVE)
-  if (distance <= self.movetroopsdistance) and zone then
+  if (distance <= self.movetroopsdistance) and outcome == true and zone~= nil then
     -- yes, we can ;)
     local groupname = Group:GetName()
     local zonecoord = zone:GetRandomCoordinate(20,125) -- Core.Point#COORDINATE
@@ -3488,7 +3670,7 @@ function CTLD:_RefreshF10Menus()
   -- rebuild units table
   local _UnitList = {}
   for _key, _group in pairs (PlayerTable) do  
-    local _unit = _group:GetUnit(1) -- Wrapper.Unit#UNIT Asume that there is only one unit in the flight for players
+    local _unit = _group:GetFirstUnitAlive() -- Wrapper.Unit#UNIT Asume that there is only one unit in the flight for players
     if _unit then 
       if _unit:IsAlive() and _unit:IsPlayer() then
         if _unit:IsHelicopter() or (self:IsHercules(_unit) and self.enableHercules) then --ensure no stupid unit entries here
@@ -3536,13 +3718,19 @@ function CTLD:_RefreshF10Menus()
         if _group then
           -- get chopper capabilities
           local unittype = _unit:GetTypeName()
-          local capabilities = self:_GetUnitCapabilities(_unit) -- #CTLD.UnitCapabilities
+          local capabilities = self:_GetUnitCapabilities(_unit) -- #CTLD.UnitTypeCapabilities
           local cantroops = capabilities.troops
           local cancrates = capabilities.crates
           -- top menu
           local topmenu = MENU_GROUP:New(_group,"CTLD",nil)
-          local toptroops = MENU_GROUP:New(_group,"Manage Troops",topmenu)
-          local topcrates = MENU_GROUP:New(_group,"Manage Crates",topmenu)
+          local toptroops = nil
+          local topcrates = nil
+          if cantroops then
+            toptroops = MENU_GROUP:New(_group,"Manage Troops",topmenu)
+          end
+          if cancrates then
+            topcrates = MENU_GROUP:New(_group,"Manage Crates",topmenu)
+          end
           local listmenu = MENU_GROUP_COMMAND:New(_group,"List boarded cargo",topmenu, self._ListCargo, self, _group, _unit)
           local invtry = MENU_GROUP_COMMAND:New(_group,"Inventory",topmenu, self._ListInventory, self, _group, _unit)
           local rbcns = MENU_GROUP_COMMAND:New(_group,"List active zone beacons",topmenu, self._ListRadioBeacons, self, _group, _unit)
@@ -3569,14 +3757,20 @@ function CTLD:_RefreshF10Menus()
               for _,_entry in pairs(self.Cargo_Troops) do
                 local entry = _entry -- #CTLD_CARGO
                 local subcat = entry.Subcategory
-                menucount = menucount + 1
-                menus[menucount] = MENU_GROUP_COMMAND:New(_group,entry.Name,subcatmenus[subcat],self._LoadTroops, self, _group, _unit, entry)
+                local noshow = entry.DontShowInMenu
+                if not noshow then
+                  menucount = menucount + 1
+                  menus[menucount] = MENU_GROUP_COMMAND:New(_group,entry.Name,subcatmenus[subcat],self._LoadTroops, self, _group, _unit, entry)
+                end
               end
             else              
               for _,_entry in pairs(self.Cargo_Troops) do
                 local entry = _entry -- #CTLD_CARGO
-                menucount = menucount + 1
-                menus[menucount] = MENU_GROUP_COMMAND:New(_group,entry.Name,troopsmenu,self._LoadTroops, self, _group, _unit, entry)
+                local noshow = entry.DontShowInMenu
+                if not noshow then
+                  menucount = menucount + 1
+                  menus[menucount] = MENU_GROUP_COMMAND:New(_group,entry.Name,troopsmenu,self._LoadTroops, self, _group, _unit, entry)
+                end
               end
             end
             local unloadmenu1 = MENU_GROUP_COMMAND:New(_group,"Drop troops",toptroops, self._UnloadTroops, self, _group, _unit):Refresh()
@@ -3587,6 +3781,7 @@ function CTLD:_RefreshF10Menus()
             local loadmenu = MENU_GROUP_COMMAND:New(_group,"Load crates",topcrates, self._LoadCratesNearby, self, _group, _unit)
             local cratesmenu = MENU_GROUP:New(_group,"Get Crates",topcrates)
             local packmenu = MENU_GROUP_COMMAND:New(_group, "Pack crates", topcrates, self._PackCratesNearby, self, _group, _unit)
+            local removecratesmenu = MENU_GROUP:New(_group, "Remove crates", topcrates)
             
             if self.usesubcats then
               local subcatmenus = {}
@@ -3596,32 +3791,61 @@ function CTLD:_RefreshF10Menus()
               for _,_entry in pairs(self.Cargo_Crates) do
                 local entry = _entry -- #CTLD_CARGO
                 local subcat = entry.Subcategory
-                menucount = menucount + 1
-                local menutext = string.format("Crate %s (%dkg)",entry.Name,entry.PerCrateMass or 0)
-                menus[menucount] = MENU_GROUP_COMMAND:New(_group,menutext,subcatmenus[subcat],self._GetCrates, self, _group, _unit, entry)
+                local noshow = entry.DontShowInMenu
+                local zone = entry.Location
+                if not noshow then
+                  menucount = menucount + 1
+                  local menutext = string.format("Crate %s (%dkg)",entry.Name,entry.PerCrateMass or 0)
+                  if zone then
+                    menutext = string.format("Crate %s (%dkg)[R]",entry.Name,entry.PerCrateMass or 0)
+                  end
+                  menus[menucount] = MENU_GROUP_COMMAND:New(_group,menutext,subcatmenus[subcat],self._GetCrates, self, _group, _unit, entry)
+                end
               end
               for _,_entry in pairs(self.Cargo_Statics) do
                 local entry = _entry -- #CTLD_CARGO
                 local subcat = entry.Subcategory
-                menucount = menucount + 1
-                local menutext = string.format("Crate %s (%dkg)",entry.Name,entry.PerCrateMass or 0)
-                menus[menucount] = MENU_GROUP_COMMAND:New(_group,menutext,subcatmenus[subcat],self._GetCrates, self, _group, _unit, entry)
+                local noshow = entry.DontShowInMenu
+                local zone = entry.Location
+                if not noshow then
+                  menucount = menucount + 1
+                  local menutext = string.format("Crate %s (%dkg)",entry.Name,entry.PerCrateMass or 0)
+                  if zone then
+                    menutext = string.format("Crate %s (%dkg)[R]",entry.Name,entry.PerCrateMass or 0)
+                  end
+                  menus[menucount] = MENU_GROUP_COMMAND:New(_group,menutext,subcatmenus[subcat],self._GetCrates, self, _group, _unit, entry)
+                end
               end
             else
               for _,_entry in pairs(self.Cargo_Crates) do
                 local entry = _entry -- #CTLD_CARGO
-                menucount = menucount + 1
-                local menutext = string.format("Crate %s (%dkg)",entry.Name,entry.PerCrateMass or 0)
-                menus[menucount] = MENU_GROUP_COMMAND:New(_group,menutext,cratesmenu,self._GetCrates, self, _group, _unit, entry)
+                local noshow = entry.DontShowInMenu
+                local zone = entry.Location
+                if not noshow then
+                  menucount = menucount + 1
+                  local menutext = string.format("Crate %s (%dkg)",entry.Name,entry.PerCrateMass or 0)
+                  if zone then
+                    menutext = string.format("Crate %s (%dkg)[R]",entry.Name,entry.PerCrateMass or 0)
+                  end
+                  menus[menucount] = MENU_GROUP_COMMAND:New(_group,menutext,cratesmenu,self._GetCrates, self, _group, _unit, entry)
+                end
               end
               for _,_entry in pairs(self.Cargo_Statics) do
                 local entry = _entry -- #CTLD_CARGO
-                menucount = menucount + 1
-                local menutext = string.format("Crate %s (%dkg)",entry.Name,entry.PerCrateMass or 0)
-                menus[menucount] = MENU_GROUP_COMMAND:New(_group,menutext,cratesmenu,self._GetCrates, self, _group, _unit, entry)
+                local noshow = entry.DontShowInMenu
+                local zone = entry.Location
+                if not noshow then
+                  menucount = menucount + 1
+                  local menutext = string.format("Crate %s (%dkg)",entry.Name,entry.PerCrateMass or 0)
+                  if zone then
+                    menutext = string.format("Crate %s (%dkg)[R]",entry.Name,entry.PerCrateMass or 0)
+                  end
+                  menus[menucount] = MENU_GROUP_COMMAND:New(_group,menutext,cratesmenu,self._GetCrates, self, _group, _unit, entry)
+                end
               end
             end
             listmenu = MENU_GROUP_COMMAND:New(_group,"List crates nearby",topcrates, self._ListCratesNearby, self, _group, _unit)
+            local removecrates = MENU_GROUP_COMMAND:New(_group,"Remove crates nearby",removecratesmenu, self._RemoveCratesNearby, self, _group, _unit)
             local unloadmenu = MENU_GROUP_COMMAND:New(_group,"Drop crates",topcrates, self._UnloadCrates, self, _group, _unit)
             if not self.nobuildmenu then
               local buildmenu = MENU_GROUP_COMMAND:New(_group,"Build crates",topcrates, self._BuildCrates, self, _group, _unit)
@@ -3694,9 +3918,11 @@ end
 -- @param #CTLD_CARGO.Enum Type Type of cargo. I.e. VEHICLE or FOB. VEHICLE will move to destination zones when dropped/build, FOB stays put.
 -- @param #number NoCrates Number of crates needed to build this cargo.
 -- @param #number PerCrateMass Mass in kg of each crate
--- @param #number Stock Number of groups in stock. Nil for unlimited.
+-- @param #number Stock Number of buildable groups in stock. Nil for unlimited.
 -- @param #string SubCategory Name of sub-category (optional).
-function CTLD:AddCratesCargo(Name,Templates,Type,NoCrates,PerCrateMass,Stock,SubCategory)
+-- @param #boolean DontShowInMenu (optional) If set to "true" this won't show up in the menu.
+-- @param Core.Zone#ZONE Location (optional) If set, the cargo item is **only** available here. Can be a #ZONE object or the name of a zone as #string.
+function CTLD:AddCratesCargo(Name,Templates,Type,NoCrates,PerCrateMass,Stock,SubCategory,DontShowInMenu,Location)
   self:T(self.lid .. " AddCratesCargo")
   if not self:_CheckTemplates(Templates) then
     self:E(self.lid .. "Crates Cargo for " .. Name .. " has missing template(s)!" )
@@ -3704,7 +3930,7 @@ function CTLD:AddCratesCargo(Name,Templates,Type,NoCrates,PerCrateMass,Stock,Sub
   end
   self.CargoCounter = self.CargoCounter + 1
   -- Crates are not directly loadable
-  local cargo = CTLD_CARGO:New(self.CargoCounter,Name,Templates,Type,false,false,NoCrates,nil,nil,PerCrateMass,Stock,SubCategory)
+  local cargo = CTLD_CARGO:New(self.CargoCounter,Name,Templates,Type,false,false,NoCrates,nil,nil,PerCrateMass,Stock,SubCategory,DontShowInMenu,Location)
   table.insert(self.Cargo_Crates,cargo)
   return self
 end
@@ -3715,13 +3941,15 @@ end
 -- @param #number Mass Mass in kg of each static in kg, e.g. 100.
 -- @param #number Stock Number of groups in stock. Nil for unlimited.
 -- @param #string SubCategory Name of sub-category (optional).
-function CTLD:AddStaticsCargo(Name,Mass,Stock,SubCategory)
+-- @param #boolean DontShowInMenu (optional) If set to "true" this won't show up in the menu.
+-- @param Core.Zone#ZONE Location (optional) If set, the cargo item is **only** available here. Can be a #ZONE object or the name of a zone as #string.
+function CTLD:AddStaticsCargo(Name,Mass,Stock,SubCategory,DontShowInMenu,Location)
   self:T(self.lid .. " AddStaticsCargo")
   self.CargoCounter = self.CargoCounter + 1
   local type = CTLD_CARGO.Enum.STATIC
   local template = STATIC:FindByName(Name,true):GetTypeName()
   -- Crates are not directly loadable
-  local cargo = CTLD_CARGO:New(self.CargoCounter,Name,template,type,false,false,1,nil,nil,Mass,Stock,SubCategory)
+  local cargo = CTLD_CARGO:New(self.CargoCounter,Name,template,type,false,false,1,nil,nil,Mass,Stock,SubCategory,DontShowInMenu,Location)
   table.insert(self.Cargo_Statics,cargo)
   return self
 end
@@ -3751,7 +3979,9 @@ end
 -- @param #number PerCrateMass Mass in kg of each crate
 -- @param #number Stock Number of groups in stock. Nil for unlimited.
 -- @param #string SubCategory Name of the sub-category (optional).
-function CTLD:AddCratesRepair(Name,Template,Type,NoCrates, PerCrateMass,Stock,SubCategory)
+-- @param #boolean DontShowInMenu (optional) If set to "true" this won't show up in the menu.
+-- @param Core.Zone#ZONE Location (optional) If set, the cargo item is **only** available here. Can be a #ZONE object or the name of a zone as #string.
+function CTLD:AddCratesRepair(Name,Template,Type,NoCrates, PerCrateMass,Stock,SubCategory,DontShowInMenu,Location)
   self:T(self.lid .. " AddCratesRepair")
   if not self:_CheckTemplates(Template) then
     self:E(self.lid .. "Repair Cargo for " .. Name .. " has a missing template!" )
@@ -3759,7 +3989,7 @@ function CTLD:AddCratesRepair(Name,Template,Type,NoCrates, PerCrateMass,Stock,Su
   end
   self.CargoCounter = self.CargoCounter + 1
   -- Crates are not directly loadable
-  local cargo = CTLD_CARGO:New(self.CargoCounter,Name,Template,Type,false,false,NoCrates,nil,nil,PerCrateMass,Stock,SubCategory)
+  local cargo = CTLD_CARGO:New(self.CargoCounter,Name,Template,Type,false,false,NoCrates,nil,nil,PerCrateMass,Stock,SubCategory,DontShowInMenu,Location)
   table.insert(self.Cargo_Crates,cargo)
   return self
 end
@@ -4236,10 +4466,9 @@ function CTLD:IsUnitInZone(Unit,Zonetype)
       zonewidth = zoneradius
     end
     local distance = self:_GetDistance(zonecoord,unitcoord)
-    if zone:IsVec2InZone(unitVec2) and active then 
+    self:T("Distance Zone: "..distance)
+    if (zone:IsVec2InZone(unitVec2) or Zonetype == CTLD.CargoZoneType.MOVE) and active == true and maxdist > distance then 
       outcome = true
-    end
-    if maxdist > distance then 
       maxdist = distance
       zoneret = zone 
       zonenameret = zonename
@@ -4339,7 +4568,7 @@ end
   -- @param #number Trooplimit Unit can carry number of troops. Default 0.
   -- @param #number Length Unit lenght (in metres) for the load radius. Default 20.
   -- @param #number Maxcargoweight Maxmimum weight in kgs this helo can carry. Default 500.
-  function CTLD:UnitCapabilities(Unittype, Cancrates, Cantroops, Cratelimit, Trooplimit, Length, Maxcargoweight)
+  function CTLD:SetUnitCapabilities(Unittype, Cancrates, Cantroops, Cratelimit, Trooplimit, Length, Maxcargoweight)
     self:T(self.lid .. " UnitCapabilities")
     local unittype =  nil
     local unit = nil
@@ -4353,13 +4582,13 @@ end
     end
     local length = 20
     local maxcargo = 500
-    local existingcaps = self.UnitTypes[unittype] -- #CTLD.UnitCapabilities
+    local existingcaps = self.UnitTypeCapabilities[unittype] -- #CTLD.UnitTypeCapabilities
     if existingcaps then
       length = existingcaps.length or 20
       maxcargo = existingcaps.cargoweightlimit or 500
     end
     -- set capabilities
-    local capabilities = {} -- #CTLD.UnitCapabilities
+    local capabilities = {} -- #CTLD.UnitTypeCapabilities
     capabilities.type = unittype
     capabilities.crates = Cancrates or false
     capabilities.troops = Cantroops or false
@@ -4367,9 +4596,25 @@ end
     capabilities.trooplimit = Trooplimit or 0
     capabilities.length = Length or length
     capabilities.cargoweightlimit = Maxcargoweight or maxcargo
-    self.UnitTypes[unittype] = capabilities
+    self.UnitTypeCapabilities[unittype] = capabilities
     return self
   end
+  
+  --- [Deprecated] - Function to add/adjust unittype capabilities. Has been replaced with `SetUnitCapabilities()` - pls use the new one going forward!
+  -- @param #CTLD self
+  -- @param #string Unittype The unittype to adjust. If passed as Wrapper.Unit#UNIT, it will search for the unit in the mission.
+  -- @param #boolean Cancrates Unit can load crates. Default false.
+  -- @param #boolean Cantroops Unit can load troops. Default false.
+  -- @param #number Cratelimit Unit can carry number of crates. Default 0.
+  -- @param #number Trooplimit Unit can carry number of troops. Default 0.
+  -- @param #number Length Unit lenght (in metres) for the load radius. Default 20.
+  -- @param #number Maxcargoweight Maxmimum weight in kgs this helo can carry. Default 500.
+  function CTLD:UnitCapabilities(Unittype, Cancrates, Cantroops, Cratelimit, Trooplimit, Length, Maxcargoweight)
+    self:I(self.lid.."This function been replaced with `SetUnitCapabilities()` - pls use the new one going forward!")
+    self:SetUnitCapabilities(Unittype, Cancrates, Cantroops, Cratelimit, Trooplimit, Length, Maxcargoweight)
+    return self
+  end
+  
   
   --- (Internal) Check if a unit is hovering *in parameters*.
   -- @param #CTLD self
@@ -4523,7 +4768,7 @@ end
     local unittype = Unit:GetTypeName()
     local unitname = Unit:GetName()
     local Group = Unit:GetGroup()
-    local capabilities = self:_GetUnitCapabilities(Unit) -- #CTLD.UnitCapabilities
+    local capabilities = self:_GetUnitCapabilities(Unit) -- #CTLD.UnitTypeCapabilities
     local cancrates = capabilities.crates -- #boolean
     local cratelimit = capabilities.cratelimit -- #number
     if cancrates then
@@ -5208,19 +5453,19 @@ end
     return self
   end
   
-      --- (Internal) FSM Function onbeforeTroopsExtracted.
-    -- @param #CTLD self
-    -- @param #string From State.
-    -- @param #string Event Trigger.
-    -- @param #string To State.
-    -- @param Wrapper.Group#GROUP Group Group Object.
-    -- @param Wrapper.Unit#UNIT Unit Unit Object.
-    -- @param Wrapper.Group#GROUP Troops Troops #GROUP Object.
-    -- @return #CTLD self
-    function CTLD:onbeforeTroopsExtracted(From, Event, To, Group, Unit, Troops)
-      self:T({From, Event, To})
-      return self
-    end
+  --- (Internal) FSM Function onbeforeTroopsExtracted.
+  -- @param #CTLD self
+  -- @param #string From State.
+  -- @param #string Event Trigger.
+  -- @param #string To State.
+  -- @param Wrapper.Group#GROUP Group Group Object.
+  -- @param Wrapper.Unit#UNIT Unit Unit Object.
+  -- @param Wrapper.Group#GROUP Troops Troops #GROUP Object.
+  -- @return #CTLD self
+  function CTLD:onbeforeTroopsExtracted(From, Event, To, Group, Unit, Troops)
+    self:T({From, Event, To})
+    return self
+  end
     
     
   --- (Internal) FSM Function onbeforeTroopsDeployed.

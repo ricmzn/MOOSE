@@ -146,7 +146,45 @@ do -- SET_BASE
 
     return self
   end
-
+  
+  --- [Internal] Add a functional filter
+  -- @param #SET_BASE self
+  -- @param #function ConditionFunction If this function returns `true`, the object is added to the SET. The function needs to take a CONTROLLABLE object as first argument.
+  -- @param ... Condition function arguments, if any.
+  -- @return #boolean If true, at least one condition is true
+  function SET_BASE:FilterFunction(ConditionFunction, ...)
+  
+    local condition={}
+    condition.func=ConditionFunction
+    condition.arg={}
+    
+    if arg then
+      condition.arg=arg
+    end
+    
+    if not self.Filter.Functions then self.Filter.Functions = {} end
+    table.insert(self.Filter.Functions, condition)
+    
+    return self
+  end
+    
+  --- [Internal] Check if the condition functions returns true.
+  -- @param #SET_BASE self
+  -- @param Wrapper.Controllable#CONTROLLABLE Object The object to filter for
+  -- @return #boolean If true, if **all** conditions are true
+  function SET_BASE:_EvalFilterFunctions(Object) 
+    -- All conditions must be true.
+    for _,_condition in pairs(self.Filter.Functions or {}) do
+      local condition=_condition
+      -- Call function.
+      if condition.func(Object,unpack(condition.arg)) == false then
+        return false
+      end
+    end  
+    -- No condition was true.
+    return true
+  end
+  
   --- Clear the Objects in the Set.
   -- @param #SET_BASE self
   -- @param #boolean TriggerEvent If `true`, an event remove is triggered for each group that is removed from the set.
@@ -417,10 +455,31 @@ do -- SET_BASE
 
   --- Gets a random object from the @{Core.Set#SET_BASE} and derived classes.
   -- @param #SET_BASE self
-  -- @return Core.Base#BASE
+  -- @return Core.Base#BASE or nil if none found or the SET is empty!
   function SET_BASE:GetRandom()
-    local tablemax = table.maxn(self.Index)
+    local tablemax = 0
+    for _,_ind in pairs(self.Index) do
+      tablemax = tablemax + 1
+    end
+    --local tablemax = table.maxn(self.Index)
     local RandomItem = self.Set[self.Index[math.random(1,tablemax)]]
+    self:T3( { RandomItem } )
+    return RandomItem
+  end
+  
+  --- Gets a random object from the @{Core.Set#SET_BASE} and derived classes. A bit slower than @{#SET_BASE.GetRandom}() but tries to ensure you get an object back if the SET is not empty. 
+  -- @param #SET_BASE self
+  -- @return Core.Base#BASE or nil if  the SET is empty!
+  function SET_BASE:GetRandomSurely()
+    local tablemax = 0
+    local sorted = {}
+    for _,_obj in pairs(self.Set) do
+      tablemax = tablemax + 1
+      sorted[tablemax] = _obj
+    end
+    --local tablemax = table.maxn(self.Index)
+    --local RandomItem = self.Set[self.Index[math.random(1,tablemax)]]
+    local RandomItem = sorted[math.random(1,tablemax)]
     self:T3( { RandomItem } )
     return RandomItem
   end
@@ -561,10 +620,12 @@ do -- SET_BASE
     return self
   end
 
-  --- Iterate the SET_BASE while identifying the nearest object from a @{Core.Point#POINT_VEC2}.
+  --- Iterate the SET_BASE while identifying the nearest object in the set from a @{Core.Point#POINT_VEC2}.
   -- @param #SET_BASE self
-  -- @param Core.Point#POINT_VEC2 PointVec2 A @{Core.Point#POINT_VEC2} object from where to evaluate the closest object in the set.
+  -- @param Core.Point#POINT_VEC2 PointVec2 A @{Core.Point#COORDINATE} or @{Core.Point#POINT_VEC2} object (but **not** a simple DCS#Vec2!) from where to evaluate the closest object in the set.
   -- @return Core.Base#BASE The closest object.
+  -- @usage
+  --          myset:FindNearestObjectFromPointVec2( ZONE:New("Test Zone"):GetCoordinate() )
   function SET_BASE:FindNearestObjectFromPointVec2( PointVec2 )
     self:F2( PointVec2 )
 
@@ -961,6 +1022,7 @@ do
   --    * @{#SET_GROUP.FilterCategoryShip}: Builds the SET_GROUP from ships.
   --    * @{#SET_GROUP.FilterCategoryStructure}: Builds the SET_GROUP from structures.
   --    * @{#SET_GROUP.FilterZones}: Builds the SET_GROUP with the groups within a @{Core.Zone#ZONE}.
+  --    * @{#SET_GROUP.FilterFunction}: Builds the SET_GROUP with a custom condition.
   --
   -- Once the filter criteria have been set for the SET_GROUP, you can start filtering using:
   --
@@ -1034,6 +1096,8 @@ do
       Countries = nil,
       GroupPrefixes = nil,
       Zones = nil,
+      Functions = nil,
+      Alive = nil,
     },
     FilterMeta = {
       Coalitions = {
@@ -1065,8 +1129,15 @@ do
     self:FilterActive( false )
 
     return self
+       
+    --- Filter the set once
+    -- @function [parent=#SET_GROUP] FilterOnce
+    -- @param #SET_GROUP self
+    -- @return #SET_GROUP self
+    
+    
   end
-
+  
   --- Get a *new* set that only contains alive groups.
   -- @param #SET_GROUP self
   -- @return #SET_GROUP Set of alive groups.
@@ -1134,7 +1205,7 @@ do
     if not DontSetCargoBayLimit then
       -- I set the default cargo bay weight limit each time a new group is added to the set.
       -- TODO Why is this here in the first place?
-      for UnitID, UnitData in pairs( group:GetUnits() ) do
+      for UnitID, UnitData in pairs( group:GetUnits() or {} ) do
         if UnitData and UnitData:IsAlive() then
           UnitData:SetCargoBayWeightLimit()
         end
@@ -1240,7 +1311,26 @@ do
     
     return self
   end
+  
+  --- [User] Add a custom condition function.
+  -- @function [parent=#SET_GROUP] FilterFunction
+  -- @param #SET_GROUP self
+  -- @param #function ConditionFunction If this function returns `true`, the object is added to the SET. The function needs to take a GROUP object as first argument.
+  -- @param ... Condition function arguments if any.
+  -- @return #SET_GROUP self
+  -- @usage
+  --          -- Image you want to exclude a specific GROUP from a SET:
+  --          local groundset = SET_GROUP:New():FilterCoalitions("blue"):FilterCategoryGround():FilterFunction(
+  --          -- The function needs to take a GROUP object as first - and in this case, only - argument.
+  --          function(grp)
+  --              local isinclude = true
+  --              if grp:GetName() == "Exclude Me" then isinclude = false end
+  --              return isinclude
+  --          end
+  --          ):FilterOnce()
+  --          BASE:I(groundset:Flush())
 
+  
   --- Builds a set of groups of coalitions.
   -- Possible current coalitions are red, blue and neutral.
   -- @param #SET_GROUP self
@@ -1381,7 +1471,7 @@ do
     
   end
 
-  --- Builds a set of groups that are only active.
+  --- Builds a set of groups that are active, ie in the mission but not yet activated (false) or actived (true).
   -- Only the groups that are active will be included within the set.
   -- @param #SET_GROUP self
   -- @param #boolean Active (Optional) Include only active groups to the set.
@@ -1406,6 +1496,14 @@ do
     self.Filter.Active = Active
     return self
   end
+  
+  --- Build a set of groups that are alive.
+  -- @param #SET_GROUP self
+  -- @return #SET_GROUP self
+  function SET_GROUP:FilterAlive()
+    self.Filter.Alive = true
+    return self
+  end
 
   --- Starts the filtering.
   -- @param #SET_GROUP self
@@ -1418,6 +1516,8 @@ do
       self:HandleEvent( EVENTS.Dead, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.Crash, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.RemoveUnit, self._EventOnDeadOrCrash )
+      self:HandleEvent( EVENTS.UnitLost, self._EventOnDeadOrCrash )
+      self:HandleEvent( EVENTS.PlayerLeaveUnit, self._EventOnDeadOrCrash )
       if self.Filter.Zones then
         self.ZoneTimer = TIMER:New(self._ContinousZoneFilter,self)
         local timing = self.ZoneTimerInterval or 30
@@ -1449,6 +1549,7 @@ do
       self:UnHandleEvent(EVENTS.Dead)
       self:UnHandleEvent(EVENTS.Crash)
       self:UnHandleEvent(EVENTS.RemoveUnit)
+      self:UnHandleEvent(EVENTS.UnitLost)
       
       if self.Filter.Zones and self.ZoneTimer and self.ZoneTimer:IsRunning() then
         self.ZoneTimer:Stop()
@@ -1489,7 +1590,7 @@ do
   function SET_GROUP:AddInDatabase( Event )
     self:F3( { Event } )
 
-    if Event.IniObjectCategory == 1 then
+    if Event.IniObjectCategory == Object.Category.UNIT then
       if not self.Database[Event.IniDCSGroupName] then
         self.Database[Event.IniDCSGroupName] = GROUP:Register( Event.IniDCSGroupName )
         self:T3( self.Database[Event.IniDCSGroupName] )
@@ -1904,7 +2005,16 @@ do
   function SET_GROUP:IsIncludeObject( MGroup )
     self:F2( MGroup )
     local MGroupInclude = true
-
+    
+    if self.Filter.Alive == true then
+      local MGroupAlive = false
+      self:F( { Active = self.Filter.Active } )
+      if MGroup and MGroup:IsAlive() then
+        MGroupAlive = true
+      end
+      MGroupInclude = MGroupInclude and MGroupAlive
+    end
+    
     if self.Filter.Active ~= nil then
       local MGroupActive = false
       self:F( { Active = self.Filter.Active } )
@@ -1914,7 +2024,7 @@ do
       MGroupInclude = MGroupInclude and MGroupActive
     end
 
-    if self.Filter.Coalitions then
+    if self.Filter.Coalitions and MGroupInclude then
       local MGroupCoalition = false
       for CoalitionID, CoalitionName in pairs( self.Filter.Coalitions ) do
         self:T3( { "Coalition:", MGroup:GetCoalition(), self.FilterMeta.Coalitions[CoalitionName], CoalitionName } )
@@ -1925,7 +2035,7 @@ do
       MGroupInclude = MGroupInclude and MGroupCoalition
     end
 
-    if self.Filter.Categories then
+    if self.Filter.Categories and MGroupInclude then
       local MGroupCategory = false
       for CategoryID, CategoryName in pairs( self.Filter.Categories ) do
         self:T3( { "Category:", MGroup:GetCategory(), self.FilterMeta.Categories[CategoryName], CategoryName } )
@@ -1936,7 +2046,7 @@ do
       MGroupInclude = MGroupInclude and MGroupCategory
     end
 
-    if self.Filter.Countries then
+    if self.Filter.Countries and MGroupInclude then
       local MGroupCountry = false
       for CountryID, CountryName in pairs( self.Filter.Countries ) do
         self:T3( { "Country:", MGroup:GetCountry(), CountryName } )
@@ -1947,7 +2057,7 @@ do
       MGroupInclude = MGroupInclude and MGroupCountry
     end
 
-    if self.Filter.GroupPrefixes then
+    if self.Filter.GroupPrefixes and MGroupInclude then
       local MGroupPrefix = false
       for GroupPrefixId, GroupPrefix in pairs( self.Filter.GroupPrefixes ) do
         self:T3( { "Prefix:", string.find( MGroup:GetName(), GroupPrefix, 1 ), GroupPrefix } )
@@ -1958,7 +2068,7 @@ do
       MGroupInclude = MGroupInclude and MGroupPrefix
     end
     
-    if self.Filter.Zones then
+    if self.Filter.Zones and MGroupInclude then
       local MGroupZone = false
       for ZoneName, Zone in pairs( self.Filter.Zones ) do
         --self:T( "Zone:", ZoneName )
@@ -1968,6 +2078,12 @@ do
       end
       MGroupInclude = MGroupInclude and MGroupZone
     end
+    
+    if self.Filter.Functions and MGroupInclude then
+      local MGroupFunc = false
+      MGroupFunc = self:_EvalFilterFunctions(MGroup)
+      MGroupInclude = MGroupInclude and MGroupFunc
+    end
      
     self:T2( MGroupInclude )
     return MGroupInclude
@@ -1976,6 +2092,7 @@ do
   --- Get the closest group of the set with respect to a given reference coordinate. Optionally, only groups of given coalitions are considered in the search.
   -- @param #SET_GROUP self
   -- @param Core.Point#COORDINATE Coordinate Reference Coordinate from which the closest group is determined.
+  -- @param #table Coalitions (Optional) Table of coalition #number entries to filter for.
   -- @return Wrapper.Group#GROUP The closest group (if any).
   -- @return #number Distance in meters to the closest group.
   function SET_GROUP:GetClosestGroup(Coordinate, Coalitions)
@@ -2066,6 +2183,7 @@ do -- SET_UNIT
   -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --    * @{#SET_UNIT.FilterActive}: Builds the SET_UNIT with the units that are only active. Units that are inactive (late activation) won't be included in the set!
   --    * @{#SET_UNIT.FilterZones}: Builds the SET_UNIT with the units within a @{Core.Zone#ZONE}.
+  --    * @{#SET_UNIT.FilterFunction}: Builds the SET_UNIT with a custom condition.
   --    
   -- Once the filter criteria have been set for the SET_UNIT, you can start filtering using:
   --
@@ -2144,6 +2262,7 @@ do -- SET_UNIT
       Countries = nil,
       UnitPrefixes = nil,
       Zones = nil,
+      Functions = nil,
     },
     FilterMeta = {
       Coalitions = {
@@ -2425,6 +2544,26 @@ do -- SET_UNIT
     return CountU
   end
   
+  --- Gets the alive set.
+  -- @param #SET_UNIT self
+  -- @return #table Table of SET objects
+  -- @return #SET_UNIT AliveSet 
+  function SET_UNIT:GetAliveSet()
+
+    local AliveSet = SET_UNIT:New()
+
+    -- Clean the Set before returning with only the alive Groups.
+    for GroupName, GroupObject in pairs(self.Set) do    
+      local GroupObject=GroupObject --Wrapper.Client#CLIENT
+      
+      if GroupObject and GroupObject:IsAlive() then      
+        AliveSet:Add(GroupName, GroupObject)
+      end
+    end
+
+    return AliveSet.Set or {}, AliveSet
+  end
+  
   --- [Internal] Private function for use of continous zone filter
   -- @param #SET_UNIT self
   -- @return #SET_UNIT self
@@ -2485,6 +2624,7 @@ do -- SET_UNIT
       self:HandleEvent( EVENTS.Dead, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.Crash, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.RemoveUnit, self._EventOnDeadOrCrash )
+      self:HandleEvent( EVENTS.UnitLost, self._EventOnDeadOrCrash )
       if self.Filter.Zones then
         self.ZoneTimer = TIMER:New(self._ContinousZoneFilter,self)
         local timing = self.ZoneTimerInterval or 30
@@ -2495,6 +2635,25 @@ do -- SET_UNIT
     return self
   end
 
+  --- [User] Add a custom condition function.
+  -- @function [parent=#SET_UNIT] FilterFunction
+  -- @param #SET_UNIT self
+  -- @param #function ConditionFunction If this function returns `true`, the object is added to the SET. The function needs to take a UNIT object as first argument.
+  -- @param ... Condition function arguments if any.
+  -- @return #SET_UNIT self
+  -- @usage
+  --          -- Image you want to exclude a specific UNIT from a SET:
+  --          local groundset = SET_UNIT:New():FilterCoalitions("blue"):FilterCategories("ground"):FilterFunction(
+  --          -- The function needs to take a UNIT object as first - and in this case, only - argument.
+  --          function(unit)
+  --              local isinclude = true
+  --              if unit:GetName() == "Exclude Me" then isinclude = false end
+  --              return isinclude
+  --          end
+  --          ):FilterOnce()
+  --          BASE:I(groundset:Flush())
+
+
   --- Handles the Database to check on an event (birth) that the Object was added in the Database.
   -- This is required, because sometimes the _DATABASE birth event gets called later than the SET_BASE birth event!
   -- @param #SET_UNIT self
@@ -2504,7 +2663,7 @@ do -- SET_UNIT
   function SET_UNIT:AddInDatabase( Event )
     self:F3( { Event } )
 
-    if Event.IniObjectCategory == 1 then
+    if Event.IniObjectCategory == Object.Category.UNIT then
       if not self.Database[Event.IniDCSUnitName] then
         self.Database[Event.IniDCSUnitName] = UNIT:Register( Event.IniDCSUnitName )
         self:T3( self.Database[Event.IniDCSUnitName] )
@@ -2819,53 +2978,51 @@ do -- SET_UNIT
   -- @param #SET_UNIT self
   -- @return Core.Point#COORDINATE The center coordinate of all the units in the set, including heading in degrees and speed in mps in case of moving units.
   function SET_UNIT:GetCoordinate()
-
-    local Coordinate = self:GetRandom():GetCoordinate()
-    --self:F({Coordinate:GetVec3()})
     
-    
-    local x1 = Coordinate.x
-    local x2 = Coordinate.x
-    local y1 = Coordinate.y
-    local y2 = Coordinate.y
-    local z1 = Coordinate.z
-    local z2 = Coordinate.z
-    local MaxVelocity = 0
-    local AvgHeading = nil
-    local MovingCount = 0
-
-    for UnitName, UnitData in pairs( self:GetSet() ) do
-
-      local Unit = UnitData -- Wrapper.Unit#UNIT
-      local Coordinate = Unit:GetCoordinate()
-
-      x1 = (Coordinate.x < x1) and Coordinate.x or x1
-      x2 = (Coordinate.x > x2) and Coordinate.x or x2
-      y1 = (Coordinate.y < y1) and Coordinate.y or y1
-      y2 = (Coordinate.y > y2) and Coordinate.y or y2
-      z1 = (Coordinate.y < z1) and Coordinate.z or z1
-      z2 = (Coordinate.y > z2) and Coordinate.z or z2
-
-      local Velocity = Coordinate:GetVelocity()
-      if Velocity ~= 0 then
-        MaxVelocity = (MaxVelocity < Velocity) and Velocity or MaxVelocity
-        local Heading = Coordinate:GetHeading()
-        AvgHeading = AvgHeading and (AvgHeading + Heading) or Heading
-        MovingCount = MovingCount + 1
+    local function GetSetVec3(units)
+      -- Init.
+      local x=0 
+      local y=0 
+      local z=0 
+      local n=0
+      -- Loop over all units.
+      for _,unit in pairs(units) do
+        local vec3=nil --DCS#Vec3
+        if unit and unit:IsAlive() then
+          vec3 = unit:GetVec3()
+        end
+        if vec3 then
+          -- Sum up posits.
+          x=x+vec3.x
+          y=y+vec3.y
+          z=z+vec3.z
+          -- Increase counter.
+          n=n+1
+        end
       end
+      if n>0 then
+        -- Average.
+        local Vec3={x=x/n, y=y/n, z=z/n} --DCS#Vec3
+        return Vec3
+      end
+      return nil
+    end
+    
+    local Coordinate = nil
+    local Vec3 = GetSetVec3(self.Set)
+    if Vec3 then
+      Coordinate = COORDINATE:NewFromVec3(Vec3)
     end
 
-    AvgHeading = AvgHeading and (AvgHeading / MovingCount)
+    if Coordinate then
+      local heading = self:GetHeading() or 0
+      local velocity = self:GetVelocity() or 0
+      Coordinate:SetHeading( heading )
+      Coordinate:SetVelocity( velocity )
+      self:T(UTILS.PrintTableToLog(Coordinate))
+    end
 
-    Coordinate.x = (x2 - x1) / 2 + x1
-    Coordinate.y = (y2 - y1) / 2 + y1
-    Coordinate.z = (z2 - z1) / 2 + z1
-    Coordinate:SetHeading( AvgHeading )
-    Coordinate:SetVelocity( MaxVelocity )
-
-    self:F( { Coordinate = Coordinate } )
     return Coordinate
-
   end
 
   --- Get the maximum velocity of the SET_UNIT.
@@ -3074,7 +3231,7 @@ do -- SET_UNIT
         MUnitInclude = MUnitInclude and MUnitActive
       end
 
-      if self.Filter.Coalitions then
+      if self.Filter.Coalitions and MUnitInclude then
         local MUnitCoalition = false
         for CoalitionID, CoalitionName in pairs( self.Filter.Coalitions ) do
           self:F( { "Coalition:", MUnit:GetCoalition(), self.FilterMeta.Coalitions[CoalitionName], CoalitionName } )
@@ -3085,7 +3242,7 @@ do -- SET_UNIT
         MUnitInclude = MUnitInclude and MUnitCoalition
       end
 
-      if self.Filter.Categories then
+      if self.Filter.Categories and MUnitInclude then
         local MUnitCategory = false
         for CategoryID, CategoryName in pairs( self.Filter.Categories ) do
           self:T3( { "Category:", MUnit:GetDesc().category, self.FilterMeta.Categories[CategoryName], CategoryName } )
@@ -3096,7 +3253,7 @@ do -- SET_UNIT
         MUnitInclude = MUnitInclude and MUnitCategory
       end
 
-      if self.Filter.Types then
+      if self.Filter.Types and MUnitInclude then
         local MUnitType = false
         for TypeID, TypeName in pairs( self.Filter.Types ) do
           self:T3( { "Type:", MUnit:GetTypeName(), TypeName } )
@@ -3107,7 +3264,7 @@ do -- SET_UNIT
         MUnitInclude = MUnitInclude and MUnitType
       end
 
-      if self.Filter.Countries then
+      if self.Filter.Countries and MUnitInclude then
         local MUnitCountry = false
         for CountryID, CountryName in pairs( self.Filter.Countries ) do
           self:T3( { "Country:", MUnit:GetCountry(), CountryName } )
@@ -3118,7 +3275,7 @@ do -- SET_UNIT
         MUnitInclude = MUnitInclude and MUnitCountry
       end
 
-      if self.Filter.UnitPrefixes then
+      if self.Filter.UnitPrefixes and MUnitInclude then
         local MUnitPrefix = false
         for UnitPrefixId, UnitPrefix in pairs( self.Filter.UnitPrefixes ) do
           self:T3( { "Prefix:", string.find( MUnit:GetName(), UnitPrefix, 1 ), UnitPrefix } )
@@ -3129,7 +3286,7 @@ do -- SET_UNIT
         MUnitInclude = MUnitInclude and MUnitPrefix
       end
 
-      if self.Filter.RadarTypes then
+      if self.Filter.RadarTypes and MUnitInclude then
         local MUnitRadar = false
         for RadarTypeID, RadarType in pairs( self.Filter.RadarTypes ) do
           self:T3( { "Radar:", RadarType } )
@@ -3143,7 +3300,7 @@ do -- SET_UNIT
         MUnitInclude = MUnitInclude and MUnitRadar
       end
 
-      if self.Filter.SEAD then
+      if self.Filter.SEAD and MUnitInclude then
         local MUnitSEAD = false
         if MUnit:HasSEAD() == true then
           self:T3( "SEAD Found" )
@@ -3153,7 +3310,7 @@ do -- SET_UNIT
       end
     end
     
-    if self.Filter.Zones then
+    if self.Filter.Zones and MUnitInclude then
       local MGroupZone = false
       for ZoneName, Zone in pairs( self.Filter.Zones ) do
         self:T3( "Zone:", ZoneName )
@@ -3162,6 +3319,11 @@ do -- SET_UNIT
         end
       end
       MUnitInclude = MUnitInclude  and MGroupZone
+    end
+    
+    if self.Filter.Functions and MUnitInclude then
+      local MUnitFunc = self:_EvalFilterFunctions(MUnit)
+      MUnitInclude = MUnitInclude  and MUnitFunc
     end
     
     self:T2( MUnitInclude )
@@ -3245,6 +3407,7 @@ do -- SET_STATIC
   --    * @{#SET_STATIC.FilterPrefixes}: Builds the SET_STATIC with the units containing the same string(s) in their name. **Attention!** LUA regular expression apply here, so special characters in names like minus, dot, hash (#) etc might lead to unexpected results. 
   -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --    * @{#SET_STATIC.FilterZones}: Builds the SET_STATIC with the units within a @{Core.Zone#ZONE}.
+  --    * @{#SET_STATIC.FilterFunction}: Builds the SET_STATIC with a custom condition.
   --    
   -- Once the filter criteria have been set for the SET_STATIC, you can start filtering using:
   --
@@ -3318,7 +3481,7 @@ do -- SET_STATIC
 
   --- Add STATIC(s) to SET_STATIC.
   -- @param #SET_STATIC self
-  -- @param #string AddStatic A single STATIC.
+  -- @param Wrapper.Static#STATIC AddStatic A single STATIC.
   -- @return #SET_STATIC self
   function SET_STATIC:AddStatic( AddStatic )
     self:F2( AddStatic:GetName() )
@@ -3447,7 +3610,25 @@ do -- SET_STATIC
     end
     return self
   end
-
+  
+  --- [User] Add a custom condition function.
+  -- @function [parent=#SET_STATIC] FilterFunction
+  -- @param #SET_STATIC self
+  -- @param #function ConditionFunction If this function returns `true`, the object is added to the SET. The function needs to take a STATIC object as first argument.
+  -- @param ... Condition function arguments if any.
+  -- @return #SET_STATIC self
+  -- @usage
+  --          -- Image you want to exclude a specific CLIENT from a SET:
+  --          local groundset = SET_STATIC:New():FilterCoalitions("blue"):FilterActive(true):FilterFunction(
+  --          -- The function needs to take a STATIC object as first - and in this case, only - argument.
+  --          function(static)
+  --              local isinclude = true
+  --              if static:GetName() == "Exclude Me" then isinclude = false end
+  --              return isinclude
+  --          end
+  --          ):FilterOnce()
+  --          BASE:I(groundset:Flush())
+  
   --- Builds a set of units of defined countries.
   -- Possible current countries are those known within DCS world.
   -- @param #SET_STATIC self
@@ -4004,6 +4185,7 @@ do -- SET_CLIENT
   -- Have a read through here to understand the application of regular expressions: [LUA regular expressions](https://riptutorial.com/lua/example/20315/lua-pattern-matching)
   --    * @{#SET_CLIENT.FilterActive}: Builds the SET_CLIENT with the units that are only active. Units that are inactive (late activation) won't be included in the set!
   --    * @{#SET_CLIENT.FilterZones}: Builds the SET_CLIENT with the clients within a @{Core.Zone#ZONE}.
+  --    * @{#SET_CLIENT.FilterFunction}: Builds the SET_CLIENT with a custom condition.
   --    
   -- Once the filter criteria have been set for the SET_CLIENT, you can start filtering using:
   --
@@ -4210,8 +4392,8 @@ do -- SET_CLIENT
     return self
   end
 
-  --- Builds a set of CLIENTs that contain the given string in their unit/pilot name.
-  -- **Attention!** Bad naming convention as this **does not** filter only **prefixes** but all clients that **contain** the string. 
+  --- Builds a set of CLIENTs that contain the given string in their **unit/pilot** name and **NOT** the group name!
+  -- **Attention!** Bad naming convention as this **does not** filter only **prefixes** but all clients that **contain** the string. Pattern matching applies.
   -- @param #SET_CLIENT self
   -- @param #string Prefixes The string pattern(s) that needs to be contained in the unit/pilot name. Can also be passed as a `#table` of strings.
   -- @return #SET_CLIENT self
@@ -4317,6 +4499,8 @@ do -- SET_CLIENT
       self:UnHandleEvent(EVENTS.Birth)
       self:UnHandleEvent(EVENTS.Dead)
       self:UnHandleEvent(EVENTS.Crash)
+      --self:UnHandleEvent(EVENTS.PlayerEnterUnit)
+      --self:UnHandleEvent(EVENTS.PlayerLeaveUnit)
       
       if self.Filter.Zones and self.ZoneTimer and self.ZoneTimer:IsRunning() then
         self.ZoneTimer:Stop()
@@ -4335,6 +4519,9 @@ do -- SET_CLIENT
       self:HandleEvent( EVENTS.Birth, self._EventOnBirth )
       self:HandleEvent( EVENTS.Dead, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.Crash, self._EventOnDeadOrCrash )
+      --self:HandleEvent( EVENTS.PlayerEnterUnit, self._EventPlayerEnterUnit)
+      --self:HandleEvent( EVENTS.PlayerLeaveUnit, self._EventPlayerLeaveUnit)
+      --self:SetEventPriority(1)
       if self.Filter.Zones then
         self.ZoneTimer = TIMER:New(self._ContinousZoneFilter,self)
         local timing = self.ZoneTimerInterval or 30
@@ -4343,6 +4530,43 @@ do -- SET_CLIENT
       self:_FilterStart()
     end
 
+    return self
+  end
+  
+  --- Handle CA slots addition
+  -- @param #SET_CLIENT self
+  -- @param Core.Event#EVENTDATA Event
+  -- @return #SET_CLIENT self
+  function SET_CLIENT:_EventPlayerEnterUnit(Event)
+    self:I( "_EventPlayerEnterUnit" )
+    if Event.IniDCSUnit then
+      if Event.IniObjectCategory == Object.Category.UNIT and Event.IniGroup and Event.IniGroup:IsGround() then
+        -- CA Slot entered
+        local ObjectName, Object = self:AddInDatabase( Event )
+        self:T( ObjectName, UTILS.PrintTableToLog(Object) )
+        if Object and self:IsIncludeObject( Object ) then
+          self:Add( ObjectName, Object )
+        end
+      end
+    end
+    return self
+  end
+  
+  --- Handle CA slots removal
+  -- @param #SET_CLIENT self
+  -- @param Core.Event#EVENTDATA Event
+  -- @return #SET_CLIENT self
+  function SET_CLIENT:_EventPlayerLeaveUnit(Event)
+    self:I( "_EventPlayerLeaveUnit" )
+    if Event.IniDCSUnit then
+      if Event.IniObjectCategory == Object.Category.UNIT and Event.IniGroup and Event.IniGroup:IsGround() then
+        -- CA Slot left
+        local ObjectName, Object = self:FindInDatabase( Event )
+        if ObjectName then
+          self:Remove( ObjectName )
+        end
+      end
+    end
     return self
   end
 
@@ -4464,6 +4688,25 @@ do -- SET_CLIENT
     return AliveSet.Set or {}
   end
 
+  --- [User] Add a custom condition function.
+  -- @function [parent=#SET_CLIENT] FilterFunction
+  -- @param #SET_CLIENT self
+  -- @param #function ConditionFunction If this function returns `true`, the object is added to the SET. The function needs to take a CLIENT object as first argument.
+  -- @param ... Condition function arguments if any.
+  -- @return #SET_CLIENT self
+  -- @usage
+  --          -- Image you want to exclude a specific CLIENT from a SET:
+  --          local groundset = SET_CLIENT:New():FilterCoalitions("blue"):FilterActive(true):FilterFunction(
+  --          -- The function needs to take a UNIT object as first - and in this case, only - argument.
+  --          function(client)
+  --              local isinclude = true
+  --              if client:GetPlayerName() == "Exclude Me" then isinclude = false end
+  --              return isinclude
+  --          end
+  --          ):FilterOnce()
+  --          BASE:I(groundset:Flush())
+
+
   ---
   -- @param #SET_CLIENT self
   -- @param Wrapper.Client#CLIENT MClient
@@ -4485,33 +4728,45 @@ do -- SET_CLIENT
         MClientInclude = MClientInclude and MClientActive
       end
 
-      if self.Filter.Coalitions then
+      if self.Filter.Coalitions and MClientInclude then
         local MClientCoalition = false
         for CoalitionID, CoalitionName in pairs( self.Filter.Coalitions ) do
           local ClientCoalitionID = _DATABASE:GetCoalitionFromClientTemplate( MClientName )
+          if ClientCoalitionID==nil and MClient:IsAlive()~=nil then
+            ClientCoalitionID=MClient:GetCoalition()
+          end
           self:T3( { "Coalition:", ClientCoalitionID, self.FilterMeta.Coalitions[CoalitionName], CoalitionName } )
-          if self.FilterMeta.Coalitions[CoalitionName] and self.FilterMeta.Coalitions[CoalitionName] == ClientCoalitionID then
+          if self.FilterMeta.Coalitions[CoalitionName] and ClientCoalitionID and self.FilterMeta.Coalitions[CoalitionName] == ClientCoalitionID then
             MClientCoalition = true
           end
         end
         self:T( { "Evaluated Coalition", MClientCoalition } )
         MClientInclude = MClientInclude and MClientCoalition
       end
-
-      if self.Filter.Categories then
+      
+      if self.Filter.Categories and MClientInclude then
         local MClientCategory = false
         for CategoryID, CategoryName in pairs( self.Filter.Categories ) do
           local ClientCategoryID = _DATABASE:GetCategoryFromClientTemplate( MClientName )
-          self:T3( { "Category:", ClientCategoryID, self.FilterMeta.Categories[CategoryName], CategoryName } )
-          if self.FilterMeta.Categories[CategoryName] and self.FilterMeta.Categories[CategoryName] == ClientCategoryID then
-            MClientCategory = true
+          local UnitCategory = 0
+          if ClientCategoryID==nil and MClient:IsExist() then
+            ClientCategoryID,UnitCategory=MClient:GetCategory()
+            self:T3( { "Category:", UnitCategory, self.FilterMeta.Categories[CategoryName], CategoryName } )
+            if self.FilterMeta.Categories[CategoryName] and UnitCategory and self.FilterMeta.Categories[CategoryName] == UnitCategory then
+              MClientCategory = true
+            end
+          else
+            self:T3( { "Category:", ClientCategoryID, self.FilterMeta.Categories[CategoryName], CategoryName } )
+            if self.FilterMeta.Categories[CategoryName] and ClientCategoryID and self.FilterMeta.Categories[CategoryName] == ClientCategoryID then
+              MClientCategory = true
+            end
           end
         end
         self:T( { "Evaluated Category", MClientCategory } )
         MClientInclude = MClientInclude and MClientCategory
       end
 
-      if self.Filter.Types then
+      if self.Filter.Types and MClientInclude then
         local MClientType = false
         for TypeID, TypeName in pairs( self.Filter.Types ) do
           self:T3( { "Type:", MClient:GetTypeName(), TypeName } )
@@ -4523,12 +4778,15 @@ do -- SET_CLIENT
         MClientInclude = MClientInclude and MClientType
       end
 
-      if self.Filter.Countries then
+      if self.Filter.Countries and MClientInclude then
         local MClientCountry = false
         for CountryID, CountryName in pairs( self.Filter.Countries ) do
           local ClientCountryID = _DATABASE:GetCountryFromClientTemplate( MClientName )
+          if ClientCountryID==nil and MClient:IsAlive()~=nil then
+            ClientCountryID=MClient:GetCountry()
+          end
           self:T3( { "Country:", ClientCountryID, country.id[CountryName], CountryName } )
-          if country.id[CountryName] and country.id[CountryName] == ClientCountryID then
+          if country.id[CountryName] and ClientCountryID and country.id[CountryName] == ClientCountryID then
             MClientCountry = true
           end
         end
@@ -4536,7 +4794,7 @@ do -- SET_CLIENT
         MClientInclude = MClientInclude and MClientCountry
       end
 
-      if self.Filter.ClientPrefixes then
+      if self.Filter.ClientPrefixes and MClientInclude then
         local MClientPrefix = false
         for ClientPrefixId, ClientPrefix in pairs( self.Filter.ClientPrefixes ) do
           self:T3( { "Prefix:", string.find( MClient.UnitName, ClientPrefix, 1 ), ClientPrefix } )
@@ -4548,7 +4806,7 @@ do -- SET_CLIENT
         MClientInclude = MClientInclude and MClientPrefix
       end
 
-    if self.Filter.Zones then
+    if self.Filter.Zones and MClientInclude then
       local MClientZone = false
       for ZoneName, Zone in pairs( self.Filter.Zones ) do
       self:T3( "Zone:", ZoneName )
@@ -4560,7 +4818,7 @@ do -- SET_CLIENT
       MClientInclude = MClientInclude and MClientZone
     end
     
-    if self.Filter.Playernames then
+    if self.Filter.Playernames and MClientInclude then
       local MClientPlayername = false
       local playername = MClient:GetPlayerName() or "Unknown"
       --self:T(playername)
@@ -4573,7 +4831,7 @@ do -- SET_CLIENT
       MClientInclude = MClientInclude and MClientPlayername
     end
     
-    if self.Filter.Callsigns then
+    if self.Filter.Callsigns and MClientInclude then
       local MClientCallsigns = false
       local callsign = MClient:GetCallsign()
       --self:I(callsign)
@@ -4584,6 +4842,11 @@ do -- SET_CLIENT
       end
       self:T( { "Evaluated Callsign", MClientCallsigns } )
       MClientInclude = MClientInclude and MClientCallsigns
+    end
+    
+    if self.Filter.Functions and MClientInclude then
+      local MClientFunc = self:_EvalFilterFunctions(MClient)
+      MClientInclude = MClientInclude and MClientFunc
     end
     
   end
@@ -4939,12 +5202,15 @@ do -- SET_PLAYER
     if MClient then
       local MClientName = MClient.UnitName
 
-      if self.Filter.Coalitions then
+      if self.Filter.Coalitions and MClientInclude then
         local MClientCoalition = false
         for CoalitionID, CoalitionName in pairs( self.Filter.Coalitions ) do
           local ClientCoalitionID = _DATABASE:GetCoalitionFromClientTemplate( MClientName )
+          if ClientCoalitionID==nil and MClient:IsAlive()~=nil then
+            ClientCoalitionID=MClient:GetCoalition()
+          end
           self:T3( { "Coalition:", ClientCoalitionID, self.FilterMeta.Coalitions[CoalitionName], CoalitionName } )
-          if self.FilterMeta.Coalitions[CoalitionName] and self.FilterMeta.Coalitions[CoalitionName] == ClientCoalitionID then
+          if self.FilterMeta.Coalitions[CoalitionName] and ClientCoalitionID and self.FilterMeta.Coalitions[CoalitionName] == ClientCoalitionID then
             MClientCoalition = true
           end
         end
@@ -4952,13 +5218,22 @@ do -- SET_PLAYER
         MClientInclude = MClientInclude and MClientCoalition
       end
 
-      if self.Filter.Categories then
+      if self.Filter.Categories and MClientInclude then
         local MClientCategory = false
         for CategoryID, CategoryName in pairs( self.Filter.Categories ) do
           local ClientCategoryID = _DATABASE:GetCategoryFromClientTemplate( MClientName )
-          self:T3( { "Category:", ClientCategoryID, self.FilterMeta.Categories[CategoryName], CategoryName } )
-          if self.FilterMeta.Categories[CategoryName] and self.FilterMeta.Categories[CategoryName] == ClientCategoryID then
-            MClientCategory = true
+          local UnitCategory = 0
+          if ClientCategoryID==nil and MClient:IsExist() then
+            ClientCategoryID,UnitCategory=MClient:GetCategory()
+            self:T3( { "Category:", UnitCategory, self.FilterMeta.Categories[CategoryName], CategoryName } )
+            if self.FilterMeta.Categories[CategoryName] and UnitCategory and self.FilterMeta.Categories[CategoryName] == UnitCategory then
+              MClientCategory = true
+            end
+          else
+            self:T3( { "Category:", ClientCategoryID, self.FilterMeta.Categories[CategoryName], CategoryName } )
+            if self.FilterMeta.Categories[CategoryName] and ClientCategoryID and self.FilterMeta.Categories[CategoryName] == ClientCategoryID then
+              MClientCategory = true
+            end
           end
         end
         self:T( { "Evaluated Category", MClientCategory } )
@@ -5179,7 +5454,7 @@ do -- SET_AIRBASE
   function SET_AIRBASE:GetRandomAirbase()
 
     local RandomAirbase = self:GetRandom()
-    self:F( { RandomAirbase = RandomAirbase:GetName() } )
+    --self:F( { RandomAirbase = RandomAirbase:GetName() } )
 
     return RandomAirbase
   end
@@ -5345,7 +5620,7 @@ do -- SET_AIRBASE
         MAirbaseInclude = MAirbaseInclude and MAirbaseCoalition
       end
 
-      if self.Filter.Categories then
+      if self.Filter.Categories and MAirbaseInclude then
         local MAirbaseCategory = false
         for CategoryID, CategoryName in pairs( self.Filter.Categories ) do
           local AirbaseCategoryID = _DATABASE:GetCategoryFromAirbase( MAirbaseName )
@@ -7591,6 +7866,7 @@ do -- SET_OPSGROUP
       self:HandleEvent( EVENTS.Dead, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.Crash, self._EventOnDeadOrCrash )
       self:HandleEvent( EVENTS.RemoveUnit, self._EventOnDeadOrCrash )
+      self:HandleEvent( EVENTS.UnitLost, self._EventOnDeadOrCrash )
     end
 
     return self
@@ -7610,6 +7886,28 @@ do -- SET_OPSGROUP
     end
     return self
   end  
+
+  --- Handles the OnBirth event for the Set.
+  -- @param #SET_OPSGROUP self
+  -- @param Core.Event#EVENTDATA Event Event data.
+  function SET_OPSGROUP:_EventOnBirth( Event )
+    self:F3( { Event } )
+
+    if Event.IniDCSUnit and Event.IniDCSGroup then
+      local DCSgroup=Event.IniDCSGroup --DCS#Group
+
+      if DCSgroup:getInitialSize() == DCSgroup:getSize() then -- This seems to be not a good check as even for the first birth event, getSize returns the total number of units in the group.
+
+        local groupname, group = self:AddInDatabase( Event )
+
+        if group and group:CountAliveUnits()==DCSgroup:getInitialSize() then
+          if group and self:IsIncludeObject( group ) then
+            self:Add( groupname, group )
+          end
+        end
+      end
+    end
+  end
 
   --- Handles the OnDead or OnCrash event for alive groups set.
   -- Note: The GROUP object in the SET_OPSGROUP collection will only be removed if the last unit is destroyed of the GROUP.
@@ -7631,12 +7929,12 @@ do -- SET_OPSGROUP
   --- Handles the Database to check on an event (birth) that the Object was added in the Database.
   -- This is required, because sometimes the _DATABASE birth event gets called later than the SET_BASE birth event!
   -- @param #SET_OPSGROUP self
-  -- @param Core.Event#EVENTDATA Event
-  -- @return #string The name of the GROUP
-  -- @return #table The GROUP
+  -- @param Core.Event#EVENTDATA Event Event data.
+  -- @return #string The name of the GROUP.
+  -- @return Wrapper.Group#GROUP The GROUP object.
   function SET_OPSGROUP:AddInDatabase( Event )
   
-    if Event.IniObjectCategory==1 then
+    if Event.IniObjectCategory==Object.Category.UNIT then
     
       if not self.Database[Event.IniDCSGroupName] then
         self.Database[Event.IniDCSGroupName] = GROUP:Register( Event.IniDCSGroupName )
@@ -7651,8 +7949,8 @@ do -- SET_OPSGROUP
   -- This is required, because sometimes the _DATABASE event gets called later than the SET_BASE event or vise versa!
   -- @param #SET_OPSGROUP self
   -- @param Core.Event#EVENTDATA Event Event data table.
-  -- @return #string The name of the GROUP
-  -- @return #table The GROUP
+  -- @return #string The name of the GROUP.
+  -- @return Wrapper.Group#GROUP The GROUP object.
   function SET_OPSGROUP:FindInDatabase(Event)
     return Event.IniDCSGroupName, self.Database[Event.IniDCSGroupName]
   end
@@ -7691,7 +7989,7 @@ do -- SET_OPSGROUP
     end
 
     -- Filter coalitions.
-    if self.Filter.Coalitions then
+    if self.Filter.Coalitions and MGroupInclude then
     
       local MGroupCoalition = false
       
@@ -7705,7 +8003,7 @@ do -- SET_OPSGROUP
     end
 
     -- Filter categories.
-    if self.Filter.Categories then
+    if self.Filter.Categories and MGroupInclude then
     
       local MGroupCategory = false
       
@@ -7719,7 +8017,7 @@ do -- SET_OPSGROUP
     end
 
     -- Filter countries.
-    if self.Filter.Countries then
+    if self.Filter.Countries and MGroupInclude then
       local MGroupCountry = false
       for CountryID, CountryName in pairs( self.Filter.Countries ) do
         if country.id[CountryName] == MGroup:GetCountry() then
@@ -7730,12 +8028,12 @@ do -- SET_OPSGROUP
     end
 
     -- Filter "prefixes".
-    if self.Filter.GroupPrefixes then
+    if self.Filter.GroupPrefixes and MGroupInclude then
     
       local MGroupPrefix = false
       
       for GroupPrefixId, GroupPrefix in pairs( self.Filter.GroupPrefixes ) do
-        if string.find( MGroup:GetName(), GroupPrefix:gsub ("-", "%%-"), 1 ) then --Not sure why "-" is replaced by "%-" ?!
+        if string.find( MGroup:GetName(), GroupPrefix:gsub ("-", "%%-"), 1 ) then --Not sure why "-" is replaced by "%-" ?! - So we can still match group names with a dash in them
           MGroupPrefix = true
         end
       end
@@ -7971,7 +8269,7 @@ do -- SET_SCENERY
   end
   
   --- Get a table of alive objects.
-  -- @param #SET_GROUP self
+  -- @param #SET_SCENERY self
   -- @return #table Table of alive objects
   -- @return Core.Set#SET_SCENERY SET of alive objects
   function SET_SCENERY:GetAliveSet()
@@ -8006,9 +8304,15 @@ do -- SET_SCENERY
   -- @param #SET_SCENERY self
   -- @return Core.Point#COORDINATE The center coordinate of all the objects in the set.
   function SET_SCENERY:GetCoordinate()
-
-    local Coordinate = self:GetRandom():GetCoordinate()
-
+    
+    local Coordinate = COORDINATE:New({0,0,0})
+    
+    local Item = self:GetRandomSurely()
+    
+    if Item then
+      Coordinate:GetCoordinate()
+    end
+    
     local x1 = Coordinate.x
     local x2 = Coordinate.x
     local y1 = Coordinate.y
@@ -8145,7 +8449,7 @@ do -- SET_SCENERY
   --- Calculate current relative lifepoints of the SET objects, i.e. Life divided by Life0 as percentage value, eg 75 meaning 75% alive. 
   -- **CAVEAT**: Some objects change their life value or "hitpoints" **after** the first hit. Hence we will adjust the Life0 value to 120% 
   -- of the last life value if life exceeds life0 ata any point.
-  -- Thus will will get a smooth percentage decrease, if you use this e.g. as success criteria for a bombing task.
+  -- Thus we will get a smooth percentage decrease, if you use this e.g. as success criteria for a bombing task.
   -- @param #SET_SCENERY self
   -- @return #number LifePoints
   function SET_SCENERY:GetRelativeLife()

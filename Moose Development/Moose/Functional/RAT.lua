@@ -33,16 +33,11 @@
 --
 -- ===
 --
--- ## Missions:
+-- ## Additional Material:
 --
--- ### [RAT - Random Air Traffic](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/RAT%20-%20Random%20Air%20Traffic)
---
--- ===
---
--- # YouTube Channel
---
--- ### [MOOSE YouTube Channel](https://www.youtube.com/channel/UCjrA9j5LQoWsG4SpS8i79Qg)
--- ### [MOOSE - RAT - Random Air Traffic](https://www.youtube.com/playlist?list=PL7ZUrU4zZUl0u4Zxywtg-mx_ov4vi68CO)
+-- * **Demo Missions:** [GitHub](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/Functional/RAT)
+-- * **YouTube videos:** [Random Air Traffic](https://www.youtube.com/playlist?list=PL7ZUrU4zZUl0u4Zxywtg-mx_ov4vi68CO)
+-- * **Guides:** None
 --
 -- ===
 --
@@ -170,7 +165,7 @@
 --
 -- * A specific departure and/or destination airport can be chosen.
 -- * Valid coalitions can be set, e.g. only red, blue or neutral, all three "colours".
--- * It is possible to start in air within a zone defined in the mission editor or within a zone above an airport of the map.
+-- * It is possible to start in air within a zone or within a zone above an airport of the map.
 --
 -- ## Flight Plan
 --
@@ -1179,13 +1174,13 @@ function RAT:SetTakeoffAir()
   return self
 end
 
---- Set possible departure ports. This can be an airport or a zone defined in the mission editor.
+--- Set possible departure ports. This can be an airport or a zone.
 -- @param #RAT self
 -- @param #string departurenames Name or table of names of departure airports or zones.
 -- @return #RAT RAT self object.
 -- @usage RAT:SetDeparture("Sochi-Adler") will spawn RAT objects at Sochi-Adler airport.
 -- @usage RAT:SetDeparture({"Sochi-Adler", "Gudauta"}) will spawn RAT aircraft radomly at Sochi-Adler or Gudauta airport.
--- @usage RAT:SetDeparture({"Zone A", "Gudauta"}) will spawn RAT aircraft in air randomly within Zone A, which has to be defined in the mission editor, or within a zone around Gudauta airport. Note that this also requires RAT:takeoff("air") to be set.
+-- @usage RAT:SetDeparture({"Zone A", "Gudauta"}) will spawn RAT aircraft in air randomly within Zone A, or within a zone around Gudauta airport. Note that this also requires RAT:takeoff("air") to be set.
 function RAT:SetDeparture(departurenames)
   self:F2(departurenames)
 
@@ -2057,6 +2052,10 @@ function RAT:_InitAircraft(DCSgroup)
     self.aircraft.length=16
     self.aircraft.height=5
     self.aircraft.width=9
+  elseif DCStype == "Saab340" then      --   <- These lines added
+    self.aircraft.length=19.73          --   <- These lines added
+    self.aircraft.height=6.97           --   <- These lines added
+    self.aircraft.width=21.44           --   <- These lines added
   end
   self.aircraft.box=math.max(self.aircraft.length,self.aircraft.width)
 
@@ -2537,7 +2536,7 @@ function RAT:_SetRoute(takeoff, landing, _departure, _destination, _waypoint)
       end
     elseif self:_ZoneExists(_departure) then
       -- If it's not an airport, check whether it's a zone.
-      departure=ZONE:New(_departure)
+      departure=ZONE:FindByName(_departure)
     else
       local text=string.format("ERROR! Specified departure airport %s does not exist for %s.", _departure, self.alias)
       self:E(RAT.id..text)
@@ -2635,7 +2634,7 @@ function RAT:_SetRoute(takeoff, landing, _departure, _destination, _waypoint)
       end
 
     elseif self:_ZoneExists(_destination) then
-      destination=ZONE:New(_destination)
+      destination=ZONE:FindByName(_destination)
     else
       local text=string.format("ERROR: Specified destination airport/zone %s does not exist for %s!", _destination, self.alias)
       self:E(RAT.id.."ERROR: "..text)
@@ -3142,7 +3141,7 @@ function RAT:_PickDeparture(takeoff)
         end
       elseif self:_ZoneExists(name) then
         if takeoff==RAT.wp.air then
-          dep=ZONE:New(name)
+          dep=ZONE:FindByName(name)
         else
           self:E(RAT.id..string.format("ERROR! Takeoff is not in air. Cannot use %s as departure.", name))
         end
@@ -3254,7 +3253,7 @@ function RAT:_PickDestination(departure, q, minrange, maxrange, random, landing)
           end
         elseif self:_ZoneExists(name) then
           if landing==RAT.wp.air then
-            dest=ZONE:New(name)
+            dest=ZONE:FindByName(name)
           else
             self:E(RAT.id..string.format("ERROR! Landing is not in air. Cannot use zone %s as destination!", name))
           end
@@ -4930,12 +4929,12 @@ function RAT:_AirportExists(name)
   return false
 end
 
---- Test if a trigger zone defined in the mission editor exists.
+--- Test if a zone exists.
 -- @param #RAT self
 -- @param #string name
 -- @return #boolean True if zone exsits, false otherwise.
 function RAT:_ZoneExists(name)
-  local z=trigger.misc.getZone(name)
+  local z=ZONE:FindByName(name) --trigger.misc.getZone(name) as suggested by @Viking on MOOSE discord #rat
   if z then
     return true
   end

@@ -18,7 +18,7 @@
 -- 
 -- Test missions can be located on the main GITHUB site.
 -- 
--- [FlightControl-Master/MOOSE_MISSIONS/AID - AI Dispatching/AID-CGO - AI Cargo Dispatching/](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/develop/AID%20-%20AI%20Dispatching/AID-CGO%20-%20AI%20Cargo%20Dispatching)
+-- [FlightControl-Master/MOOSE_MISSIONS/AID - AI Dispatching/AID-CGO - AI Cargo Dispatching/](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/AI/AI_Cargo_Dispatcher)
 -- 
 -- ===
 -- 
@@ -116,7 +116,7 @@
 -- @image AI_Cargo_Dispatcher.JPG
 
 
---- @type AI_CARGO_DISPATCHER
+-- @type AI_CARGO_DISPATCHER
 -- @field Core.Set#SET_GROUP CarrierSet The set of @{Wrapper.Group#GROUP} objects of carriers that will transport the cargo. 
 -- @field Core.Set#SET_CARGO CargoSet The set of @{Cargo.Cargo#CARGO} objects, which can be CARGO_GROUP, CARGO_CRATE, CARGO_SLINGLOAD objects.
 -- @field Core.Zone#SET_ZONE PickupZoneSet The set of pickup zones, which are used to where the cargo can be picked up by the carriers. If nil, then cargo can be picked up everywhere. 
@@ -572,7 +572,7 @@
 -- A home zone can be specified to where the Carriers will move when there isn't any cargo left for pickup.
 -- Use @{#AI_CARGO_DISPATCHER.SetHomeZone}() to specify the home zone.
 -- 
--- If no home zone is specified, the carriers will wait near the deploy zone for a new pickup command.   
+-- If no home zone is specified, the carriers will wait near the deploy zone for a new pickup command.
 -- 
 -- ===
 --   
@@ -583,10 +583,12 @@ AI_CARGO_DISPATCHER = {
   PickupCargo = {}
 }
 
---- @field #list 
+--- List of AI_Cargo
+-- @field #list
 AI_CARGO_DISPATCHER.AI_Cargo = {}
 
---- @field #list
+--- List of PickupCargo
+-- @field #list
 AI_CARGO_DISPATCHER.PickupCargo = {}
 
 
@@ -1159,7 +1161,7 @@ function AI_CARGO_DISPATCHER:onafterMonitor()
                 else
                   local text=string.format("WARNING: Cargo %s is too heavy to be loaded into transport. Cargo weight %.1f > %.1f load capacity of carrier %s.", 
                   tostring(Cargo:GetName()), Cargo:GetWeight(), LargestLoadCapacity, tostring(Carrier:GetName()))
-                  self:I(text)
+                  self:T(text)
                 end
               end
             end

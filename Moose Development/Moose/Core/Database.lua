@@ -37,6 +37,8 @@
 -- @field #table Templates Templates: Units, Groups, Statics, ClientsByName, ClientsByID.
 -- @field #table CLIENTS Clients.
 -- @field #table STORAGES DCS warehouse storages.
+-- @field #table STNS Used Link16 octal numbers for F16/15/18/AWACS planes.
+-- @field #table SADL Used Link16 octal numbers for A10/C-II planes.
 -- @extends Core.Base#BASE
 
 --- Contains collections of wrapper objects defined within MOOSE that reflect objects within the simulator.
@@ -93,6 +95,8 @@ DATABASE = {
   OPSZONES = {},
   PATHLINES = {},
   STORAGES = {},
+  STNS={},
+  SADL={},
 }
 
 local _DATABASECoalition =
@@ -131,7 +135,7 @@ function DATABASE:New()
   self:HandleEvent( EVENTS.Dead, self._EventOnDeadOrCrash )
   self:HandleEvent( EVENTS.Crash, self._EventOnDeadOrCrash )
   self:HandleEvent( EVENTS.RemoveUnit, self._EventOnDeadOrCrash )
-  --self:HandleEvent( EVENTS.UnitLost, self._EventOnDeadOrCrash )  -- DCS 2.7.1 for Aerial units no dead event ATM
+  self:HandleEvent( EVENTS.UnitLost, self._EventOnDeadOrCrash )  -- DCS 2.7.1 for Aerial units no dead event ATM
   self:HandleEvent( EVENTS.Hit, self.AccountHits )
   self:HandleEvent( EVENTS.NewCargo )
   self:HandleEvent( EVENTS.DeleteCargo )
@@ -166,10 +170,11 @@ end
 --- Adds a Unit based on the Unit Name in the DATABASE.
 -- @param #DATABASE self
 -- @param #string DCSUnitName Unit name.
+-- @param #boolean force
 -- @return Wrapper.Unit#UNIT The added unit.
-function DATABASE:AddUnit( DCSUnitName )
+function DATABASE:AddUnit( DCSUnitName, force )
 
-  if not self.UNITS[DCSUnitName] then
+  if not self.UNITS[DCSUnitName] or force == true then
     -- Debug info.
     self:T( { "Add UNIT:", DCSUnitName } )
 
@@ -184,6 +189,7 @@ end
 --- Deletes a Unit from the DATABASE based on the Unit Name.
 -- @param #DATABASE self
 function DATABASE:DeleteUnit( DCSUnitName )
+  self:T("DeleteUnit "..tostring(DCSUnitName))
   self.UNITS[DCSUnitName] = nil
 end
 
@@ -449,10 +455,10 @@ do -- Zones and Pathlines
 
       -- Loop over layers.
       for layerID, layerData in pairs(env.mission.drawings.layers or {}) do
-
+        
         -- Loop over objects in layers.
         for objectID, objectData in pairs(layerData.objects or {}) do
-
+          
           -- Check for polygon which has at least 4 points (we would need 3 but the origin seems to be there twice)
           if objectData.polygonMode and (objectData.polygonMode=="free") and objectData.points and #objectData.points>=4 then
 
@@ -488,10 +494,32 @@ do -- Zones and Pathlines
 
             -- Create new polygon zone.
             local Zone=ZONE_POLYGON:NewFromPointsArray(ZoneName, points)
-
+            
+            --Zone.DrawID = objectID
+            
             -- Set color.
             Zone:SetColor({1, 0, 0}, 0.15)
-
+            Zone:SetFillColor({1, 0, 0}, 0.15)
+            
+            if objectData.colorString then 
+              -- eg colorString = 0xff0000ff
+              local color = string.gsub(objectData.colorString,"^0x","")
+              local r = tonumber(string.sub(color,1,2),16)/255
+              local g = tonumber(string.sub(color,3,4),16)/255
+              local b = tonumber(string.sub(color,5,6),16)/255
+              local a = tonumber(string.sub(color,7,8),16)/255
+              Zone:SetColor({r, g, b}, a)
+            end
+            if objectData.fillColorString then 
+              -- eg fillColorString = 0xff00004b
+              local color = string.gsub(objectData.colorString,"^0x","")
+              local r = tonumber(string.sub(color,1,2),16)/255
+              local g = tonumber(string.sub(color,3,4),16)/255
+              local b = tonumber(string.sub(color,5,6),16)/255
+              local a = tonumber(string.sub(color,7,8),16)/255
+              Zone:SetFillColor({r, g, b}, a)
+            end
+            
             -- Store in DB.
             self.ZONENAMES[ZoneName] = ZoneName
 
@@ -532,7 +560,26 @@ do -- Zones and Pathlines
 
             -- Set color.
             Zone:SetColor({1, 0, 0}, 0.15)
-
+            
+           if objectData.colorString then 
+              -- eg colorString = 0xff0000ff
+              local color = string.gsub(objectData.colorString,"^0x","")
+              local r = tonumber(string.sub(color,1,2),16)/255
+              local g = tonumber(string.sub(color,3,4),16)/255
+              local b = tonumber(string.sub(color,5,6),16)/255
+              local a = tonumber(string.sub(color,7,8),16)/255
+              Zone:SetColor({r, g, b}, a)
+            end
+            if objectData.fillColorString then 
+              -- eg fillColorString = 0xff00004b
+              local color = string.gsub(objectData.colorString,"^0x","")
+              local r = tonumber(string.sub(color,1,2),16)/255
+              local g = tonumber(string.sub(color,3,4),16)/255
+              local b = tonumber(string.sub(color,5,6),16)/255
+              local a = tonumber(string.sub(color,7,8),16)/255
+              Zone:SetFillColor({r, g, b}, a)
+            end
+            
             -- Store in DB.
             self.ZONENAMES[ZoneName] = ZoneName
 
@@ -756,7 +803,7 @@ end -- cargo
 
 --- Finds a CLIENT based on the ClientName.
 -- @param #DATABASE self
--- @param #string ClientName
+-- @param #string ClientName - Note this is the UNIT name of the client!
 -- @return Wrapper.Client#CLIENT The found CLIENT.
 function DATABASE:FindClient( ClientName )
 
@@ -768,10 +815,11 @@ end
 --- Adds a CLIENT based on the ClientName in the DATABASE.
 -- @param #DATABASE self
 -- @param #string ClientName Name of the Client unit.
+-- @param #boolean Force (optional) Force registration of client.
 -- @return Wrapper.Client#CLIENT The client object.
-function DATABASE:AddClient( ClientName )
+function DATABASE:AddClient( ClientName, Force )
 
-  if not self.CLIENTS[ClientName] then
+  if not self.CLIENTS[ClientName] or Force == true then
     self.CLIENTS[ClientName] = CLIENT:Register( ClientName )
   end
 
@@ -786,15 +834,25 @@ end
 function DATABASE:FindGroup( GroupName )
 
   local GroupFound = self.GROUPS[GroupName]
+  
+  if GroupFound == nil and GroupName ~= nil and self.Templates.Groups[GroupName] == nil then
+    -- see if the group exists in the API, maybe a dynamic slot
+    self:_RegisterDynamicGroup(GroupName)
+    return self.GROUPS[GroupName]
+  end
+  
   return GroupFound
 end
 
 
 --- Adds a GROUP based on the GroupName in the DATABASE.
 -- @param #DATABASE self
-function DATABASE:AddGroup( GroupName )
+-- @param #string GroupName
+-- @param #boolean force
+-- @return Wrapper.Group#GROUP The Group
+function DATABASE:AddGroup( GroupName, force )
 
-  if not self.GROUPS[GroupName] then
+  if not self.GROUPS[GroupName] or force == true then
     self:T( { "Add GROUP:", GroupName } )
     self.GROUPS[GroupName] = GROUP:Register( GroupName )
   end
@@ -887,7 +945,7 @@ function DATABASE:Spawn( SpawnTemplate )
   SpawnTemplate.CountryID = nil
   SpawnTemplate.CategoryID = nil
 
-  self:_RegisterGroupTemplate( SpawnTemplate, SpawnCoalitionID, SpawnCategoryID, SpawnCountryID  )
+  self:_RegisterGroupTemplate( SpawnTemplate, SpawnCoalitionID, SpawnCategoryID, SpawnCountryID, SpawnTemplate.name  )
 
   self:T3( SpawnTemplate )
   coalition.addGroup( SpawnCountryID, SpawnCategoryID, SpawnTemplate )
@@ -964,7 +1022,7 @@ function DATABASE:_RegisterGroupTemplate( GroupTemplate, CoalitionSide, Category
   self.Templates.Groups[GroupTemplateName].CategoryID = CategoryID
   self.Templates.Groups[GroupTemplateName].CoalitionID = CoalitionSide
   self.Templates.Groups[GroupTemplateName].CountryID = CountryID
-
+  
   local UnitNames = {}
 
   for unit_num, UnitTemplate in pairs( GroupTemplate.units ) do
@@ -988,10 +1046,31 @@ function DATABASE:_RegisterGroupTemplate( GroupTemplate, CoalitionSide, Category
       self.Templates.ClientsByName[UnitTemplate.name].CountryID = CountryID
       self.Templates.ClientsByID[UnitTemplate.unitId] = UnitTemplate
     end
+    
+    if UnitTemplate.AddPropAircraft then
+      if UnitTemplate.AddPropAircraft.STN_L16 then
+        local stn = UTILS.OctalToDecimal(UnitTemplate.AddPropAircraft.STN_L16)
+        if stn == nil or stn < 1 then
+          self:E("WARNING: Invalid STN "..tostring(UnitTemplate.AddPropAircraft.STN_L16).." for ".. UnitTemplate.name)
+        else
+          self.STNS[stn] = UnitTemplate.name
+          self:I("Register STN "..tostring(UnitTemplate.AddPropAircraft.STN_L16).." for ".. UnitTemplate.name)
+        end
+      end
+      if UnitTemplate.AddPropAircraft.SADL_TN then
+        local sadl = UTILS.OctalToDecimal(UnitTemplate.AddPropAircraft.SADL_TN)
+        if sadl == nil or sadl < 1 then
+          self:E("WARNING: Invalid SADL "..tostring(UnitTemplate.AddPropAircraft.SADL_TN).." for ".. UnitTemplate.name)
+        else
+          self.SADL[sadl] = UnitTemplate.name
+          self:I("Register SADL "..tostring(UnitTemplate.AddPropAircraft.SADL_TN).." for ".. UnitTemplate.name)
+        end
+      end  
+    end
 
     UnitNames[#UnitNames+1] = self.Templates.Units[UnitTemplate.name].UnitName
   end
-
+    
   -- Debug info.
   self:T( { Group     = self.Templates.Groups[GroupTemplateName].GroupName,
             Coalition = self.Templates.Groups[GroupTemplateName].CoalitionID,
@@ -1002,15 +1081,92 @@ function DATABASE:_RegisterGroupTemplate( GroupTemplate, CoalitionSide, Category
         )
 end
 
+--- Get next (consecutive) free STN as octal number.
+-- @param #DATABASE self
+-- @param #number octal Starting octal.
+-- @param #string unitname Name of the associated unit.
+-- @return #number Octal
+function DATABASE:GetNextSTN(octal,unitname)
+  local first = UTILS.OctalToDecimal(octal) or 0
+  if self.STNS[first] == unitname then return octal end
+  local nextoctal = 77777
+  local found = false
+  if 32767-first < 10 then
+    first = 0
+  end
+  for i=first+1,32767 do
+    if self.STNS[i] == nil then
+      found = true
+      nextoctal = UTILS.DecimalToOctal(i)
+      self.STNS[i] = unitname
+      self:T("Register STN "..tostring(nextoctal).." for ".. unitname)
+      break
+    end
+  end
+  if not found then
+    self:E(string.format("WARNING: No next free STN past %05d found!",octal))
+    -- cleanup
+    local NewSTNS = {}
+    for _id,_name in pairs(self.STNS) do
+      if self.UNITS[_name] ~= nil then
+        NewSTNS[_id] = _name
+      end
+    end
+    self.STNS = nil
+    self.STNS = NewSTNS
+  end
+  return nextoctal 
+end
+
+--- Get next (consecutive) free SADL as octal number.
+-- @param #DATABASE self
+-- @param #number octal Starting octal.
+-- @param #string unitname Name of the associated unit.
+-- @return #number Octal
+function DATABASE:GetNextSADL(octal,unitname)
+  local first = UTILS.OctalToDecimal(octal) or 0
+  if self.SADL[first] == unitname then return octal end
+  local nextoctal = 7777
+  local found = false
+  if 4095-first < 10 then
+    first = 0
+  end
+  for i=first+1,4095 do
+    if self.STNS[i] == nil then
+      found = true
+      nextoctal = UTILS.DecimalToOctal(i)
+      self.SADL[i] = unitname
+      self:T("Register SADL "..tostring(nextoctal).." for ".. unitname)
+      break
+    end
+  end
+  if not found then
+    self:E(string.format("WARNING: No next free SADL past %04d found!",octal))
+    -- cleanup
+    local NewSTNS = {}
+    for _id,_name in pairs(self.SADL) do
+      if self.UNITS[_name] ~= nil then
+        NewSTNS[_id] = _name
+      end
+    end
+    self.SADL = nil
+    self.SADL = NewSTNS
+  end
+  return nextoctal 
+end
+
 --- Get group template.
 -- @param #DATABASE self
 -- @param #string GroupName Group name.
 -- @return #table Group template table.
 function DATABASE:GetGroupTemplate( GroupName )
-  local GroupTemplate = self.Templates.Groups[GroupName].Template
-  GroupTemplate.SpawnCoalitionID = self.Templates.Groups[GroupName].CoalitionID
-  GroupTemplate.SpawnCategoryID = self.Templates.Groups[GroupName].CategoryID
-  GroupTemplate.SpawnCountryID = self.Templates.Groups[GroupName].CountryID
+  local GroupTemplate=nil
+  if self.Templates.Groups[GroupName] then
+    GroupTemplate = self.Templates.Groups[GroupName].Template
+    GroupTemplate.SpawnCoalitionID = self.Templates.Groups[GroupName].CoalitionID
+    GroupTemplate.SpawnCategoryID = self.Templates.Groups[GroupName].CategoryID
+    GroupTemplate.SpawnCountryID = self.Templates.Groups[GroupName].CountryID
+  end
   return GroupTemplate
 end
 
@@ -1128,7 +1284,11 @@ end
 -- @param #string ClientName Name of the Client.
 -- @return #number Coalition ID.
 function DATABASE:GetCoalitionFromClientTemplate( ClientName )
-  return self.Templates.ClientsByName[ClientName].CoalitionID
+  if self.Templates.ClientsByName[ClientName] then  
+    return self.Templates.ClientsByName[ClientName].CoalitionID
+  end
+  self:E("ERROR: Template does not exist for client "..tostring(ClientName))
+  return nil
 end
 
 --- Get category ID from client name.
@@ -1136,7 +1296,11 @@ end
 -- @param #string ClientName Name of the Client.
 -- @return #number Category ID.
 function DATABASE:GetCategoryFromClientTemplate( ClientName )
-  return self.Templates.ClientsByName[ClientName].CategoryID
+  if self.Templates.ClientsByName[ClientName] then  
+    return self.Templates.ClientsByName[ClientName].CategoryID
+  end
+  self:E("ERROR: Template does not exist for client "..tostring(ClientName))
+  return nil
 end
 
 --- Get country ID from client name.
@@ -1144,7 +1308,11 @@ end
 -- @param #string ClientName Name of the Client.
 -- @return #number Country ID.
 function DATABASE:GetCountryFromClientTemplate( ClientName )
-  return self.Templates.ClientsByName[ClientName].CountryID
+  if self.Templates.ClientsByName[ClientName] then  
+    return self.Templates.ClientsByName[ClientName].CountryID
+  end
+  self:E("ERROR: Template does not exist for client "..tostring(ClientName))
+  return nil  
 end
 
 --- Airbase
@@ -1190,6 +1358,36 @@ function DATABASE:_RegisterPlayers()
   return self
 end
 
+--- Private method that registers a single dynamic slot Group and Units within in the mission.
+-- @param #DATABASE self
+-- @return #DATABASE self
+function DATABASE:_RegisterDynamicGroup(Groupname)
+  local DCSGroup = Group.getByName(Groupname)
+  if DCSGroup and DCSGroup:isExist() then
+  
+    -- Group name.
+    local DCSGroupName = DCSGroup:getName()
+  
+    -- Add group.
+    self:I(string.format("Register Group: %s", tostring(DCSGroupName)))
+    self:AddGroup( DCSGroupName, true )
+  
+    -- Loop over units in group.
+    for DCSUnitId, DCSUnit in pairs( DCSGroup:getUnits() ) do
+  
+      -- Get unit name.
+      local DCSUnitName = DCSUnit:getName()
+  
+      -- Add unit.
+      self:I(string.format("Register Unit: %s", tostring(DCSUnitName)))
+      self:AddUnit( DCSUnitName, true )
+  
+    end
+  else
+    self:E({"Group does not exist: ", DCSGroup})
+  end
+  return self
+end
 
 --- Private method that registers all Groups and Units within in the mission.
 -- @param #DATABASE self
@@ -1302,9 +1500,17 @@ function DATABASE:_RegisterAirbase(airbase)
 
     -- Unique ID.
     local airbaseUID=airbase:GetID(true)
-
+    
+    local typename = airbase:GetTypeName()
+    
+    local category = airbase.category
+    
+    if category == Airbase.Category.SHIP and typename == "FARP_SINGLE_01" then
+      category = Airbase.Category.HELIPAD
+    end
+    
     -- Debug output.
-    local text=string.format("Register %s: %s (UID=%d), Runways=%d, Parking=%d [", AIRBASE.CategoryName[airbase.category], tostring(DCSAirbaseName), airbaseUID, #airbase.runways, airbase.NparkingTotal)
+    local text=string.format("Register %s: %s (UID=%d), Runways=%d, Parking=%d [", AIRBASE.CategoryName[category], tostring(DCSAirbaseName), airbaseUID, #airbase.runways, airbase.NparkingTotal)
     for _,terminalType in pairs(AIRBASE.TerminalType) do
       if airbase.NparkingTerminal and airbase.NparkingTerminal[terminalType] then
         text=text..string.format("%d=%d ", terminalType, airbase.NparkingTerminal[terminalType])
@@ -1354,9 +1560,9 @@ function DATABASE:_EventOnBirth( Event )
     end
 
     if Event.IniObjectCategory == Object.Category.UNIT then
-
-      Event.IniUnit = self:FindUnit( Event.IniDCSUnitName )
+      
       Event.IniGroup = self:FindGroup( Event.IniDCSGroupName )
+      Event.IniUnit = self:FindUnit( Event.IniDCSUnitName )
 
       -- Client
       local client=self.CLIENTS[Event.IniDCSUnitName] --Wrapper.Client#CLIENT
@@ -1372,10 +1578,10 @@ function DATABASE:_EventOnBirth( Event )
 
         -- Debug info.
         self:I(string.format("Player '%s' joined unit '%s' of group '%s'", tostring(PlayerName), tostring(Event.IniDCSUnitName), tostring(Event.IniDCSGroupName)))
-
+              
         -- Add client in case it does not exist already.
-        if not client then
-          client=self:AddClient(Event.IniDCSUnitName)
+        if client == nil or (client and client:CountPlayers() == 0) then
+          client=self:AddClient(Event.IniDCSUnitName, true)
         end
 
         -- Add player.
@@ -1385,14 +1591,19 @@ function DATABASE:_EventOnBirth( Event )
         if not self.PLAYERS[PlayerName] then
           self:AddPlayer( Event.IniUnitName, PlayerName )
         end
-
-        -- Player settings.
-        local Settings = SETTINGS:Set( PlayerName )
-        Settings:SetPlayerMenu(Event.IniUnit)
-
-        -- Create an event.
-        self:CreateEventPlayerEnterAircraft(Event.IniUnit)
-
+        
+        local function SetPlayerSettings(self,PlayerName,IniUnit)
+          -- Player settings.
+          local Settings = SETTINGS:Set( PlayerName )
+          --Settings:SetPlayerMenu(Event.IniUnit)
+          Settings:SetPlayerMenu(IniUnit)
+          -- Create an event.
+          self:CreateEventPlayerEnterAircraft(IniUnit)
+          --self:CreateEventPlayerEnterAircraft(Event.IniUnit)
+        end
+        
+        self:ScheduleOnce(1,SetPlayerSettings,self,PlayerName,Event.IniUnit)
+        
       end
 
     end
@@ -1406,7 +1617,6 @@ end
 -- @param #DATABASE self
 -- @param Core.Event#EVENTDATA Event
 function DATABASE:_EventOnDeadOrCrash( Event )
-
   if Event.IniDCSUnit then
 
     local name=Event.IniDCSUnitName
@@ -1414,7 +1624,7 @@ function DATABASE:_EventOnDeadOrCrash( Event )
     if Event.IniObjectCategory == 3 then
 
       ---
-      -- STATICS
+      -- STATICS 
       ---
 
       if self.STATICS[Event.IniDCSUnitName] then
@@ -1424,7 +1634,7 @@ function DATABASE:_EventOnDeadOrCrash( Event )
       ---
       -- Maybe a UNIT?
       ---
-
+ 
       -- Delete unit.
       if self.UNITS[Event.IniDCSUnitName] then
         self:T("STATIC Event for UNIT "..tostring(Event.IniDCSUnitName))
@@ -1447,7 +1657,8 @@ function DATABASE:_EventOnDeadOrCrash( Event )
 
         -- Delete unit.
         if self.UNITS[Event.IniDCSUnitName] then
-          self:DeleteUnit(Event.IniDCSUnitName)
+          self:ScheduleOnce(1,self.DeleteUnit,self,Event.IniDCSUnitName)
+          --self:DeleteUnit(Event.IniDCSUnitName)
         end
 
         -- Remove client players.
@@ -1537,7 +1748,7 @@ function DATABASE:_EventOnPlayerLeaveUnit( Event )
     if Event.IniObjectCategory == 1 then
 
       -- Try to get the player name. This can be buggy for multicrew aircraft!
-      local PlayerName = Event.IniUnit:GetPlayerName() or FindPlayerName(Event.IniUnitName)
+      local PlayerName = Event.IniPlayerName or Event.IniUnit:GetPlayerName() or FindPlayerName(Event.IniUnitName)
           
       if PlayerName then
 
@@ -1555,6 +1766,7 @@ function DATABASE:_EventOnPlayerLeaveUnit( Event )
         local client=self.CLIENTS[Event.IniDCSUnitName] --Wrapper.Client#CLIENT
         if client then
           client:RemovePlayer(PlayerName)
+          --self.PLAYERSETTINGS[PlayerName] = nil
         end
 
       end
@@ -1852,7 +2064,7 @@ end
 
 --- Add a flight control to the data base.
 -- @param #DATABASE self
--- @param Ops.FlightControl#FLIGHTCONTROL flightcontrol
+-- @param OPS.FlightControl#FLIGHTCONTROL flightcontrol
 function DATABASE:AddFlightControl(flightcontrol)
   self:F2( { flightcontrol } )
   self.FLIGHTCONTROLS[flightcontrol.airbasename]=flightcontrol
@@ -1861,7 +2073,7 @@ end
 --- Get a flight control object from the data base.
 -- @param #DATABASE self
 -- @param #string airbasename Name of the associated airbase.
--- @return Ops.FlightControl#FLIGHTCONTROL The FLIGHTCONTROL object.s
+-- @return OPS.FlightControl#FLIGHTCONTROL The FLIGHTCONTROL object.s
 function DATABASE:GetFlightControl(airbasename)
   return self.FLIGHTCONTROLS[airbasename]
 end
@@ -1933,7 +2145,7 @@ function DATABASE:_RegisterTemplates()
                   for group_num, Template in pairs(obj_type_data.group) do
 
                     if obj_type_name ~= "static" and Template and Template.units and type(Template.units) == 'table' then  --making sure again- this is a valid group
-
+                      
                       self:_RegisterGroupTemplate(Template, CoalitionSide, _DATABASECategory[string.lower(CategoryName)], CountryID)
 
                     else

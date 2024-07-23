@@ -13,13 +13,13 @@
 --
 -- ## Missions:
 --
--- [SEV - SEAD Evasion](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/SEV%20-%20SEAD%20Evasion)
+-- [SEV - SEAD Evasion](https://github.com/FlightControl-Master/MOOSE_MISSIONS/tree/master/Functional/Sead)
 --
 -- ===
 --
--- ### Authors: **FlightControl**, **applevangelist**
+-- ### Authors: **applevangelist**, **FlightControl**
 --
--- Last Update: Oct 2023
+-- Last Update: Dec 2023
 --
 -- ===
 --
@@ -144,7 +144,7 @@ function SEAD:New( SEADGroupPrefixes, Padding )
   self:AddTransition("*",             "ManageEvasion",                "*")
   self:AddTransition("*",             "CalculateHitZone",             "*")
   
-  self:I("*** SEAD - Started Version 0.4.5")
+  self:I("*** SEAD - Started Version 0.4.6")
   return self
 end
 
@@ -320,9 +320,6 @@ function SEAD:onafterCalculateHitZone(From,Event,To,SEADWeapon,pos0,height,SEADG
         end  
         
         local seadset = SET_GROUP:New():FilterPrefixes(self.SEADGroupPrefixes):FilterZones({targetzone}):FilterOnce()
-        local tgtcoord = targetzone:GetRandomPointVec2()
-        --if tgtcoord and tgtcoord.ClassName == "COORDINATE" then
-          --local tgtgrp = seadset:FindNearestGroupFromPointVec2(tgtcoord)
           local tgtgrp = seadset:GetRandom()
           local _targetgroup = nil
           local _targetgroupname = "none"
@@ -401,7 +398,7 @@ function SEAD:onafterManageEvasion(From,Event,To,_targetskill,_targetgroup,SEADP
             grp:EnableEmission(false)
           end
           grp:OptionAlarmStateGreen() -- needed else we cannot move around
-          grp:RelocateGroundRandomInRadius(20,300,false,false,"Diamond")
+          grp:RelocateGroundRandomInRadius(20,300,false,false,"Diamond",true)
           if self.UseCallBack then
             local object = self.CallBack
             object:SeadSuppressionStart(grp,name,attacker)
